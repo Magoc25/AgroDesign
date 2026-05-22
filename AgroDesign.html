@@ -633,7 +633,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <input type="text" id="projectSaveName" placeholder="Nome do projeto..." style="flex:1">
       <button class="btn btn-primary btn-sm" id="btnSaveProject" onclick="saveCurrentProject()">Salvar</button>
     </div>
-    <p class="hint" style="margin-bottom:.75rem">1. Gere o croqui · 2. Digite um nome · 3. Clique Salvar.<br>O badge verde aparece no topo do painel e o projeto é salvo automaticamente a cada novo croqui gerado.</p>
+    <p class="hint" style="margin-bottom:.75rem">Digite um nome e clique Salvar — a qualquer momento, com ou sem croqui gerado. O badge verde aparece no topo do painel e o projeto é salvo automaticamente a cada novo croqui.</p>
 
     <!-- Importar JSON -->
     <div style="margin-bottom:.75rem">
@@ -2039,7 +2039,6 @@ function saveCurrentProject(silent = false) {
   const input = document.getElementById('projectSaveName');
   const name  = (input?.value?.trim() || currentProjectName || '').trim();
   if (!name) { alert('Digite um nome para o projeto.'); return; }
-  if (!units.length) { alert('Gere o croqui antes de salvar o projeto.'); return; }
 
   const projects = getProjectsFromStorage();
   const idx = projects.findIndex(p => p.name === name);
