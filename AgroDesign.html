@@ -494,7 +494,10 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <span class="hint">Gere o croqui para ver o field book.</span>
     </div>
     <div id="fieldbookContent" class="hidden" style="display:flex;flex-direction:column;gap:.5rem">
-      <button class="btn btn-secondary btn-sm" style="align-self:flex-start" onclick="exportCSV()">⬇ Exportar CSV</button>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ CSV</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportXLSX()">⬇ XLSX (Excel)</button>
+      </div>
       <div class="table-wrap">
         <table id="fieldbookTable"><thead id="fbHead"></thead><tbody id="fbBody"></tbody></table>
       </div>
@@ -626,6 +629,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 'use strict';
@@ -948,7 +952,8 @@ function renderSummary() {
 function cellBg(uw, uh, color, style) {
   switch (style) {
     case 'border':
-      return `<rect x="0" y="0" width="${uw}" height="${uh}" fill="#fafafa" stroke="${esc(color)}" stroke-width="3.5" rx="2"/>`;
+      return `<rect x="0" y="0" width="${uw}" height="${uh}" fill="#fff" stroke="#d1d5db" stroke-width="0.5" rx="2"/>` +
+             `<rect x="2.5" y="2.5" width="${uw-5}" height="${uh-5}" fill="none" stroke="${esc(color)}" stroke-width="2.5" rx="1.5"/>`;
     case 'stripe': {
       const sh = Math.max(11, Math.round(uh * 0.3));
       return `<rect x="0" y="0" width="${uw}" height="${uh}" fill="#fff" stroke="#e5e7eb" stroke-width="0.8" rx="2"/>` +
@@ -969,8 +974,12 @@ function cellBg(uw, uh, color, style) {
 function cellLabel(text, uw, uh, showIds, unitId) {
   const maxW = uw - 8;
   if (showIds) {
-    return `<text y="-4" text-anchor="middle" font-size="13" fill="#1b2a1e" font-weight="700">${esc(String(unitId))}</text>` +
-           `<text y="${uh * 0.2}" text-anchor="middle" font-size="7" fill="#4b7a5e">${esc(text.slice(0, 10))}</text>`;
+    const idStr = String(unitId);
+    const idFs  = idStr.length <= 2 ? 14 : idStr.length <= 3 ? 12 : 10;
+    const abbr  = text.length > 14 ? text.slice(0, 13) + '…' : text;
+    const abbrFs = Math.min(8, Math.max(5.5, maxW / (abbr.length * 0.6)));
+    return `<text y="${-uh * 0.12}" text-anchor="middle" font-size="${idFs}" fill="#1b2a1e" font-weight="700">${esc(idStr)}</text>` +
+           `<text y="${uh * 0.16}" text-anchor="middle" font-size="${abbrFs}" fill="#4b7a5e">${esc(abbr)}</text>`;
   }
   const words = text.split(/\s+/).filter(Boolean);
   // Tenta encaixar em 1 linha, reduzindo o tamanho de fonte
@@ -1078,7 +1087,7 @@ function renderCroqui() {
   const { svg: legSvg, w: legW, h: legH } = buildSvgLegend(allT, treatmentColors, legendPos);
 
   // ── Calcular dimensões totais do SVG ──
-  const LGAP = 14;
+  const LGAP = 26;
   let totalW = gridW, totalH = gridH;
   let gx = 0, gy = 0, lx = 0, ly = 0; // grid offset, legend offset
 
@@ -1361,6 +1370,58 @@ function exportCSV() {
   document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
+function exportXLSX() {
+  if (!units.length) return;
+  if (typeof XLSX === 'undefined') { alert('Biblioteca XLSX não carregou. Verifique a conexão.'); return; }
+  const design = document.getElementById('selDesign').value;
+  const spec   = document.getElementById('txtSpecies').value.trim();
+  const isFat  = design.startsWith('FAT');
+  const isSpl  = design.startsWith('SPL');
+  const isDQL  = design === 'DQL';
+
+  const headers = ['ID','Bloco','Linha','Coluna','Tratamento'];
+  if (isFat || isSpl) { headers.push('Fator A','Fator B'); }
+  if (units.some(u => u.factorC)) headers.push('Fator C');
+  if (isSpl) headers.push('Parcela Principal');
+  if (isDQL) { headers.push('Linha DQL','Coluna DQL'); }
+  headers.push('Observações');
+
+  const dataRows = units.map(u => {
+    const r = [u.id, u.block ?? '', u.row+1, u.col+1, u.treatment];
+    if (isFat || isSpl) r.push(u.factorA ?? '', u.factorB ?? '');
+    if (units.some(x => x.factorC)) r.push(u.factorC ?? '');
+    if (isSpl) r.push(u.mainPlotLabel || u.mainPlot || '');
+    if (isDQL) r.push(u.rowLabel ?? '', u.colLabel ?? '');
+    r.push(unitNotes[String(u.id)] || '');
+    return r;
+  });
+
+  const wsData = [
+    ['AgroDesign — Field Book'],
+    ['Espécie/Sistema:', spec || '—'],
+    ['Delineamento:', design],
+    ['Gerado em:', new Date().toLocaleString('pt-BR')],
+    [],
+    headers,
+    ...dataRows
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Largura das colunas
+  const colWidths = headers.map((h, i) => ({
+    wch: Math.max(h.length, ...dataRows.map(r => String(r[i] ?? '').length), 8)
+  }));
+  ws['!cols'] = colWidths;
+
+  // Mescla de células para o título (linha 1)
+  ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:headers.length-1} }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Field Book');
+  XLSX.writeFile(wb, `AgroDesign_${design}_fieldbook.xlsx`);
+}
+
 function exportPNG() {
   const svg = document.getElementById('croquiSvg');
   if (!svg) return;
@@ -1421,9 +1482,9 @@ function renderUnidade() {
     const plotW = +(rs  * rpp).toFixed(4); // largura (entre linhas × nº linhas)
     const plotL = pl;                       // comprimento (ao longo das linhas)
 
-    /* área de desenho máxima */
-    const LPAD=80, RPAD=60, TPAD=68, BPAD=62;
-    const maxDW=320, maxDH=260;
+    /* área de desenho máxima — LPAD maior para acomodar as cotas laterais */
+    const LPAD=115, RPAD=65, TPAD=72, BPAD=56;
+    const maxDW=305, maxDH=250;
     const sc = Math.min(maxDW / plotL, maxDH / plotW);
     const dW = Math.round(plotL  * sc);
     const dH = Math.round(plotW  * sc);
@@ -1437,8 +1498,7 @@ function renderUnidade() {
     svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
       <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
       ${defs}
-      <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">Parcela Vegetal — Vista Superior (escala proporcional)</text>
-      <text x="${svgW/2}" y="38" text-anchor="middle" font-size="9" fill="#6b7c6e">Cada ponto = 1 planta · Linhas sombreadas = bordaduras (descartadas)</text>`;
+      <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">Parcela Vegetal — Vista Superior (escala proporcional)</text>`;
 
     /* fundo da parcela */
     svgStr += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="#fff" stroke="#2d6a4f" stroke-width="1.8"/>`;
@@ -1485,48 +1545,54 @@ function renderUnidade() {
       svgStr += `<text x="${bx+7}" y="${+((uy1+uy2)/2+4).toFixed(1)}" font-size="9" fill="#2d6a4f" font-weight="700">Área útil</text>`;
     }
 
-    /* ── Anotação: espaçamento entre linhas (lateral esq.) ── */
-    if (rpp >= 2 && rowH > 10) {
-      const ax = ox - 16;
+    /* ── Anotação: espaçamento entre linhas (lateral esq. — strip interior) ── */
+    if (rpp >= 2 && rowH > 12) {
+      const ax = ox - 22;  // mais distante do fundo da parcela
       svgStr += annLine(ax, oy, ax, +(oy+rowH).toFixed(1));
       svgStr += dimLine(ax-3, oy, ox, oy);
       svgStr += dimLine(ax-3, +(oy+rowH).toFixed(1), ox, +(oy+rowH).toFixed(1));
-      svgStr += `<text x="${ax-6}" y="${+(oy+rowH/2+4).toFixed(1)}" text-anchor="end" font-size="9" fill="#6b7c6e">${rs.toFixed(2)} m</text>`;
+      svgStr += `<text x="${ax-5}" y="${+(oy+rowH/2+4).toFixed(1)}" text-anchor="end" font-size="8.5" fill="#6b7c6e">${rs.toFixed(2)} m</text>`;
     }
 
-    /* ── Anotação: largura total da parcela (lateral esq. exterior) ── */
-    const wax = ox - 44;
+    /* ── Anotação: largura total (lateral esq. exterior) ── */
+    const wax = ox - 58;   // mais distante para não colidir com o strip anterior
     svgStr += annLine(wax, oy, wax, +(oy+dH).toFixed(1));
+    // linhas de extensão horizontal ligando a seta ao bordo da parcela
+    svgStr += dimLine(wax+1, oy,       ox, oy);
+    svgStr += dimLine(wax+1, +(oy+dH).toFixed(1), ox, +(oy+dH).toFixed(1));
     svgStr += `<text x="${wax-5}" y="${+(oy+dH/2+4).toFixed(1)}" text-anchor="end" font-size="11" fill="#374151" font-weight="700">${plotW.toFixed(2)} m</text>`;
-    svgStr += `<text x="${wax-5}" y="${+(oy+dH/2+16).toFixed(1)}" text-anchor="end" font-size="8" fill="#6b7c6e">largura</text>`;
+    svgStr += `<text x="${wax-5}" y="${+(oy+dH/2+17).toFixed(1)}" text-anchor="end" font-size="8" fill="#6b7c6e">largura</text>`;
 
-    /* ── Anotação: comprimento (topo) ── */
-    const lay = oy - 20;
+    /* ── Anotação: comprimento (topo — mais alto para não sobrepor plantas) ── */
+    const lay = oy - 28;
     svgStr += annLine(ox, lay, ox+dW, lay);
-    svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay-7}" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">${plotL.toFixed(2)} m</text>`;
-    svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay-18}" text-anchor="middle" font-size="8" fill="#6b7c6e">comprimento</text>`;
+    svgStr += dimLine(ox, lay+1, ox, oy);
+    svgStr += dimLine(ox+dW, lay+1, ox+dW, oy);
+    svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay-6}" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">${plotL.toFixed(2)} m</text>`;
+    svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay-17}" text-anchor="middle" font-size="8" fill="#6b7c6e">comprimento</text>`;
 
-    /* ── Anotação: espaçamento entre plantas (topo, primeiros 2 intervalos) ── */
-    if (plantStp >= 14 && dW > 50) {
-      const p0 = ox, p1 = +(ox + plantStp).toFixed(1);
-      const pay = oy - 5;
+    /* ── Anotação: espaçamento entre plantas (topo — só se houver espaço suficiente) ── */
+    if (plantStp >= 20 && dW > 60 && rowH > 14) {
+      const p0  = ox, p1 = +(ox + plantStp).toFixed(1);
+      const pay = oy - 8;   // logo abaixo da seta do comprimento
       if (p1 <= ox + dW) {
         svgStr += annLine(p0, pay, p1, pay);
-        svgStr += dimLine(p0, pay-2, p0, +(oy+rowH/2).toFixed(1));
-        svgStr += dimLine(p1, pay-2, p1, +(oy+rowH/2).toFixed(1));
-        svgStr += `<text x="${+((p0+p1)/2).toFixed(1)}" y="${pay-10}" text-anchor="middle" font-size="8" fill="#6b7c6e">${ps.toFixed(2)} m</text>`;
+        svgStr += dimLine(p0, pay-1, p0, +(oy + rowH/2).toFixed(1));
+        svgStr += dimLine(p1, pay-1, p1, +(oy + rowH/2).toFixed(1));
+        svgStr += `<text x="${+((p0+p1)/2).toFixed(1)}" y="${pay-7}" text-anchor="middle" font-size="7.5" fill="#6b7c6e">${ps.toFixed(2)} m</text>`;
       }
     }
 
-    /* ── Legenda ── */
-    const legY = oy + dH + 20;
-    svgStr += `<rect x="${ox}" y="${legY}" width="13" height="13" fill="rgba(82,183,136,0.35)" stroke="#52b788" stroke-width="1"/>`;
-    svgStr += `<text x="${ox+17}" y="${legY+10}" font-size="9" fill="#374151">Área útil</text>`;
-    svgStr += `<rect x="${ox+80}" y="${legY}" width="13" height="13" fill="rgba(0,0,0,0.1)" stroke="#aaa" stroke-width="1"/>`;
-    svgStr += `<text x="${ox+97}" y="${legY+10}" font-size="9" fill="#374151">Bordadura</text>`;
+    /* ── Legenda + nota — rodapé ── */
+    const legY = svgH - BPAD + 8;
+    svgStr += `<text x="${svgW/2}" y="${legY - 4}" text-anchor="middle" font-size="8.5" fill="#6b7c6e" font-style="italic">Cada ponto = 1 planta · Linhas sombreadas = bordaduras (descartadas)</text>`;
+    svgStr += `<rect x="${ox}" y="${legY+4}" width="13" height="13" fill="rgba(82,183,136,0.35)" stroke="#52b788" stroke-width="1"/>`;
+    svgStr += `<text x="${ox+17}" y="${legY+14}" font-size="9" fill="#374151">Área útil</text>`;
+    svgStr += `<rect x="${ox+80}" y="${legY+4}" width="13" height="13" fill="rgba(0,0,0,0.1)" stroke="#aaa" stroke-width="1"/>`;
+    svgStr += `<text x="${ox+97}" y="${legY+14}" font-size="9" fill="#374151">Bordadura</text>`;
     if (plantStp >= 5) {
-      svgStr += `<circle cx="${ox+175}" cy="${legY+6}" r="4" fill="#2d6a4f" opacity=".8"/>`;
-      svgStr += `<text x="${ox+183}" y="${legY+10}" font-size="9" fill="#374151">Planta</text>`;
+      svgStr += `<circle cx="${ox+175}" cy="${legY+10}" r="4" fill="#2d6a4f" opacity=".8"/>`;
+      svgStr += `<text x="${ox+183}" y="${legY+14}" font-size="9" fill="#374151">Planta</text>`;
     }
 
     svgStr += '</svg>';
