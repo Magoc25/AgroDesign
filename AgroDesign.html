@@ -1522,8 +1522,8 @@ function renderUnidade() {
     const plotW = +(rs  * rpp).toFixed(4); // largura (entre linhas × nº linhas)
     const plotL = pl;                       // comprimento (ao longo das linhas)
 
-    /* área de desenho máxima — LPAD maior para acomodar as cotas laterais */
-    const LPAD=115, RPAD=65, TPAD=72, BPAD=56;
+    /* área de desenho máxima — TPAD maior para evitar sobreposição título/cotas */
+    const LPAD=115, RPAD=65, TPAD=92, BPAD=70;
     const maxDW=305, maxDH=250;
     const sc = Math.min(maxDW / plotL, maxDH / plotW);
     const dW = Math.round(plotL  * sc);
@@ -1603,8 +1603,8 @@ function renderUnidade() {
     svgStr += `<text x="${wax-5}" y="${+(oy+dH/2+4).toFixed(1)}" text-anchor="end" font-size="11" fill="#374151" font-weight="700">${plotW.toFixed(2)} m</text>`;
     svgStr += `<text x="${wax-5}" y="${+(oy+dH/2+17).toFixed(1)}" text-anchor="end" font-size="8" fill="#6b7c6e">largura</text>`;
 
-    /* ── Anotação: comprimento (topo — mais alto para não sobrepor plantas) ── */
-    const lay = oy - 28;
+    /* ── Anotação: comprimento (topo — mais alto para não sobrepor título) ── */
+    const lay = oy - 34;
     svgStr += annLine(ox, lay, ox+dW, lay);
     svgStr += dimLine(ox, lay+1, ox, oy);
     svgStr += dimLine(ox+dW, lay+1, ox+dW, oy);
@@ -1623,16 +1623,30 @@ function renderUnidade() {
       }
     }
 
-    /* ── Legenda + nota — rodapé ── */
-    const legY = svgH - BPAD + 8;
-    svgStr += `<text x="${svgW/2}" y="${legY - 4}" text-anchor="middle" font-size="8.5" fill="#6b7c6e" font-style="italic">Cada ponto = 1 planta · Linhas sombreadas = bordaduras (descartadas)</text>`;
-    svgStr += `<rect x="${ox}" y="${legY+4}" width="13" height="13" fill="rgba(82,183,136,0.35)" stroke="#52b788" stroke-width="1"/>`;
-    svgStr += `<text x="${ox+17}" y="${legY+14}" font-size="9" fill="#374151">Área útil</text>`;
-    svgStr += `<rect x="${ox+80}" y="${legY+4}" width="13" height="13" fill="rgba(0,0,0,0.1)" stroke="#aaa" stroke-width="1"/>`;
-    svgStr += `<text x="${ox+97}" y="${legY+14}" font-size="9" fill="#374151">Bordadura</text>`;
+    /* ── Legenda — rodapé (itens primeiro, subtitle abaixo) ── */
+    const legY = svgH - BPAD + 10;
+    let lx = ox;
+
+    svgStr += `<rect x="${lx}" y="${legY}" width="13" height="13" fill="rgba(82,183,136,0.35)" stroke="#52b788" stroke-width="1"/>`;
+    svgStr += `<text x="${lx+17}" y="${legY+10}" font-size="9" fill="#374151">Área útil</text>`;
+    lx += 82;
+
+    if (br > 0) {
+      svgStr += `<rect x="${lx}" y="${legY}" width="13" height="13" fill="rgba(0,0,0,0.1)" stroke="#aaa" stroke-width="1"/>`;
+      svgStr += `<text x="${lx+17}" y="${legY+10}" font-size="9" fill="#374151">Bordadura</text>`;
+      lx += 90;
+    }
+
     if (plantStp >= 5) {
-      svgStr += `<circle cx="${ox+175}" cy="${legY+10}" r="4" fill="#2d6a4f" opacity=".8"/>`;
-      svgStr += `<text x="${ox+183}" y="${legY+14}" font-size="9" fill="#374151">Planta</text>`;
+      svgStr += `<circle cx="${lx+6}" cy="${legY+6}" r="4" fill="#2d6a4f" opacity=".8"/>`;
+      svgStr += `<text x="${lx+14}" y="${legY+10}" font-size="9" fill="#374151">Planta</text>`;
+    }
+
+    const subtitle = plantStp >= 5
+      ? `Cada ponto = 1 planta${br > 0 ? ' · Linhas sombreadas = bordaduras' : ''}`
+      : (br > 0 ? 'Linhas sombreadas = bordaduras (descartadas)' : '');
+    if (subtitle) {
+      svgStr += `<text x="${svgW/2}" y="${legY+26}" text-anchor="middle" font-size="8" fill="#6b7c6e" font-style="italic">${subtitle}</text>`;
     }
 
     svgStr += '</svg>';
