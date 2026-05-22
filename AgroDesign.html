@@ -100,8 +100,8 @@ textarea { resize: vertical; min-height: 70px; }
 .zoom-wrap { display: flex; align-items: center; gap: .4rem; font-size: .82rem; color: var(--text-muted); }
 .zoom-wrap input[type=range] { width: 110px; }
 #croquiContent { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .5rem; }
-.svg-scroll { flex: 1; min-height: 80px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; }
-.svg-inner { display: block; line-height: 0; }
+.svg-scroll { flex: 1; min-height: 80px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; display: flex; }
+.svg-inner { display: block; line-height: 0; margin: auto; }
 .croqui-legend { display: flex; flex-wrap: wrap; gap: .4rem; flex-shrink: 0; }
 .legend-item { display: flex; align-items: center; gap: .3rem; font-size: .78rem; }
 .legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.1); flex-shrink: 0; }
@@ -414,6 +414,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     <button class="tab-btn active" onclick="showTab('resumo')">📊 Resumo</button>
     <button class="tab-btn" onclick="showTab('croqui')">🗺 Croqui</button>
     <button class="tab-btn" onclick="showTab('fieldbook')">📋 Field Book</button>
+    <button class="tab-btn" onclick="showTab('unidade')">📐 Unidade</button>
   </div>
 
   <!-- Resumo Tab -->
@@ -466,6 +467,21 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <div class="table-wrap">
         <table id="fieldbookTable"><thead id="fbHead"></thead><tbody id="fbBody"></tbody></table>
       </div>
+    </div>
+  </div>
+
+  <!-- Unidade Tab -->
+  <div id="tabUnidade" class="tab-content">
+    <div id="emptyUnidade" class="empty-state">
+      <span class="icon">📐</span>
+      <strong>Detalhamento da Unidade Experimental</strong>
+      <span class="hint">Configure e gere o croqui para visualizar a parcela/UE com dimensões.</span>
+    </div>
+    <div id="unidadeContent" class="hidden" style="display:flex;flex-direction:column;gap:.75rem">
+      <div class="svg-scroll" style="flex:1;min-height:220px">
+        <div id="svgUnidade" style="margin:auto;display:block;line-height:0"></div>
+      </div>
+      <div class="summary-grid" id="unidadeStats"></div>
     </div>
   </div>
 </section>
@@ -799,6 +815,7 @@ function generateCroqui() {
   renderSummary();
   renderCroqui();
   renderFieldbook();
+  renderUnidade();
   showTab('croqui');
 }
 
@@ -1146,14 +1163,247 @@ function exportPNG() {
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
 }
 
+/* ── Unidade Experimental ── */
+function renderUnidade() {
+  if (!units.length) return;
+  const unitType = document.getElementById('selUnitType').value;
+  const el       = document.getElementById('svgUnidade');
+  const statsEl  = document.getElementById('unidadeStats');
+
+  /* ── Marcadores de seta reutilizáveis ── */
+  const defs = `<defs>
+    <marker id="ua" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#6b7c6e"/>
+    </marker>
+    <marker id="uar" markerWidth="7" markerHeight="7" refX="2" refY="3.5" orient="auto">
+      <path d="M7,0 L0,3.5 L7,7 Z" fill="#6b7c6e"/>
+    </marker>
+  </defs>`;
+
+  const annLine = (x1,y1,x2,y2,dash='') =>
+    `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#6b7c6e" stroke-width="1"
+      marker-start="url(#uar)" marker-end="url(#ua)" ${dash?`stroke-dasharray="${dash}"`:''} />`;
+  const dimLine = (x1,y1,x2,y2) =>
+    `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#6b7c6e" stroke-width="0.7" stroke-dasharray="3 2"/>`;
+
+  let svgStr = '', statsHtml = '';
+
+  if (unitType === 'parcela') {
+    /* ─── Parcela vegetal ─── */
+    const rs  = parseFloat(document.getElementById('rowSpacing').value)  || 0.5;
+    const ps  = parseFloat(document.getElementById('plantSpacing').value) || 0.2;
+    const rpp = parseInt(document.getElementById('rowsPerPlot').value)   || 4;
+    const pl  = parseFloat(document.getElementById('plotLength').value)  || 5;
+    const br  = document.getElementById('chkBorders').checked
+                ? (parseInt(document.getElementById('borderRows').value) || 0) : 0;
+
+    const plotW = +(rs  * rpp).toFixed(4); // largura (entre linhas × nº linhas)
+    const plotL = pl;                       // comprimento (ao longo das linhas)
+
+    /* área de desenho máxima */
+    const LPAD=80, RPAD=60, TPAD=68, BPAD=62;
+    const maxDW=320, maxDH=260;
+    const sc = Math.min(maxDW / plotL, maxDH / plotW);
+    const dW = Math.round(plotL  * sc);
+    const dH = Math.round(plotW  * sc);
+    const ox = LPAD + Math.round((maxDW - dW) / 2);
+    const oy = TPAD + Math.round((maxDH - dH) / 2);
+    const svgW = LPAD + maxDW + RPAD;
+    const svgH = TPAD + maxDH + BPAD;
+    const rowH = +(rs * sc).toFixed(2);
+    const plantStp = +(ps * sc).toFixed(2);
+
+    svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
+      <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
+      ${defs}
+      <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">Parcela Vegetal — Vista Superior (escala proporcional)</text>
+      <text x="${svgW/2}" y="38" text-anchor="middle" font-size="9" fill="#6b7c6e">Cada ponto = 1 planta · Linhas sombreadas = bordaduras (descartadas)</text>`;
+
+    /* fundo da parcela */
+    svgStr += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="#fff" stroke="#2d6a4f" stroke-width="1.8"/>`;
+
+    /* faixas de linha */
+    for (let i = 0; i < rpp; i++) {
+      const ry   = +(oy + i * rowH).toFixed(1);
+      const isBd = (i < br || i >= rpp - br);
+      svgStr += `<rect x="${ox}" y="${ry}" width="${dW}" height="${rowH}" fill="${isBd?'rgba(0,0,0,0.1)':'rgba(82,183,136,0.09)'}" stroke="#cde0d3" stroke-width="0.5"/>`;
+
+      /* centro da linha de plantas */
+      const cy = +(ry + rowH / 2).toFixed(1);
+      if (plantStp >= 5) {
+        let px = ox;
+        while (px <= ox + dW + 1) {
+          const clr = isBd ? 'rgba(100,100,100,0.35)' : '#2d6a4f';
+          const r   = Math.min(5, Math.max(2, plantStp / 4));
+          svgStr += `<circle cx="${+px.toFixed(1)}" cy="${cy}" r="${r}" fill="${clr}" opacity="${isBd?'.45':'.85'}"/>`;
+          px += plantStp;
+        }
+      } else {
+        svgStr += `<line x1="${ox}" y1="${cy}" x2="${ox+dW}" y2="${cy}" stroke="${isBd?'#bbb':'#52b788'}" stroke-width="1"/>`;
+      }
+    }
+
+    /* sobreposição de bordadura com label */
+    if (br > 0) {
+      const bh = +(br * rowH).toFixed(1);
+      svgStr += `<rect x="${ox}" y="${oy}" width="${dW}" height="${bh}" fill="rgba(0,0,0,0.07)" pointer-events="none"/>`;
+      svgStr += `<rect x="${ox}" y="${+(oy+dH-bh).toFixed(1)}" width="${dW}" height="${bh}" fill="rgba(0,0,0,0.07)" pointer-events="none"/>`;
+      if (bh > 13) {
+        svgStr += `<text x="${ox+dW/2}" y="${+(oy+bh/2+4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#555" font-style="italic">bordadura</text>`;
+        svgStr += `<text x="${ox+dW/2}" y="${+(oy+dH-bh/2+4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#555" font-style="italic">bordadura</text>`;
+      }
+    }
+
+    /* ── Chave de área útil (lado direito) ── */
+    const usefulRows = Math.max(0, rpp - 2*br);
+    if (br > 0 && usefulRows > 0) {
+      const uy1 = +(oy + br * rowH).toFixed(1);
+      const uy2 = +(oy + dH - br * rowH).toFixed(1);
+      const bx  = ox + dW + 12;
+      svgStr += annLine(bx, uy1, bx, uy2);
+      svgStr += `<text x="${bx+7}" y="${+((uy1+uy2)/2+4).toFixed(1)}" font-size="9" fill="#2d6a4f" font-weight="700">Área útil</text>`;
+    }
+
+    /* ── Anotação: espaçamento entre linhas (lateral esq.) ── */
+    if (rpp >= 2 && rowH > 10) {
+      const ax = ox - 16;
+      svgStr += annLine(ax, oy, ax, +(oy+rowH).toFixed(1));
+      svgStr += dimLine(ax-3, oy, ox, oy);
+      svgStr += dimLine(ax-3, +(oy+rowH).toFixed(1), ox, +(oy+rowH).toFixed(1));
+      svgStr += `<text x="${ax-6}" y="${+(oy+rowH/2+4).toFixed(1)}" text-anchor="end" font-size="9" fill="#6b7c6e">${rs.toFixed(2)} m</text>`;
+    }
+
+    /* ── Anotação: largura total da parcela (lateral esq. exterior) ── */
+    const wax = ox - 44;
+    svgStr += annLine(wax, oy, wax, +(oy+dH).toFixed(1));
+    svgStr += `<text x="${wax-5}" y="${+(oy+dH/2+4).toFixed(1)}" text-anchor="end" font-size="11" fill="#374151" font-weight="700">${plotW.toFixed(2)} m</text>`;
+    svgStr += `<text x="${wax-5}" y="${+(oy+dH/2+16).toFixed(1)}" text-anchor="end" font-size="8" fill="#6b7c6e">largura</text>`;
+
+    /* ── Anotação: comprimento (topo) ── */
+    const lay = oy - 20;
+    svgStr += annLine(ox, lay, ox+dW, lay);
+    svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay-7}" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">${plotL.toFixed(2)} m</text>`;
+    svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay-18}" text-anchor="middle" font-size="8" fill="#6b7c6e">comprimento</text>`;
+
+    /* ── Anotação: espaçamento entre plantas (topo, primeiros 2 intervalos) ── */
+    if (plantStp >= 14 && dW > 50) {
+      const p0 = ox, p1 = +(ox + plantStp).toFixed(1);
+      const pay = oy - 5;
+      if (p1 <= ox + dW) {
+        svgStr += annLine(p0, pay, p1, pay);
+        svgStr += dimLine(p0, pay-2, p0, +(oy+rowH/2).toFixed(1));
+        svgStr += dimLine(p1, pay-2, p1, +(oy+rowH/2).toFixed(1));
+        svgStr += `<text x="${+((p0+p1)/2).toFixed(1)}" y="${pay-10}" text-anchor="middle" font-size="8" fill="#6b7c6e">${ps.toFixed(2)} m</text>`;
+      }
+    }
+
+    /* ── Legenda ── */
+    const legY = oy + dH + 20;
+    svgStr += `<rect x="${ox}" y="${legY}" width="13" height="13" fill="rgba(82,183,136,0.35)" stroke="#52b788" stroke-width="1"/>`;
+    svgStr += `<text x="${ox+17}" y="${legY+10}" font-size="9" fill="#374151">Área útil</text>`;
+    svgStr += `<rect x="${ox+80}" y="${legY}" width="13" height="13" fill="rgba(0,0,0,0.1)" stroke="#aaa" stroke-width="1"/>`;
+    svgStr += `<text x="${ox+97}" y="${legY+10}" font-size="9" fill="#374151">Bordadura</text>`;
+    if (plantStp >= 5) {
+      svgStr += `<circle cx="${ox+175}" cy="${legY+6}" r="4" fill="#2d6a4f" opacity=".8"/>`;
+      svgStr += `<text x="${ox+183}" y="${legY+10}" font-size="9" fill="#374151">Planta</text>`;
+    }
+
+    svgStr += '</svg>';
+
+    /* ── Tabela de dimensões ── */
+    const areaTotal  = +(plotW * plotL).toFixed(2);
+    const areaUtil   = +(usefulRows * rs * pl).toFixed(2);
+    const plantsRow  = Math.floor(pl / ps) + 1;
+    const statsArr   = [
+      { label:'Largura da parcela', value: plotW.toFixed(2), unit:'m' },
+      { label:'Comprimento',        value: plotL.toFixed(2), unit:'m' },
+      { label:'Área bruta',         value: String(areaTotal),unit:'m²' },
+      { label:'Linhas totais',      value: String(rpp),      unit:'' },
+      { label:'Linhas bordadura',   value: String(br*2),     unit:'' },
+      { label:'Linhas úteis',       value: String(usefulRows),unit:'' },
+      { label:'Área útil',          value: String(areaUtil), unit:'m²' },
+      { label:'Plantas/parcela',    value: String(rpp * plantsRow), unit:'' },
+      { label:'Plantas úteis',      value: String(usefulRows * plantsRow), unit:'' },
+    ];
+    statsHtml = statsArr.map(s =>
+      `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`
+    ).join('');
+
+  } else {
+    /* ─── UE animal (baia, piquete, animal, clínica) ─── */
+    const ueA = parseFloat(document.getElementById('ueArea').value) || 12;
+    const apu = parseInt(document.getElementById('animalsPerUnit').value) || 1;
+    const dim = Math.sqrt(ueA);
+    const titles = { animal:'Animal Individual', baia:'Baia / Lote', piquete:'Piquete', clinica:'Unidade Clínica' };
+    const svgW = 420, svgH = 360;
+    const side = 220;
+    const ox = (svgW - side) / 2;
+    const oy = 72;
+
+    svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
+      <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
+      ${defs}
+      <text x="${svgW/2}" y="24" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${esc(titles[unitType]||'Unidade Experimental')} — Planta Baixa</text>
+      <text x="${svgW/2}" y="40" text-anchor="middle" font-size="9" fill="#6b7c6e">Representação esquemática (área proporcional)</text>
+      <rect x="${ox}" y="${oy}" width="${side}" height="${side}" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="2" rx="4"/>`;
+
+    /* animais */
+    if (apu <= 16) {
+      const cols = Math.ceil(Math.sqrt(apu));
+      const rows = Math.ceil(apu / cols);
+      const cw = side / cols, ch = side / rows;
+      let count = 0;
+      for (let r = 0; r < rows && count < apu; r++) {
+        for (let c = 0; c < cols && count < apu; c++, count++) {
+          const ax = ox + (c + .5) * cw, ay = oy + (r + .5) * ch;
+          const rad = Math.min(cw, ch) * .28;
+          svgStr += `<circle cx="${+ax.toFixed(1)}" cy="${+ay.toFixed(1)}" r="${+rad.toFixed(1)}" fill="#52b788" opacity=".65" stroke="#fff" stroke-width="1.5"/>`;
+          if (rad > 9) svgStr += `<text x="${+ax.toFixed(1)}" y="${+(ay+4).toFixed(1)}" text-anchor="middle" font-size="${Math.min(11,+rad.toFixed(0))}" fill="#fff" font-weight="700">${count+1}</text>`;
+        }
+      }
+    } else {
+      svgStr += `<text x="${ox+side/2}" y="${oy+side/2-6}" text-anchor="middle" font-size="22" fill="#2d6a4f" font-weight="700">${apu}</text>`;
+      svgStr += `<text x="${ox+side/2}" y="${oy+side/2+16}" text-anchor="middle" font-size="11" fill="#40916c">animais</text>`;
+    }
+
+    /* anotações */
+    const lx = ox - 22, ty = oy - 20;
+    svgStr += annLine(ox, ty, ox+side, ty);
+    svgStr += `<text x="${ox+side/2}" y="${ty-7}" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">≈ ${dim.toFixed(1)} m</text>`;
+    svgStr += annLine(lx, oy, lx, oy+side);
+    svgStr += `<text x="${lx-5}" y="${oy+side/2+4}" text-anchor="end" font-size="10" fill="#374151" font-weight="700">≈ ${dim.toFixed(1)} m</text>`;
+    svgStr += `<text x="${ox+side/2}" y="${oy+side+20}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">${ueA.toFixed(1)} m²  ·  ${(ueA/apu).toFixed(1)} m²/animal</text>`;
+    svgStr += '</svg>';
+
+    const statsArr = [
+      { label:'Área da UE',    value: ueA.toFixed(1), unit:'m²' },
+      { label:'Dim. aprox.',   value: `${dim.toFixed(1)} × ${dim.toFixed(1)}`, unit:'m' },
+      { label:'Animais/UE',    value: String(apu), unit:'' },
+      { label:'Área/animal',   value: (ueA/apu).toFixed(1), unit:'m²' },
+    ];
+    statsHtml = statsArr.map(s =>
+      `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`
+    ).join('');
+  }
+
+  el.innerHTML = svgStr;
+  statsEl.innerHTML = statsHtml;
+  document.getElementById('emptyUnidade').classList.add('hidden');
+  const uc = document.getElementById('unidadeContent');
+  uc.classList.remove('hidden');
+  uc.style.display = 'flex';
+}
+
 /* ── UI helpers ── */
 function showTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const tabs = ['resumo','croqui','fieldbook'];
+    const tabs = ['resumo','croqui','fieldbook','unidade'];
     b.classList.toggle('active', tabs[i] === name);
   });
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+  if (name === 'croqui' && units.length) requestAnimationFrame(fitAndZoom);
+  if (name === 'unidade' && units.length) renderUnidade();
 }
 
 function onDesignChange() {
