@@ -460,6 +460,25 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.8rem">
           <input type="checkbox" id="chkShowIds" onchange="rerenderCroqui()" style="width:auto"> IDs
         </label>
+        <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+          Célula:
+          <select id="selCellStyle" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+            <option value="fill">Preenchimento</option>
+            <option value="border">Borda colorida</option>
+            <option value="stripe">Faixa superior</option>
+            <option value="dot">Ponto</option>
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+          Legenda:
+          <select id="selLegendPos" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+            <option value="none">Na barra</option>
+            <option value="right">Direita</option>
+            <option value="bottom">Abaixo</option>
+            <option value="left">Esquerda</option>
+            <option value="top">Acima</option>
+          </select>
+        </label>
       </div>
       <div class="svg-scroll" id="svgScroll">
         <div class="svg-inner" id="svgInner"></div>
@@ -923,17 +942,90 @@ function renderSummary() {
   document.getElementById('summaryContent').style.gap = '.75rem';
 }
 
+/* ── Helpers de renderização de células ── */
+
+// Fundo da célula com 4 estilos
+function cellBg(uw, uh, color, style) {
+  switch (style) {
+    case 'border':
+      return `<rect x="0" y="0" width="${uw}" height="${uh}" fill="#fafafa" stroke="${esc(color)}" stroke-width="3.5" rx="2"/>`;
+    case 'stripe': {
+      const sh = Math.max(11, Math.round(uh * 0.3));
+      return `<rect x="0" y="0" width="${uw}" height="${uh}" fill="#fff" stroke="#e5e7eb" stroke-width="0.8" rx="2"/>` +
+             `<rect x="0" y="0" width="${uw}" height="${sh}" fill="${esc(color)}" rx="2"/>`;
+    }
+    case 'dot': {
+      const r = Math.min(7, uw / 8);
+      return `<rect x="0" y="0" width="${uw}" height="${uh}" fill="#f9fafb" stroke="#e5e7eb" stroke-width="0.8" rx="2"/>` +
+             `<circle cx="${uw - r - 3}" cy="${r + 3}" r="${r}" fill="${esc(color)}"/>`;
+    }
+    default: // 'fill'
+      return `<rect x="0" y="0" width="${uw}" height="${uh}" fill="${esc(color)}" stroke="#fff" stroke-width="1.5" rx="2"/>`;
+  }
+}
+
+// Texto da célula com tamanho automático e quebra em 2 linhas se necessário
+// Coordenadas relativas ao centro da célula (0,0)
+function cellLabel(text, uw, uh, showIds, unitId) {
+  const maxW = uw - 8;
+  if (showIds) {
+    return `<text y="-4" text-anchor="middle" font-size="13" fill="#1b2a1e" font-weight="700">${esc(String(unitId))}</text>` +
+           `<text y="${uh * 0.2}" text-anchor="middle" font-size="7" fill="#4b7a5e">${esc(text.slice(0, 10))}</text>`;
+  }
+  const words = text.split(/\s+/).filter(Boolean);
+  // Tenta encaixar em 1 linha, reduzindo o tamanho de fonte
+  for (const fs of [11, 9.5, 8, 7, 6.5, 6]) {
+    if (text.length * fs * 0.58 <= maxW) {
+      return `<text y="4" text-anchor="middle" font-size="${fs}" fill="#1b2a1e" font-weight="700">${esc(text)}</text>`;
+    }
+  }
+  // 2 linhas
+  const mid = Math.ceil(words.length / 2);
+  const l1  = words.slice(0, mid).join(' ');
+  const l2  = words.slice(mid).join(' ');
+  const fs  = Math.min(9.5, Math.max(5.5, maxW / (Math.max(l1.length, l2.length) * 0.58)));
+  const dy  = fs * 1.28;
+  return `<text y="${-dy / 2 + 2}" text-anchor="middle" font-size="${fs}" fill="#1b2a1e" font-weight="700">${esc(l1)}</text>` +
+         `<text y="${dy / 2 + 2}"  text-anchor="middle" font-size="${fs}" fill="#1b2a1e" font-weight="700">${esc(l2)}</text>`;
+}
+
+// Bloco de legenda SVG embutida
+function buildSvgLegend(allT, colors, pos) {
+  if (pos === 'none' || !allT.length) return { svg: '', w: 0, h: 0 };
+  const SW = 13, IH = 17, GAP = 5, IPAD = 10, TITLE_H = 18;
+  const isVert = pos === 'left' || pos === 'right';
+  const cols   = isVert ? 1 : Math.min(4, Math.max(2, Math.ceil(allT.length / 4)));
+  const rows   = Math.ceil(allT.length / cols);
+  const maxLen = Math.max(...allT.map(t => t.length));
+  const fs     = maxLen > 22 ? 7.5 : maxLen > 16 ? 8.5 : 10;
+  const textW  = Math.min(200, maxLen * fs * 0.62);
+  const colW   = SW + GAP + textW + IPAD;
+  const totalW = cols * colW + IPAD;
+  const totalH = rows * IH + TITLE_H + IPAD * 2;
+
+  let inner = `<text x="${IPAD}" y="${IPAD + 12}" font-size="10" fill="#2d6a4f" font-weight="700">Legenda</text>`;
+  allT.forEach((t, i) => {
+    const c = i % cols, r = Math.floor(i / cols);
+    const ix = IPAD + c * colW, iy = IPAD + TITLE_H + r * IH;
+    inner += `<rect x="${ix}" y="${iy}" width="${SW}" height="${SW}" fill="${esc(colors[t] || '#eee')}" rx="2" stroke="rgba(0,0,0,.15)" stroke-width="0.5"/>`;
+    inner += `<text x="${ix + SW + GAP}" y="${iy + SW / 2 + 4}" font-size="${fs}" fill="#374151">${esc(t)}</text>`;
+  });
+  const bg = `<rect x="0" y="0" width="${totalW}" height="${totalH}" fill="rgba(255,255,255,.93)" stroke="#cde0d3" stroke-width="1" rx="5"/>`;
+  return { svg: bg + inner, w: totalW, h: totalH };
+}
+
 /* ── Croqui SVG ── */
 function rerenderCroqui() { renderCroqui(); }
 
 function renderCroqui() {
   if (!units.length) return;
 
-  const design   = document.getElementById('selDesign').value;
-  const showIds  = document.getElementById('chkShowIds').checked;
-  const unitType = document.getElementById('selUnitType').value;
+  const design    = document.getElementById('selDesign').value;
+  const showIds   = document.getElementById('chkShowIds').checked;
+  const unitType  = document.getElementById('selUnitType').value;
+  const cellStyle = document.getElementById('selCellStyle').value;
+  const legendPos = document.getElementById('selLegendPos').value;
 
-  // Dimensões lógicas do SVG (coordenadas internas)
   const UW = 82, UH = 62, PAD = 30;
 
   // ── Bordaduras ──
@@ -943,16 +1035,15 @@ function renderCroqui() {
   const borderFrac  = hasBorders ? Math.min(0.38, borderNRows / rowsPerPlot) : 0;
 
   // ── Ruas / Corredores ──
-  const blocks   = [...new Set(units.map(u => u.block).filter(b => b !== null))].sort((a,b) => a - b);
+  const blocks  = [...new Set(units.map(u => u.block).filter(b => b !== null))].sort((a, b) => a - b);
   const hasAlley = document.getElementById('chkAlley').checked && blocks.length > 1;
-  const alleyM   = hasAlley ? (parseFloat(document.getElementById('alleyWidth').value) || 1.5) : 0;
-  const ALLEY_H  = hasAlley ? Math.max(36, Math.round(UH * 0.62)) : 8;
+  const alleyM  = hasAlley ? (parseFloat(document.getElementById('alleyWidth').value) || 1.5) : 0;
+  const ALLEY_H = hasAlley ? Math.max(36, Math.round(UH * 0.62)) : 8;
 
   // ── Mapa rowBlock e rowY ──
   const rowBlock = {};
   units.forEach(u => { if (u.block !== null) rowBlock[u.row] = u.block; });
-
-  const allRows = [...new Set(units.map(u => u.row))].sort((a,b) => a - b);
+  const allRows = [...new Set(units.map(u => u.row))].sort((a, b) => a - b);
   const rowY = {};
   let curY = PAD;
   allRows.forEach((row, idx) => {
@@ -964,13 +1055,13 @@ function renderCroqui() {
     }
   });
 
-  const maxCol = Math.max(...units.map(u => u.col));
-  const svgW   = PAD * 2 + (maxCol + 1) * UW;
-  const svgH   = curY + UH + PAD;
-  const getX   = col => PAD + col * UW;
-  const getY   = row => rowY[row] ?? (PAD + row * UH);
+  const maxCol  = Math.max(...units.map(u => u.col));
+  const gridW   = PAD * 2 + (maxCol + 1) * UW;  // largura natural do grid
+  const gridH   = curY + UH + PAD + 14;          // +14 p/ rótulo de escala
+  const getX    = col => PAD + col * UW;
+  const getY    = row => rowY[row] ?? (PAD + row * UH);
 
-  // ── Bordas de parcela principal (split-plot) ──
+  // ── Split-plot bounds ──
   const hasSplit = units.some(u => u.mainPlot !== null);
   const mpBounds = {};
   if (hasSplit) {
@@ -982,25 +1073,39 @@ function renderCroqui() {
     });
   }
 
+  // ── Legenda SVG ──
+  const allT = [...new Set(units.map(u => u.treatment))].sort();
+  const { svg: legSvg, w: legW, h: legH } = buildSvgLegend(allT, treatmentColors, legendPos);
+
+  // ── Calcular dimensões totais do SVG ──
+  const LGAP = 14;
+  let totalW = gridW, totalH = gridH;
+  let gx = 0, gy = 0, lx = 0, ly = 0; // grid offset, legend offset
+
+  if (legendPos === 'right')  { totalW = gridW + LGAP + legW; lx = gridW + LGAP; ly = PAD; }
+  if (legendPos === 'left')   { totalW = gridW + LGAP + legW; gx = legW + LGAP; lx = 0; ly = PAD; }
+  if (legendPos === 'bottom') { totalH = gridH + LGAP + legH; lx = PAD; ly = gridH + LGAP; }
+  if (legendPos === 'top')    { totalH = gridH + LGAP + legH; gy = legH + LGAP; lx = PAD; ly = 0; }
+
   // ── Montar SVG ──
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" id="croquiSvg" viewBox="0 0 ${svgW} ${svgH}" style="display:block">`;
-  svg += `<rect width="${svgW}" height="${svgH}" fill="#f8fdf9"/>`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" id="croquiSvg" viewBox="0 0 ${totalW} ${totalH}" style="display:block">`;
+  svg += `<rect width="${totalW}" height="${totalH}" fill="#f8fdf9"/>`;
+
+  // Grupo do grid (com offset para acomodar legenda esq/cima)
+  svg += `<g transform="translate(${gx},${gy})">`;
 
   // Blocos: labels + faixas de rua
   if (blocks.length) {
     blocks.forEach((b, idx) => {
-      const bUnits  = units.filter(u => u.block === b);
-      const minRow  = Math.min(...bUnits.map(u => u.row));
-      const maxRow  = Math.max(...bUnits.map(u => u.row));
-      svg += `<text x="${PAD - 7}" y="${getY(minRow) + UH/2 + 5}" text-anchor="end" font-size="11" fill="#6b7c6e" font-weight="700">B${b}</text>`;
-
-      // Faixa de rua após este bloco (exceto o último)
+      const bU = units.filter(u => u.block === b);
+      const minRow = Math.min(...bU.map(u => u.row));
+      const maxRow = Math.max(...bU.map(u => u.row));
+      svg += `<text x="${PAD - 7}" y="${getY(minRow) + UH / 2 + 5}" text-anchor="end" font-size="11" fill="#6b7c6e" font-weight="700">B${b}</text>`;
       if (hasAlley && idx < blocks.length - 1) {
-        const ay  = getY(maxRow) + UH;
-        const aw  = (maxCol + 1) * UW;
+        const ay = getY(maxRow) + UH, aw = (maxCol + 1) * UW;
         svg += `<rect x="${PAD}" y="${ay}" width="${aw}" height="${ALLEY_H}" fill="#d8f3dc" rx="3"/>`;
         svg += `<rect x="${PAD}" y="${ay}" width="${aw}" height="${ALLEY_H}" fill="none" stroke="#52b788" stroke-width="0.8" stroke-dasharray="5 3" rx="3"/>`;
-        svg += `<text x="${PAD + aw/2}" y="${ay + ALLEY_H/2 + 4}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">↕ Rua / Corredor — ${alleyM} m</text>`;
+        svg += `<text x="${PAD + aw / 2}" y="${ay + ALLEY_H / 2 + 4}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">↕ Rua / Corredor — ${alleyM} m</text>`;
       }
     });
   }
@@ -1009,26 +1114,25 @@ function renderCroqui() {
   if (design === 'DQL') {
     [...new Set(units.map(u => u.row))].forEach(r => {
       const u = units.find(x => x.row === r);
-      svg += `<text x="${PAD - 7}" y="${getY(r) + UH/2 + 5}" text-anchor="end" font-size="11" fill="#6b7c6e" font-weight="600">${esc(u.rowLabel||'')}</text>`;
+      svg += `<text x="${PAD - 7}" y="${getY(r) + UH / 2 + 5}" text-anchor="end" font-size="11" fill="#6b7c6e" font-weight="600">${esc(u.rowLabel || '')}</text>`;
     });
     [...new Set(units.map(u => u.col))].forEach(c => {
-      svg += `<text x="${getX(c) + UW/2}" y="${PAD - 6}" text-anchor="middle" font-size="11" fill="#6b7c6e" font-weight="600">${c+1}</text>`;
+      svg += `<text x="${getX(c) + UW / 2}" y="${PAD - 6}" text-anchor="middle" font-size="11" fill="#6b7c6e" font-weight="600">${c + 1}</text>`;
     });
   }
 
   // Bordas de parcela principal (split-plot)
   if (hasSplit) {
     Object.values(mpBounds).forEach(b => {
-      svg += `<rect x="${getX(b.minC)-2}" y="${getY(b.minR)-2}" width="${(b.maxC-b.minC+1)*UW+4}" height="${(b.maxR-b.minR+1)*UH+4}" fill="none" stroke="#2d6a4f" stroke-width="2.5" rx="3"/>`;
+      svg += `<rect x="${getX(b.minC) - 2}" y="${getY(b.minR) - 2}" width="${(b.maxC - b.minC + 1) * UW + 4}" height="${(b.maxR - b.minR + 1) * UH + 4}" fill="none" stroke="#2d6a4f" stroke-width="2.5" rx="3"/>`;
     });
   }
 
   // Unidades experimentais
   units.forEach(u => {
-    const x = getX(u.col), y = getY(u.row);
+    const x     = getX(u.col), y = getY(u.row);
     const color = treatmentColors[u.treatment] || '#e2e8f0';
     const raw   = u.treatment;
-    const label = showIds ? String(u.id) : esc(raw.length > 9 ? raw.slice(0,8)+'…' : raw);
     const td    = encodeURIComponent(JSON.stringify({
       id: u.id, block: u.block, treatment: u.treatment,
       factorA: u.factorA, factorB: u.factorB, factorC: u.factorC,
@@ -1036,56 +1140,56 @@ function renderCroqui() {
       row: u.row, col: u.col
     }));
 
-    svg += `<g class="unit" style="cursor:pointer" onclick="openUnitModal('${td}')">`;
-    svg += `<rect x="${x}" y="${y}" width="${UW}" height="${UH}" fill="${esc(color)}" stroke="#fff" stroke-width="1.5" rx="2"/>`;
-
-    // Texto do tratamento
-    const textY = showIds ? y + UH/2 - 4 : y + UH/2 + 5;
-    svg += `<text x="${x+UW/2}" y="${textY}" text-anchor="middle" font-size="11" fill="#1b2a1e" font-weight="700">${label}</text>`;
-    if (showIds) {
-      svg += `<text x="${x+UW/2}" y="${y+UH/2+11}" text-anchor="middle" font-size="8" fill="#4b7a5e">${esc(raw.length>7?raw.slice(0,6)+'…':raw)}</text>`;
-    }
-
-    // Overlay de bordaduras (faixas escurecidas topo/base)
+    // Grupo posicionado na célula
+    svg += `<g transform="translate(${x},${y})" style="cursor:pointer" onclick="openUnitModal('${td}')">`;
+    svg += cellBg(UW, UH, color, cellStyle);
+    // Texto centrado na célula
+    svg += `<g transform="translate(${UW / 2},${UH / 2})">`;
+    svg += cellLabel(raw, UW, UH, showIds, u.id);
+    svg += '</g>';
+    // Overlay de bordaduras
     if (hasBorders && borderFrac > 0) {
       const bh = Math.max(4, Math.round(UH * borderFrac));
-      svg += `<rect x="${x}" y="${y}" width="${UW}" height="${bh}" fill="rgba(0,0,0,0.18)" rx="2" pointer-events="none"/>`;
-      svg += `<rect x="${x}" y="${y+UH-bh}" width="${UW}" height="${bh}" fill="rgba(0,0,0,0.18)" rx="2" pointer-events="none"/>`;
+      svg += `<rect x="0" y="0" width="${UW}" height="${bh}" fill="rgba(0,0,0,0.18)" rx="2" pointer-events="none"/>`;
+      svg += `<rect x="0" y="${UH - bh}" width="${UW}" height="${bh}" fill="rgba(0,0,0,0.18)" rx="2" pointer-events="none"/>`;
       if (bh >= 8) {
-        svg += `<text x="${x+3}" y="${y+bh-2}" font-size="7" fill="rgba(255,255,255,.85)" font-style="italic">bord.</text>`;
-        svg += `<text x="${x+3}" y="${y+UH-2}" font-size="7" fill="rgba(255,255,255,.85)" font-style="italic">bord.</text>`;
+        svg += `<text x="3" y="${bh - 2}" font-size="7" fill="rgba(255,255,255,.85)" font-style="italic">bord.</text>`;
+        svg += `<text x="3" y="${UH - 2}" font-size="7" fill="rgba(255,255,255,.85)" font-style="italic">bord.</text>`;
       }
     }
-
     svg += '</g>';
   });
 
-  // Rótulo de escala (rodapé do SVG)
-  const _ut = document.getElementById('selUnitType').value;
-  if (_ut === 'parcela') {
-    const _pl  = parseFloat(document.getElementById('plotLength').value)  || 5;
-    const _rs  = parseFloat(document.getElementById('rowSpacing').value)  || 0.5;
-    const _rpp = parseInt(document.getElementById('rowsPerPlot').value)   || 4;
-    svg += `<text x="${PAD}" y="${svgH - 5}" font-size="9" fill="#9ca3af">Escala: 1 UE = ${_pl.toFixed(1)} m (comp.) × ${(_rs*_rpp).toFixed(2)} m (larg.)</text>`;
+  // Rótulo de escala
+  if (unitType === 'parcela') {
+    const _pl  = parseFloat(document.getElementById('plotLength').value) || 5;
+    const _rs  = parseFloat(document.getElementById('rowSpacing').value) || 0.5;
+    const _rpp = parseInt(document.getElementById('rowsPerPlot').value)  || 4;
+    svg += `<text x="${PAD}" y="${gridH - 3}" font-size="9" fill="#9ca3af">Escala: 1 UE = ${_pl.toFixed(1)} m × ${(_rs * _rpp).toFixed(2)} m</text>`;
   } else {
     const _ua = parseFloat(document.getElementById('ueArea').value) || 12;
-    svg += `<text x="${PAD}" y="${svgH - 5}" font-size="9" fill="#9ca3af">Escala: 1 UE = ${_ua.toFixed(1)} m²</text>`;
+    svg += `<text x="${PAD}" y="${gridH - 3}" font-size="9" fill="#9ca3af">Escala: 1 UE = ${_ua.toFixed(1)} m²</text>`;
+  }
+
+  svg += '</g>'; // fim do grupo do grid
+
+  // Bloco de legenda SVG (se selecionado)
+  if (legendPos !== 'none') {
+    svg += `<g transform="translate(${lx},${ly})">${legSvg}</g>`;
   }
 
   svg += '</svg>';
 
   document.getElementById('svgInner').innerHTML = svg;
 
-  // Legenda
-  const allT = [...new Set(units.map(u => u.treatment))].sort();
+  // Legenda HTML (barra inferior — sempre visível)
   document.getElementById('croquiLegend').innerHTML = allT.map(t =>
-    `<div class="legend-item"><div class="legend-swatch" style="background:${esc(treatmentColors[t]||'#eee')}"></div><span>${esc(t)}</span></div>`
+    `<div class="legend-item"><div class="legend-swatch" style="background:${esc(treatmentColors[t] || '#eee')}"></div><span>${esc(t)}</span></div>`
   ).join('');
 
   document.getElementById('emptyCroqui').classList.add('hidden');
   document.getElementById('croquiContent').classList.remove('hidden');
 
-  // Auto-ajuste ao container (após render no DOM)
   requestAnimationFrame(fitAndZoom);
 }
 
