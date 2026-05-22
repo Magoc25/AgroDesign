@@ -190,10 +190,10 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 <!-- ═══ CONFIG PANEL ═══ -->
 <aside class="config-panel">
 
-  <!-- Badge do projeto ativo -->
-  <div id="currentProjectBadge" class="hidden" style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;padding:.3rem .6rem;background:var(--primary-pale);border-radius:6px;margin-bottom:.6rem;font-size:.78rem;color:var(--primary)">
-    <span>📂 <strong id="currentProjectName"></strong></span>
-    <button onclick="saveCurrentProject(true)" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--primary);font-weight:600;padding:0" title="Salvar agora">💾</button>
+  <!-- Badge do projeto ativo (aparece após salvar/abrir um projeto) -->
+  <div id="currentProjectBadge" class="hidden" style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;padding:.4rem .7rem;background:var(--primary-pale);border:1.5px solid var(--accent);border-radius:6px;margin-bottom:.6rem;font-size:.78rem;color:var(--primary)">
+    <span>📂 <strong id="currentProjectName" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block"></strong></span>
+    <button onclick="saveCurrentProject(true)" style="background:var(--primary);border:none;cursor:pointer;font-size:.75rem;color:#fff;font-weight:600;padding:2px 8px;border-radius:4px" title="Salvar projeto agora">💾 Salvar</button>
   </div>
 
   <!-- Projeto Estatístico -->
@@ -633,7 +633,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <input type="text" id="projectSaveName" placeholder="Nome do projeto..." style="flex:1">
       <button class="btn btn-primary btn-sm" id="btnSaveProject" onclick="saveCurrentProject()">Salvar</button>
     </div>
-    <p class="hint" style="margin-bottom:.75rem">Salva a configuração + croqui gerado + observações.</p>
+    <p class="hint" style="margin-bottom:.75rem">1. Gere o croqui · 2. Digite um nome · 3. Clique Salvar.<br>O badge verde aparece no topo do painel e o projeto é salvo automaticamente a cada novo croqui gerado.</p>
 
     <!-- Importar JSON -->
     <div style="margin-bottom:.75rem">
@@ -915,6 +915,8 @@ function generateCroqui() {
   renderFieldbook();
   renderUnidade();
   showTab('croqui');
+  // Auto-salva projeto ativo ao regenerar
+  if (currentProjectName) saveCurrentProject(true);
 }
 
 function applySerpentine(arr) {
@@ -2059,8 +2061,7 @@ function saveCurrentProject(silent = false) {
   renderProjectList();
 
   if (!silent) {
-    const btn = document.getElementById('btnSaveProject');
-    if (btn) { btn.textContent = '✅ Salvo!'; setTimeout(() => { btn.textContent = 'Salvar'; }, 1500); }
+    closeProjectsModal();
   }
 }
 
@@ -2142,28 +2143,27 @@ function openProjectsModal() {
 }
 function closeProjectsModal() { document.getElementById('projectsModal').classList.add('hidden'); }
 
-// Importar projeto de arquivo JSON
-document.addEventListener('DOMContentLoaded', () => {
-  const inp = document.getElementById('projectImportInput');
-  if (inp) inp.addEventListener('change', async e => {
-    const file = e.target.files?.[0]; if (!file) return;
-    try {
-      const data = JSON.parse(await file.text());
-      if (!data?.name || !data?.config) throw new Error('Arquivo inválido ou corrompido.');
-      const projects = getProjectsFromStorage();
-      const idx = projects.findIndex(p => p.name === data.name);
-      if (idx >= 0) {
-        if (!confirm(`Projeto "${data.name}" já existe. Sobrescrever?`)) { e.target.value = ''; return; }
-        projects[idx] = data;
-      } else {
-        projects.unshift(data);
-      }
-      storeProjects(projects);
-      renderProjectList();
-      if (confirm(`Projeto "${data.name}" importado com sucesso. Abrir agora?`)) loadProject(projects.findIndex(p => p.name === data.name));
-    } catch(err) { alert('Erro ao importar: ' + err.message); }
-    e.target.value = '';
-  });
+// Importar projeto de arquivo JSON — listener direto (DOM já carregado)
+document.getElementById('projectImportInput').addEventListener('change', async e => {
+  const file = e.target.files?.[0]; if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (!data?.name || !data?.config) throw new Error('Arquivo inválido ou corrompido.');
+    const projects = getProjectsFromStorage();
+    const idx = projects.findIndex(p => p.name === data.name);
+    if (idx >= 0) {
+      if (!confirm(`Projeto "${data.name}" já existe. Sobrescrever?`)) { e.target.value = ''; return; }
+      projects[idx] = data;
+    } else {
+      projects.unshift(data);
+    }
+    storeProjects(projects);
+    renderProjectList();
+    if (confirm(`Projeto "${data.name}" importado. Abrir agora?`)) {
+      loadProject(projects.findIndex(p => p.name === data.name));
+    }
+  } catch(err) { alert('Erro ao importar: ' + err.message); }
+  e.target.value = '';
 });
 
 /* ══ PIX ══ */
