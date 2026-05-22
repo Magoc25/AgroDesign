@@ -551,11 +551,15 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <button class="btn btn-primary btn-sm" onclick="openVarsModal()" style="margin-top:.5rem">+ Adicionar variáveis</button>
     </div>
     <div id="coletaContent" class="hidden">
-      <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;flex-shrink:0">
+      <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;flex-shrink:0">
         <button class="btn btn-secondary btn-sm" onclick="openVarsModal()">⚙ Variáveis</button>
+        <button class="btn btn-ghost btn-sm" onclick="checkOutliers()" title="Verificar valores discrepantes (IQR)">🔍 Verificar</button>
+        <button class="btn btn-ghost btn-sm" id="btnDecimalSep" onclick="toggleDecimalSep()" title="Separador decimal nos arquivos exportados">🔢 Dec: .</button>
+        <span style="color:var(--border);font-size:.9rem">|</span>
         <button class="btn btn-ghost btn-sm" onclick="exportDataXLSX()">⬇ XLSX</button>
         <button class="btn btn-ghost btn-sm" onclick="exportDataCSV()">⬇ CSV</button>
-        <span id="coletaHint" class="hint"></span>
+        <button class="btn btn-ghost btn-sm" onclick="exportDataTXT()">⬇ TXT</button>
+        <span id="coletaHint" class="hint" style="margin-left:.25rem"></span>
       </div>
       <div class="data-table-wrap">
         <table class="data-table"><thead id="dataHead"></thead><tbody id="dataBody"></tbody></table>
@@ -2186,14 +2190,104 @@ function closeVarsModal() {
   renderDataTab();
 }
 
+/* ── Separador decimal ── */
+let decimalSep = localStorage.getItem('agrodesign_dec_sep') || '.';
+
+function toggleDecimalSep() {
+  decimalSep = decimalSep === '.' ? ',' : '.';
+  localStorage.setItem('agrodesign_dec_sep', decimalSep);
+  const btn = document.getElementById('btnDecimalSep');
+  if (btn) btn.textContent = `🔢 Dec: ${decimalSep}`;
+}
+
+function fmtNum(val) {
+  // Formata número para texto/CSV/TXT com o separador escolhido
+  if (typeof val !== 'number') return String(val);
+  const s = val.toString();  // sempre usa '.' internamente
+  return decimalSep === ',' ? s.replace('.', ',') : s;
+}
+
+/* ── Detecção de outliers (método IQR de Tukey) ── */
+function getVarStats(varId, excludeUnitId) {
+  const vals = units
+    .filter(u => excludeUnitId == null || String(u.id) !== String(excludeUnitId))
+    .map(u => collectionData[String(u.id)]?.[varId])
+    .filter(v => v !== undefined && v !== '')
+    .map(Number)
+    .filter(n => !isNaN(n))
+    .sort((a, b) => a - b);
+
+  if (vals.length < 4) return null;
+
+  const q1  = vals[Math.floor(vals.length * 0.25)];
+  const q3  = vals[Math.floor(vals.length * 0.75)];
+  const iqr = q3 - q1;
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+
+  return { mean, q1, q3, iqr, n: vals.length,
+           lower: q1 - 1.5 * iqr,
+           upper: q3 + 1.5 * iqr };
+}
+
+function isOutlier(varId, value, excludeUnitId) {
+  const v = projectVariables.find(v => v.id === varId);
+  if (!v || v.type !== 'numeric') return false;
+  const val = parseFloat(value);
+  if (isNaN(val)) return false;
+  const stats = getVarStats(varId, excludeUnitId);
+  if (!stats) return false;
+  if (stats.iqr === 0) return false; // todos iguais — sem dispersão para comparar
+  return val < stats.lower || val > stats.upper;
+}
+
+let _outlierTimer = null;
+function checkCellOutlier(inp, vid, uid, val) {
+  const v = projectVariables.find(v => v.id === vid);
+  if (!v || v.type !== 'numeric') return;
+  const outlier = isOutlier(vid, val, uid);
+  inp.style.background   = outlier ? '#fef3c7' : '';
+  inp.style.borderColor  = outlier ? '#f59e0b' : '';
+  inp.title = outlier ? '⚠ Valor discrepante (Tukey IQR)' : '';
+}
+
+function checkOutliers() {
+  if (!projectVariables.some(v => v.type === 'numeric')) {
+    alert('Nenhuma variável numérica para verificar.'); return;
+  }
+  let count = 0;
+  document.querySelectorAll('.data-input[data-uid]').forEach(inp => {
+    const vid = inp.dataset.vid;
+    const uid = inp.dataset.uid;
+    const v = projectVariables.find(v => v.id === vid);
+    if (!v || v.type !== 'numeric' || !inp.value.trim()) {
+      inp.style.background = ''; inp.style.borderColor = ''; inp.title = '';
+      return;
+    }
+    const outlier = isOutlier(vid, inp.value, uid);
+    inp.style.background  = outlier ? '#fef3c7' : '';
+    inp.style.borderColor = outlier ? '#f59e0b' : '';
+    inp.title = outlier ? '⚠ Valor discrepante (Tukey IQR)' : '';
+    if (outlier) count++;
+  });
+  if (count === 0) alert('✅ Nenhuma irregularidade detectada.');
+  else alert(`⚠ ${count} valor(es) discrepante(s) encontrado(s) — destacados em amarelo.\n\nCritério: Tukey IQR (valores abaixo de Q1 − 1,5×IQR ou acima de Q3 + 1,5×IQR).\nMínimo 4 observações por variável para ativar a detecção.`);
+}
+
 /* ── Tabela de coleta ── */
 function saveCellValue(inp) {
   const uid = inp.dataset.uid;
   const vid = inp.dataset.vid;
   if (!collectionData[uid]) collectionData[uid] = {};
   const val = inp.value.trim();
-  if (val === '') delete collectionData[uid][vid];
-  else collectionData[uid][vid] = val;
+  if (val === '') {
+    delete collectionData[uid][vid];
+    inp.style.background = ''; inp.style.borderColor = ''; inp.title = '';
+  } else {
+    collectionData[uid][vid] = val;
+    // Detecção de outlier com debounce de 700ms
+    clearTimeout(_outlierTimer);
+    _outlierTimer = setTimeout(() => checkCellOutlier(inp, vid, uid, val), 700);
+  }
   if (currentProjectName) saveCurrentProject(true);
 }
 
@@ -2299,17 +2393,41 @@ function exportDataXLSX() {
   XLSX.writeFile(wb, `AgroDesign_dados_${design}.xlsx`);
 }
 
+function _metaLines(design, spec) {
+  return [`# AgroDesign — Dados de Coleta`,`# Espécie/Sistema: ${spec||'—'}`,`# Delineamento: ${design}`,`# Separador decimal: "${decimalSep}"`,``].join('\n');
+}
+
 function exportDataCSV() {
   if (!units.length || !projectVariables.length) { alert('Adicione variáveis antes de exportar.'); return; }
   const design = document.getElementById('selDesign').value;
   const spec   = document.getElementById('txtSpecies').value.trim();
   const { headers, rows } = _buildDataRows();
-  const meta = [`# AgroDesign — Dados de Coleta`, `# Espécie/Sistema: ${spec||'—'}`, `# Delineamento: ${design}`, ``].join('\n');
-  const csv  = meta + [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const csv = _metaLines(design, spec) +
+    [headers, ...rows].map(r => r.map((v, i) => {
+      const cell = (typeof v === 'number') ? fmtNum(v) : String(v);
+      return `"${cell.replace(/"/g,'""')}"`;
+    }).join(',')).join('\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url; a.download = `AgroDesign_dados_${design}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportDataTXT() {
+  if (!units.length || !projectVariables.length) { alert('Adicione variáveis antes de exportar.'); return; }
+  const design = document.getElementById('selDesign').value;
+  const spec   = document.getElementById('txtSpecies').value.trim();
+  const { headers, rows } = _buildDataRows();
+  const txt = _metaLines(design, spec) +
+    [headers, ...rows].map(r =>
+      r.map((v, i) => (typeof v === 'number') ? fmtNum(v) : String(v)).join('\t')
+    ).join('\n');
+  const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `AgroDesign_dados_${design}.txt`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
@@ -2700,6 +2818,8 @@ window.addEventListener('resize', () => {
 
 /* ══ Init ══ */
 loadNotes();
+// Restaura separador decimal salvo
+(function() { const btn = document.getElementById('btnDecimalSep'); if (btn) btn.textContent = `🔢 Dec: ${decimalSep}`; })();
 onDesignChange();
 onUnitTypeChange();
 // Restaura a última configuração usada
