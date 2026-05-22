@@ -377,9 +377,17 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       </div>
       <div class="check-row" style="margin-bottom:.3rem">
         <input type="checkbox" id="chkBorders" onchange="toggleBorders()">
-        <label for="chkBorders" style="flex-direction:row;align-items:center;margin:0"><span>Bordaduras</span></label>
+        <label for="chkBorders" style="flex-direction:row;align-items:center;margin:0"><span>Bordadura de linhas</span></label>
         <input type="number" id="borderRows" value="1" min="1" max="5" style="width:50px;display:none">
         <span id="lblBorderUnit" style="display:none;font-size:.75rem;color:var(--text-muted)">linhas</span>
+      </div>
+      <div class="check-row" style="margin-bottom:.3rem">
+        <input type="checkbox" id="chkLateralBorder" onchange="toggleLateralBorder()">
+        <label for="chkLateralBorder" style="flex-direction:row;align-items:center;margin:0">
+          <span>Bordadura lateral (extremidades da linha)</span>
+        </label>
+        <input type="number" id="lateralBorderPlants" value="1" min="1" max="20" style="width:50px;display:none">
+        <span id="lblLateralUnit" style="display:none;font-size:.75rem;color:var(--text-muted)">plantas</span>
       </div>
     </div>
     <div id="secAnimal" class="hidden">
@@ -1603,6 +1611,8 @@ function renderUnidade() {
     const pl  = parseFloat(document.getElementById('plotLength').value)  || 5;
     const br  = document.getElementById('chkBorders').checked
                 ? (parseInt(document.getElementById('borderRows').value) || 0) : 0;
+    const lbp = document.getElementById('chkLateralBorder').checked
+                ? (parseInt(document.getElementById('lateralBorderPlants').value) || 1) : 0;
 
     const plotW = +(rs  * rpp).toFixed(4); // largura (entre linhas × nº linhas)
     const plotL = pl;                       // comprimento (ao longo das linhas)
@@ -1637,12 +1647,15 @@ function renderUnidade() {
       /* centro da linha de plantas */
       const cy = +(ry + rowH / 2).toFixed(1);
       if (plantStp >= 5) {
-        let px = ox;
+        const nPlants = Math.round(dW / plantStp) + 1;
+        let px = ox, pidx = 0;
         while (px <= ox + dW + 1) {
-          const clr = isBd ? 'rgba(100,100,100,0.35)' : '#2d6a4f';
+          const isLatBd = lbp > 0 && (pidx < lbp || pidx >= nPlants - lbp);
+          const isBdAny = isBd || isLatBd;
+          const clr = isBdAny ? 'rgba(100,100,100,0.35)' : '#2d6a4f';
           const r   = Math.min(5, Math.max(2, plantStp / 4));
-          svgStr += `<circle cx="${+px.toFixed(1)}" cy="${cy}" r="${r}" fill="${clr}" opacity="${isBd?'.45':'.85'}"/>`;
-          px += plantStp;
+          svgStr += `<circle cx="${+px.toFixed(1)}" cy="${cy}" r="${r}" fill="${clr}" opacity="${isBdAny?'.45':'.85'}"/>`;
+          px += plantStp; pidx++;
         }
       } else {
         svgStr += `<line x1="${ox}" y1="${cy}" x2="${ox+dW}" y2="${cy}" stroke="${isBd?'#bbb':'#52b788'}" stroke-width="1"/>`;
@@ -1657,6 +1670,25 @@ function renderUnidade() {
       if (bh > 13) {
         svgStr += `<text x="${ox+dW/2}" y="${+(oy+bh/2+4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#555" font-style="italic">bordadura</text>`;
         svgStr += `<text x="${ox+dW/2}" y="${+(oy+dH-bh/2+4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#555" font-style="italic">bordadura</text>`;
+      }
+    }
+
+    /* ── Bordadura lateral — zonas sombreadas nas extremidades ── */
+    const latBdW = lbp > 0 ? +(lbp * plantStp).toFixed(1) : 0;
+    if (lbp > 0 && latBdW > 0) {
+      svgStr += `<rect x="${ox}" y="${oy}" width="${latBdW}" height="${dH}" fill="rgba(100,100,100,0.1)" pointer-events="none"/>`;
+      svgStr += `<rect x="${+(ox+dW-latBdW).toFixed(1)}" y="${oy}" width="${latBdW}" height="${dH}" fill="rgba(100,100,100,0.1)" pointer-events="none"/>`;
+      // Tracejado vertical delimitando a área útil horizontal
+      svgStr += `<line x1="${ox+latBdW}" y1="${oy}" x2="${ox+latBdW}" y2="${oy+dH}" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4 3"/>`;
+      svgStr += `<line x1="${+(ox+dW-latBdW).toFixed(1)}" y1="${oy}" x2="${+(ox+dW-latBdW).toFixed(1)}" y2="${oy+dH}" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4 3"/>`;
+      // Cota do comprimento útil (logo abaixo do croqui)
+      const usefulL  = +(plotL - 2 * lbp * ps).toFixed(2);
+      const annoY    = +(oy + dH + 6).toFixed(1);
+      const ux1      = +(ox + latBdW).toFixed(1);
+      const ux2      = +(ox + dW - latBdW).toFixed(1);
+      if (usefulL > 0 && ux2 > ux1) {
+        svgStr += annLine(ux1, annoY, ux2, annoY);
+        svgStr += `<text x="${+((ux1+ux2)/2).toFixed(1)}" y="${+(annoY+11).toFixed(1)}" text-anchor="middle" font-size="8.5" fill="#374151" font-weight="600">${usefulL} m úteis</text>`;
       }
     }
 
@@ -1718,38 +1750,49 @@ function renderUnidade() {
 
     if (br > 0) {
       svgStr += `<rect x="${lx}" y="${legY}" width="13" height="13" fill="rgba(0,0,0,0.1)" stroke="#aaa" stroke-width="1"/>`;
-      svgStr += `<text x="${lx+17}" y="${legY+10}" font-size="9" fill="#374151">Bordadura</text>`;
-      lx += 90;
+      svgStr += `<text x="${lx+17}" y="${legY+10}" font-size="9" fill="#374151">Bord. de linha</text>`;
+      lx += 108;
     }
-
+    if (lbp > 0) {
+      svgStr += `<rect x="${lx}" y="${legY}" width="13" height="13" fill="rgba(100,100,100,0.15)" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3 2"/>`;
+      svgStr += `<text x="${lx+17}" y="${legY+10}" font-size="9" fill="#374151">Bord. lateral</text>`;
+      lx += 100;
+    }
     if (plantStp >= 5) {
       svgStr += `<circle cx="${lx+6}" cy="${legY+6}" r="4" fill="#2d6a4f" opacity=".8"/>`;
       svgStr += `<text x="${lx+14}" y="${legY+10}" font-size="9" fill="#374151">Planta</text>`;
     }
 
+    const hasBdAny = br > 0 || lbp > 0;
     const subtitle = plantStp >= 5
-      ? `Cada ponto = 1 planta${br > 0 ? ' · Linhas sombreadas = bordaduras' : ''}`
-      : (br > 0 ? 'Linhas sombreadas = bordaduras (descartadas)' : '');
+      ? `Cada ponto = 1 planta${hasBdAny ? ' · Cinza = bordadura (descartado) · Amarelo = bordadura lateral' : ''}`
+      : (hasBdAny ? 'Bordaduras destacadas com sombreamento' : '');
     if (subtitle) {
-      svgStr += `<text x="${svgW/2}" y="${legY+26}" text-anchor="middle" font-size="8" fill="#6b7c6e" font-style="italic">${subtitle}</text>`;
+      svgStr += `<text x="${svgW/2}" y="${legY+26}" text-anchor="middle" font-size="7.5" fill="#6b7c6e" font-style="italic">${subtitle}</text>`;
     }
 
     svgStr += '</svg>';
 
     /* ── Tabela de dimensões ── */
-    const areaTotal  = +(plotW * plotL).toFixed(2);
-    const areaUtil   = +(usefulRows * rs * pl).toFixed(2);
-    const plantsRow  = Math.floor(pl / ps) + 1;
-    const statsArr   = [
-      { label:'Largura da parcela', value: plotW.toFixed(2), unit:'m' },
-      { label:'Comprimento',        value: plotL.toFixed(2), unit:'m' },
-      { label:'Área bruta',         value: String(areaTotal),unit:'m²' },
-      { label:'Linhas totais',      value: String(rpp),      unit:'' },
-      { label:'Linhas bordadura',   value: String(br*2),     unit:'' },
-      { label:'Linhas úteis',       value: String(usefulRows),unit:'' },
-      { label:'Área útil',          value: String(areaUtil), unit:'m²' },
-      { label:'Plantas/parcela',    value: String(rpp * plantsRow), unit:'' },
-      { label:'Plantas úteis',      value: String(usefulRows * plantsRow), unit:'' },
+    const areaTotal       = +(plotW * plotL).toFixed(2);
+    const comprUtil       = +(plotL - 2 * lbp * ps).toFixed(2);
+    const areaUtil        = +(usefulRows * rs * Math.max(0, comprUtil)).toFixed(2);
+    const plantsRow       = Math.floor(pl / ps) + 1;
+    const usefulPlantsRow = Math.max(0, plantsRow - 2 * lbp);
+    const statsArr = [
+      { label:'Largura da parcela',  value: plotW.toFixed(2),          unit:'m' },
+      { label:'Comprimento',         value: plotL.toFixed(2),          unit:'m' },
+      { label:'Área bruta',          value: String(areaTotal),         unit:'m²' },
+      { label:'Linhas totais',       value: String(rpp),               unit:'' },
+      ...(br > 0 ? [{ label:'Linhas bordadura',  value: String(br*2), unit:'' }] : []),
+      { label:'Linhas úteis',        value: String(usefulRows),        unit:'' },
+      ...(lbp > 0 ? [
+        { label:'Bord. lateral',     value: `${lbp}×2 plantas`,        unit:'' },
+        { label:'Compr. útil/linha', value: String(comprUtil),         unit:'m' },
+      ] : []),
+      { label:'Área útil',           value: String(areaUtil),          unit:'m²' },
+      { label:'Plantas totais',      value: String(rpp * plantsRow),   unit:'' },
+      { label:'Plantas úteis',       value: String(usefulRows * usefulPlantsRow), unit:'' },
     ];
     statsHtml = statsArr.map(s =>
       `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`
@@ -1889,6 +1932,12 @@ function toggleBorders() {
   const v = document.getElementById('chkBorders').checked;
   document.getElementById('borderRows').style.display = v ? 'inline-block' : 'none';
   document.getElementById('lblBorderUnit').style.display = v ? 'inline' : 'none';
+}
+
+function toggleLateralBorder() {
+  const v = document.getElementById('chkLateralBorder').checked;
+  document.getElementById('lateralBorderPlants').style.display = v ? 'inline-block' : 'none';
+  document.getElementById('lblLateralUnit').style.display = v ? 'inline' : 'none';
 }
 
 function toggleAlley() {
@@ -2046,6 +2095,8 @@ function captureCurrentConfig() {
     plotLength: document.getElementById('plotLength').value,
     ueArea: document.getElementById('ueArea').value,
     animalsPerUnit: document.getElementById('animalsPerUnit').value,
+    chkLateralBorder: document.getElementById('chkLateralBorder').checked,
+    lateralBorderPlants: document.getElementById('lateralBorderPlants').value,
     fatAName: document.getElementById('fatAName').value,
     fatAn: document.getElementById('fatAn').value,
     fatALevels: document.getElementById('fatALevels').value,
@@ -2071,6 +2122,11 @@ function applyConfig(c) {
   set('rowSpacing', c.rowSpacing); set('plantSpacing', c.plantSpacing);
   set('rowsPerPlot', c.rowsPerPlot); set('plotLength', c.plotLength);
   set('ueArea', c.ueArea); set('animalsPerUnit', c.animalsPerUnit);
+  if (c.chkLateralBorder !== undefined) {
+    document.getElementById('chkLateralBorder').checked = c.chkLateralBorder;
+    set('lateralBorderPlants', c.lateralBorderPlants);
+    toggleLateralBorder();
+  }
   set('fatAName', c.fatAName); set('fatAn', c.fatAn); set('fatALevels', c.fatALevels);
   set('fatBName', c.fatBName); set('fatBn', c.fatBn); set('fatBLevels', c.fatBLevels);
   set('numFatBlocks', c.fatBlocks); set('numFatSeed', c.fatSeed);
