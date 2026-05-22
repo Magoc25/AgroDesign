@@ -35,7 +35,7 @@
   --shadow: 0 2px 8px rgba(0,0,0,.08);
 }
 *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .hidden { display: none !important; }
 
 /* Header */
@@ -45,9 +45,9 @@ header p { font-size: .75rem; opacity: .8; }
 .header-logo { font-size: 1.6rem; line-height: 1; }
 
 /* Layout */
-.app-layout { display: flex; min-height: calc(100vh - 48px - 44px); }
+.app-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 .config-panel { width: 380px; min-width: 320px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 1rem; flex-shrink: 0; }
-.result-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.result-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
 
 /* Form */
 .form-section { margin-bottom: 1.25rem; }
@@ -84,8 +84,9 @@ textarea { resize: vertical; min-height: 70px; }
 .tab-nav { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
 .tab-btn { padding: .6rem 1.1rem; border: none; background: none; cursor: pointer; font-size: .85rem; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
-.tab-content { display: none; flex: 1; overflow: auto; padding: 1rem; }
+.tab-content { display: none; flex: 1; overflow: auto; padding: 1rem; min-height: 0; }
 .tab-content.active { display: flex; flex-direction: column; gap: 1rem; }
+#tabCroqui { overflow: hidden; padding: .75rem; gap: .5rem; }
 
 /* Summary cards */
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .6rem; }
@@ -95,12 +96,13 @@ textarea { resize: vertical; min-height: 70px; }
 .summary-card .unit { font-size: .75rem; color: var(--text-muted); }
 
 /* Croqui */
-.croqui-toolbar { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.croqui-toolbar { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; flex-shrink: 0; }
 .zoom-wrap { display: flex; align-items: center; gap: .4rem; font-size: .82rem; color: var(--text-muted); }
-.zoom-wrap input[type=range] { width: 100px; }
-.svg-scroll { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; min-height: 200px; }
-.svg-inner { display: inline-block; transform-origin: top left; padding: 12px; }
-.croqui-legend { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.zoom-wrap input[type=range] { width: 110px; }
+#croquiContent { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .5rem; }
+.svg-scroll { flex: 1; min-height: 80px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; }
+.svg-inner { display: block; line-height: 0; }
+.croqui-legend { display: flex; flex-wrap: wrap; gap: .4rem; flex-shrink: 0; }
 .legend-item { display: flex; align-items: center; gap: .3rem; font-size: .78rem; }
 .legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.1); flex-shrink: 0; }
 
@@ -433,11 +435,11 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <span class="icon">🗺</span>
       <span class="hint">Gere o croqui para visualizá-lo aqui.</span>
     </div>
-    <div id="croquiContent" class="hidden" style="display:flex;flex-direction:column;gap:.75rem">
+    <div id="croquiContent" class="hidden">
       <div class="croqui-toolbar">
         <div class="zoom-wrap">
           <span>Zoom</span>
-          <input type="range" id="zoomSlider" min="30" max="200" value="100" oninput="setZoom(this.value)">
+          <input type="range" id="zoomSlider" min="25" max="400" value="100" oninput="setZoom(this.value)">
           <span id="zoomLabel">100%</span>
         </div>
         <button class="btn btn-secondary btn-sm" onclick="exportPNG()">🖼 Salvar PNG</button>
@@ -856,50 +858,51 @@ function renderSummary() {
 function rerenderCroqui() { renderCroqui(); }
 
 function renderCroqui() {
-  const design = document.getElementById('selDesign').value;
-  const showIds= document.getElementById('chkShowIds').checked;
   if (!units.length) return;
 
-  const maxRow = Math.max(...units.map(u => u.row));
-  const maxCol = Math.max(...units.map(u => u.col));
-  const UW = 72, UH = 54, GAP = 10, PAD = 20;
+  const design   = document.getElementById('selDesign').value;
+  const showIds  = document.getElementById('chkShowIds').checked;
+  const unitType = document.getElementById('selUnitType').value;
 
-  const blocks = [...new Set(units.map(u => u.block).filter(b => b !== null))];
-  const hasSplit = units.some(u => u.mainPlot !== null);
+  // Dimensões lógicas do SVG (coordenadas internas)
+  const UW = 82, UH = 62, PAD = 30;
 
-  // Calculate block boundaries for gaps
-  const blockRows = {};
-  if (blocks.length) {
-    units.forEach(u => {
-      if (u.block !== null) {
-        if (!blockRows[u.block]) blockRows[u.block] = new Set();
-        blockRows[u.block].add(u.row);
-      }
-    });
-  }
+  // ── Bordaduras ──
+  const hasBorders  = document.getElementById('chkBorders').checked && unitType === 'parcela';
+  const borderNRows = hasBorders ? (parseInt(document.getElementById('borderRows').value) || 1) : 0;
+  const rowsPerPlot = hasBorders ? (parseInt(document.getElementById('rowsPerPlot').value) || 4) : 1;
+  const borderFrac  = hasBorders ? Math.min(0.38, borderNRows / rowsPerPlot) : 0;
 
-  // Map row index → Y, accounting for gaps between blocks
-  const rowGaps = {};  // row → extra Y offset
-  if (blocks.length) {
-    const blockList = Object.entries(blockRows).sort((a, b) => Math.min(...a[1]) - Math.min(...b[1]));
-    let extra = 0;
-    for (let i = 1; i < blockList.length; i++) {
-      const prevMaxRow = Math.max(...blockList[i-1][1]);
-      const curMinRow  = Math.min(...blockList[i][1]);
-      if (curMinRow === prevMaxRow + 1) {
-        extra += GAP;
-      }
-      for (const r of blockList[i][1]) rowGaps[r] = extra;
+  // ── Ruas / Corredores ──
+  const blocks   = [...new Set(units.map(u => u.block).filter(b => b !== null))].sort((a,b) => a - b);
+  const hasAlley = document.getElementById('chkAlley').checked && blocks.length > 1;
+  const alleyM   = hasAlley ? (parseFloat(document.getElementById('alleyWidth').value) || 1.5) : 0;
+  const ALLEY_H  = hasAlley ? Math.max(36, Math.round(UH * 0.62)) : 8;
+
+  // ── Mapa rowBlock e rowY ──
+  const rowBlock = {};
+  units.forEach(u => { if (u.block !== null) rowBlock[u.row] = u.block; });
+
+  const allRows = [...new Set(units.map(u => u.row))].sort((a,b) => a - b);
+  const rowY = {};
+  let curY = PAD;
+  allRows.forEach((row, idx) => {
+    rowY[row] = curY;
+    if (idx < allRows.length - 1) {
+      const nb = rowBlock[allRows[idx + 1]] ?? null;
+      const cb = rowBlock[row] ?? null;
+      curY += UH + (cb !== null && nb !== null && cb !== nb ? ALLEY_H : 0);
     }
-  }
+  });
 
-  const getY = row => PAD + row * UH + (rowGaps[row] || 0);
-  const getX = col => PAD + col * UW;
+  const maxCol = Math.max(...units.map(u => u.col));
+  const svgW   = PAD * 2 + (maxCol + 1) * UW;
+  const svgH   = curY + UH + PAD;
+  const getX   = col => PAD + col * UW;
+  const getY   = row => rowY[row] ?? (PAD + row * UH);
 
-  const svgH = PAD * 2 + (maxRow + 1) * UH + Object.values(rowGaps).reduce((a, b) => a > b ? a : b, 0);
-  const svgW = PAD * 2 + (maxCol + 1) * UW;
-
-  // Main plot boundaries for split-plot
+  // ── Bordas de parcela principal (split-plot) ──
+  const hasSplit = units.some(u => u.mainPlot !== null);
   const mpBounds = {};
   if (hasSplit) {
     units.forEach(u => {
@@ -910,71 +913,88 @@ function renderCroqui() {
     });
   }
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" id="croquiSvg" style="display:block">`;
-
-  // Background
+  // ── Montar SVG ──
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" id="croquiSvg" viewBox="0 0 ${svgW} ${svgH}" style="display:block">`;
   svg += `<rect width="${svgW}" height="${svgH}" fill="#f8fdf9"/>`;
 
-  // Block labels (DBC/split)
+  // Blocos: labels + faixas de rua
   if (blocks.length) {
-    blocks.forEach(b => {
-      const bUnits = units.filter(u => u.block === b);
-      const minRow = Math.min(...bUnits.map(u => u.row));
-      const y = getY(minRow);
-      svg += `<text x="${PAD - 6}" y="${y + UH/2 + 5}" text-anchor="end" font-size="11" fill="#6b7c6e" font-weight="600">B${b}</text>`;
+    blocks.forEach((b, idx) => {
+      const bUnits  = units.filter(u => u.block === b);
+      const minRow  = Math.min(...bUnits.map(u => u.row));
+      const maxRow  = Math.max(...bUnits.map(u => u.row));
+      svg += `<text x="${PAD - 7}" y="${getY(minRow) + UH/2 + 5}" text-anchor="end" font-size="11" fill="#6b7c6e" font-weight="700">B${b}</text>`;
+
+      // Faixa de rua após este bloco (exceto o último)
+      if (hasAlley && idx < blocks.length - 1) {
+        const ay  = getY(maxRow) + UH;
+        const aw  = (maxCol + 1) * UW;
+        svg += `<rect x="${PAD}" y="${ay}" width="${aw}" height="${ALLEY_H}" fill="#d8f3dc" rx="3"/>`;
+        svg += `<rect x="${PAD}" y="${ay}" width="${aw}" height="${ALLEY_H}" fill="none" stroke="#52b788" stroke-width="0.8" stroke-dasharray="5 3" rx="3"/>`;
+        svg += `<text x="${PAD + aw/2}" y="${ay + ALLEY_H/2 + 4}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">↕ Rua / Corredor — ${alleyM} m</text>`;
+      }
     });
   }
 
-  // DQL row/col labels
-  if (document.getElementById('selDesign').value === 'DQL') {
+  // Eixos DQL
+  if (design === 'DQL') {
     [...new Set(units.map(u => u.row))].forEach(r => {
       const u = units.find(x => x.row === r);
-      svg += `<text x="${PAD - 6}" y="${getY(r) + UH/2 + 5}" text-anchor="end" font-size="11" fill="#6b7c6e" font-weight="600">${esc(u.rowLabel||'')}</text>`;
+      svg += `<text x="${PAD - 7}" y="${getY(r) + UH/2 + 5}" text-anchor="end" font-size="11" fill="#6b7c6e" font-weight="600">${esc(u.rowLabel||'')}</text>`;
     });
     [...new Set(units.map(u => u.col))].forEach(c => {
-      svg += `<text x="${getX(c) + UW/2}" y="${PAD - 4}" text-anchor="middle" font-size="11" fill="#6b7c6e" font-weight="600">${c+1}</text>`;
+      svg += `<text x="${getX(c) + UW/2}" y="${PAD - 6}" text-anchor="middle" font-size="11" fill="#6b7c6e" font-weight="600">${c+1}</text>`;
     });
   }
 
-  // Main plot boundaries (split-plot thick borders)
+  // Bordas de parcela principal (split-plot)
   if (hasSplit) {
     Object.values(mpBounds).forEach(b => {
-      const x = getX(b.minC) - 2;
-      const y = getY(b.minR) - 2;
-      const w = (b.maxC - b.minC + 1) * UW + 4;
-      const h = (b.maxR - b.minR + 1) * UH + 4;
-      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#2d6a4f" stroke-width="2.5" rx="3"/>`;
+      svg += `<rect x="${getX(b.minC)-2}" y="${getY(b.minR)-2}" width="${(b.maxC-b.minC+1)*UW+4}" height="${(b.maxR-b.minR+1)*UH+4}" fill="none" stroke="#2d6a4f" stroke-width="2.5" rx="3"/>`;
     });
   }
 
-  // Units
+  // Unidades experimentais
   units.forEach(u => {
     const x = getX(u.col), y = getY(u.row);
     const color = treatmentColors[u.treatment] || '#e2e8f0';
-    const label = showIds ? String(u.id) : esc(u.treatment.length > 8 ? u.treatment.slice(0,7)+'…' : u.treatment);
-    const tooltipData = encodeURIComponent(JSON.stringify({
+    const raw   = u.treatment;
+    const label = showIds ? String(u.id) : esc(raw.length > 9 ? raw.slice(0,8)+'…' : raw);
+    const td    = encodeURIComponent(JSON.stringify({
       id: u.id, block: u.block, treatment: u.treatment,
       factorA: u.factorA, factorB: u.factorB, factorC: u.factorC,
       mainPlot: u.mainPlot, mainPlotLabel: u.mainPlotLabel
     }));
-    svg += `<g class="unit" style="cursor:pointer" onclick="showUnitTooltip(event,'${tooltipData}')">`;
+
+    svg += `<g class="unit" style="cursor:pointer" onclick="showUnitTooltip(event,'${td}')">`;
     svg += `<rect x="${x}" y="${y}" width="${UW}" height="${UH}" fill="${esc(color)}" stroke="#fff" stroke-width="1.5" rx="2"/>`;
-    svg += `<text x="${x+UW/2}" y="${y+UH/2-5}" text-anchor="middle" font-size="10" fill="#1b2a1e" font-weight="600">${label}</text>`;
-    if (!showIds && u.treatment.length > 8) {
-      svg += `<title>${esc(u.treatment)}</title>`;
-    }
+
+    // Texto do tratamento
+    const textY = showIds ? y + UH/2 - 4 : y + UH/2 + 5;
+    svg += `<text x="${x+UW/2}" y="${textY}" text-anchor="middle" font-size="11" fill="#1b2a1e" font-weight="700">${label}</text>`;
     if (showIds) {
-      svg += `<text x="${x+UW/2}" y="${y+UH/2+8}" text-anchor="middle" font-size="8" fill="#4b7a5e">${esc(u.treatment.length>6?u.treatment.slice(0,5)+'…':u.treatment)}</text>`;
+      svg += `<text x="${x+UW/2}" y="${y+UH/2+11}" text-anchor="middle" font-size="8" fill="#4b7a5e">${esc(raw.length>7?raw.slice(0,6)+'…':raw)}</text>`;
     }
+
+    // Overlay de bordaduras (faixas escurecidas topo/base)
+    if (hasBorders && borderFrac > 0) {
+      const bh = Math.max(4, Math.round(UH * borderFrac));
+      svg += `<rect x="${x}" y="${y}" width="${UW}" height="${bh}" fill="rgba(0,0,0,0.18)" rx="2" pointer-events="none"/>`;
+      svg += `<rect x="${x}" y="${y+UH-bh}" width="${UW}" height="${bh}" fill="rgba(0,0,0,0.18)" rx="2" pointer-events="none"/>`;
+      if (bh >= 8) {
+        svg += `<text x="${x+3}" y="${y+bh-2}" font-size="7" fill="rgba(255,255,255,.85)" font-style="italic">bord.</text>`;
+        svg += `<text x="${x+3}" y="${y+UH-2}" font-size="7" fill="rgba(255,255,255,.85)" font-style="italic">bord.</text>`;
+      }
+    }
+
     svg += '</g>';
   });
 
   svg += '</svg>';
 
   document.getElementById('svgInner').innerHTML = svg;
-  setZoom(document.getElementById('zoomSlider').value);
 
-  // Legend
+  // Legenda
   const allT = [...new Set(units.map(u => u.treatment))].sort();
   document.getElementById('croquiLegend').innerHTML = allT.map(t =>
     `<div class="legend-item"><div class="legend-swatch" style="background:${esc(treatmentColors[t]||'#eee')}"></div><span>${esc(t)}</span></div>`
@@ -982,14 +1002,37 @@ function renderCroqui() {
 
   document.getElementById('emptyCroqui').classList.add('hidden');
   document.getElementById('croquiContent').classList.remove('hidden');
-  document.getElementById('croquiContent').style.display = 'flex';
+
+  // Auto-ajuste ao container (após render no DOM)
+  requestAnimationFrame(fitAndZoom);
+}
+
+/* Ajusta o SVG para preencher o espaço disponível no container */
+function fitAndZoom() {
+  const svg = document.getElementById('croquiSvg');
+  if (!svg) return;
+  const vb = svg.getAttribute('viewBox').split(' ').map(Number);
+  const nW = vb[2], nH = vb[3];
+  const scroll = document.getElementById('svgScroll');
+  const availW = Math.max(120, scroll.clientWidth  - 8);
+  const availH = Math.max(80,  scroll.clientHeight - 8);
+  const fitScale = Math.min(availW / nW, availH / nH);
+  window._croquiFit = { scale: fitScale, nW, nH };
+  const zoom = parseInt(document.getElementById('zoomSlider').value) / 100;
+  svg.setAttribute('width',  Math.round(nW * fitScale * zoom));
+  svg.setAttribute('height', Math.round(nH * fitScale * zoom));
 }
 
 function setZoom(v) {
   const pct = parseInt(v);
   document.getElementById('zoomLabel').textContent = pct + '%';
-  const inner = document.getElementById('svgInner');
-  if (inner) inner.style.transform = `scale(${pct/100})`;
+  if (!window._croquiFit) return;
+  const { scale, nW, nH } = window._croquiFit;
+  const svg = document.getElementById('croquiSvg');
+  if (svg) {
+    svg.setAttribute('width',  Math.round(nW * scale * pct / 100));
+    svg.setAttribute('height', Math.round(nH * scale * pct / 100));
+  }
 }
 
 /* ── Unit Tooltip ── */
@@ -1083,21 +1126,22 @@ function exportCSV() {
 function exportPNG() {
   const svg = document.getElementById('croquiSvg');
   if (!svg) return;
-  const serializer = new XMLSerializer();
-  const svgStr = serializer.serializeToString(svg);
+  // Exporta em alta resolução usando as dimensões do viewBox (não as exibidas)
+  const vb = svg.getAttribute('viewBox').split(' ').map(Number);
+  const scale = 2;
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('width',  vb[2] * scale);
+  clone.setAttribute('height', vb[3] * scale);
+  const svgStr = new XMLSerializer().serializeToString(clone);
   const img = new Image();
   img.onload = () => {
     const canvas = document.createElement('canvas');
-    canvas.width = svg.width.baseVal.value * 2;
-    canvas.height = svg.height.baseVal.value * 2;
-    const ctx = canvas.getContext('2d');
-    ctx.scale(2, 2);
-    ctx.drawImage(img, 0, 0);
-    const url = canvas.toDataURL('image/png');
+    canvas.width = vb[2] * scale; canvas.height = vb[3] * scale;
+    canvas.getContext('2d').drawImage(img, 0, 0);
     const a = document.createElement('a');
-    a.href = url; a.download = 'AgroDesign_croqui.png';
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'AgroDesign_croqui.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
 }
@@ -1577,6 +1621,9 @@ async function submitReview() {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
+
+/* ══ Resize ══ */
+window.addEventListener('resize', () => { if (units.length) fitAndZoom(); });
 
 /* ══ Init ══ */
 onDesignChange();
