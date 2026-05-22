@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<!--
+  AgroDesign — Experimental Design para Ciências Agrárias
+  © 2026 MGC Dev — Marlon Gomes da Costa
+  Projeto pessoal. Proibido uso comercial sem autorização.
+  https://github.com/Magoc25/AgroDesign
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgroDesign — Experimental Design</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://api.qrserver.com https://chart.googleapis.com; connect-src 'self' https://*.supabase.co; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none';">
+<link rel="manifest" href="./manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="AgroDesign">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<style>
+:root {
+  --bg: #f4f7f5;
+  --surface: #ffffff;
+  --primary: #2d6a4f;
+  --primary-light: #40916c;
+  --primary-pale: #d8f3dc;
+  --accent: #52b788;
+  --text: #1b2a1e;
+  --text-muted: #6b7c6e;
+  --border: #cde0d3;
+  --danger: #c0392b;
+  --warn: #e67e22;
+  --radius: 8px;
+  --shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+.hidden { display: none !important; }
+
+/* Header */
+header { background: var(--primary); color: #fff; padding: .75rem 1rem; display: flex; align-items: center; gap: .75rem; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: .02em; }
+header p { font-size: .75rem; opacity: .8; }
+.header-logo { font-size: 1.6rem; line-height: 1; }
+
+/* Layout */
+.app-layout { display: flex; min-height: calc(100vh - 48px - 44px); }
+.config-panel { width: 380px; min-width: 320px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 1rem; flex-shrink: 0; }
+.result-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+/* Form */
+.form-section { margin-bottom: 1.25rem; }
+.form-section-title { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--primary); border-bottom: 1px solid var(--primary-pale); padding-bottom: .3rem; margin-bottom: .75rem; }
+label { display: flex; flex-direction: column; gap: .25rem; font-size: .82rem; color: var(--text); margin-bottom: .5rem; }
+label span { font-weight: 500; }
+input[type=text], input[type=number], select, textarea {
+  border: 1px solid var(--border); border-radius: var(--radius); padding: .4rem .6rem;
+  font-size: .85rem; color: var(--text); background: var(--surface); width: 100%;
+  transition: border-color .15s;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-pale); }
+textarea { resize: vertical; min-height: 70px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; }
+.hint { font-size: .75rem; color: var(--text-muted); }
+.error-msg { font-size: .78rem; color: var(--danger); margin-top: .25rem; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; padding: .45rem .9rem; border-radius: var(--radius); border: none; cursor: pointer; font-size: .85rem; font-weight: 600; transition: background .15s, transform .1s; }
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-light); }
+.btn-secondary { background: var(--primary-pale); color: var(--primary); }
+.btn-secondary:hover { background: #b7e4c7; }
+.btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--bg); }
+.btn-danger { background: #fde8e8; color: var(--danger); border: 1px solid #f5c6c6; }
+.btn-sm { padding: .3rem .65rem; font-size: .78rem; }
+.btn-block { width: 100%; }
+.action-row { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .5rem; }
+
+/* Tabs */
+.tab-nav { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.tab-btn { padding: .6rem 1.1rem; border: none; background: none; cursor: pointer; font-size: .85rem; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.tab-content { display: none; flex: 1; overflow: auto; padding: 1rem; }
+.tab-content.active { display: flex; flex-direction: column; gap: 1rem; }
+
+/* Summary cards */
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .6rem; }
+.summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .6rem .8rem; }
+.summary-card .label { font-size: .72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+.summary-card .value { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+.summary-card .unit { font-size: .75rem; color: var(--text-muted); }
+
+/* Croqui */
+.croqui-toolbar { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.zoom-wrap { display: flex; align-items: center; gap: .4rem; font-size: .82rem; color: var(--text-muted); }
+.zoom-wrap input[type=range] { width: 100px; }
+.svg-scroll { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; min-height: 200px; }
+.svg-inner { display: inline-block; transform-origin: top left; padding: 12px; }
+.croqui-legend { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.legend-item { display: flex; align-items: center; gap: .3rem; font-size: .78rem; }
+.legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.1); flex-shrink: 0; }
+
+/* Field book table */
+.table-wrap { overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+th { background: var(--primary); color: #fff; padding: .4rem .6rem; text-align: left; font-weight: 600; position: sticky; top: 0; }
+td { padding: .35rem .6rem; border-bottom: 1px solid var(--border); }
+tr:hover td { background: var(--primary-pale); }
+tr:nth-child(even) td { background: #f9fbfa; }
+
+/* Footer */
+footer { background: var(--surface); border-top: 1px solid var(--border); padding: .5rem 1rem; display: flex; align-items: center; justify-content: center; gap: .75rem; flex-wrap: wrap; }
+.footer-btn { font-size: 11px; padding: 3px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text-muted); cursor: pointer; }
+#appVersion { font-size: 9px; color: #9ca3af; user-select: none; }
+
+/* Modals */
+.modal { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.45); }
+.modal-content { position: relative; background: var(--surface); border-radius: 12px; padding: 1.5rem; max-width: 460px; width: 92%; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.18); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.modal-title { font-weight: 700; font-size: 1rem; }
+.modal-close-btn { background: none; border: none; font-size: 1.1rem; cursor: pointer; color: var(--text-muted); padding: 2px 6px; }
+
+/* Unit tooltip */
+#unitTooltip { position: fixed; background: #1b2a1e; color: #fff; border-radius: 8px; padding: .6rem .9rem; font-size: .8rem; max-width: 240px; pointer-events: none; z-index: 999; line-height: 1.6; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+#unitTooltip dt { font-weight: 600; font-size: .72rem; opacity: .7; margin-top: .3rem; }
+#unitTooltip dd { margin-left: .4rem; }
+
+/* Checklist helper */
+.check-row { display: flex; align-items: center; gap: .4rem; }
+.check-row input[type=checkbox] { width: auto; }
+
+/* Stars */
+.star-btn { font-size: 1.8rem; cursor: pointer; color: #4b5563; }
+
+/* Info box */
+.info-box { background: var(--primary-pale); border-left: 3px solid var(--accent); padding: .5rem .75rem; border-radius: 0 var(--radius) var(--radius) 0; font-size: .82rem; }
+
+/* Empty state */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; color: var(--text-muted); padding: 2rem; text-align: center; }
+.empty-state .icon { font-size: 2.5rem; opacity: .4; }
+
+/* Update banner */
+#updateBanner { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; background: #1a73e8; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; font-size: 13px; gap: 12px; }
+
+/* Mobile */
+@media (max-width: 700px) {
+  .app-layout { flex-direction: column; }
+  .config-panel { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--border); }
+}
+
+/* Print */
+@media print {
+  header, footer, .config-panel, .tab-nav, .croqui-toolbar, .action-row { display: none !important; }
+  .result-panel, .app-layout { display: block; }
+  .tab-content { display: block !important; }
+  #tabCroqui { page-break-before: avoid; }
+  .svg-scroll { border: none; overflow: visible; }
+}
+</style>
+</head>
+<body>
+
+<div id="updateBanner" class="hidden">
+  <span id="updateBannerMsg"></span>
+  <div style="display:flex;gap:8px;flex-shrink:0">
+    <button onclick="location.reload(true)" style="background:#fff;color:#1a73e8;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-weight:600">Recarregar</button>
+    <button onclick="document.getElementById('updateBanner').classList.add('hidden')" style="background:transparent;color:#fff;border:none;font-size:18px;cursor:pointer">✕</button>
+  </div>
+</div>
+
+<header>
+  <span class="header-logo">🌱</span>
+  <div>
+    <h1>AgroDesign</h1>
+    <p>Experimental Design para Ciências Agrárias</p>
+  </div>
+</header>
+
+<div class="app-layout">
+
+<!-- ═══ CONFIG PANEL ═══ -->
+<aside class="config-panel">
+
+  <!-- Projeto Estatístico -->
+  <div class="form-section">
+    <div class="form-section-title">Projeto Estatístico</div>
+
+    <label><span>Delineamento</span>
+      <select id="selDesign" onchange="onDesignChange()">
+        <option value="DIC">DIC — Delineamento Inteiramente Casualizado</option>
+        <option value="DBC" selected>DBC — Delineamento em Blocos Casualizados</option>
+        <option value="DQL">DQL — Delineamento em Quadrado Latino</option>
+        <option value="FAT_DIC">Fatorial em DIC</option>
+        <option value="FAT_DBC">Fatorial em DBC</option>
+        <option value="SPL_DIC">Parcelas Subdivididas em DIC</option>
+        <option value="SPL_DBC">Parcelas Subdivididas em DBC</option>
+      </select>
+    </label>
+
+    <div class="row2">
+      <label><span>Área de aplicação</span>
+        <select id="selArea">
+          <option value="agronomia">Agronomia</option>
+          <option value="zootecnia">Zootecnia</option>
+          <option value="medvet">Med. Veterinária</option>
+        </select>
+      </label>
+      <label><span>Tipo de UE</span>
+        <select id="selUnitType" onchange="onUnitTypeChange()">
+          <option value="parcela">Parcela vegetal</option>
+          <option value="animal">Animal individual</option>
+          <option value="baia">Baia / Lote</option>
+          <option value="piquete">Piquete</option>
+          <option value="clinica">Unidade clínica</option>
+        </select>
+      </label>
+    </div>
+
+    <!-- DIC / DBC / DQL -->
+    <div id="secSimple">
+      <label><span>Tratamentos <span class="hint">(um por linha)</span></span>
+        <textarea id="txtTreatments" rows="4" placeholder="T1&#10;T2&#10;T3&#10;T4"></textarea>
+      </label>
+      <div id="secReps" class="row2">
+        <label><span id="lblReps">Repetições</span>
+          <input type="number" id="numReps" value="3" min="1">
+        </label>
+        <label><span>Semente</span>
+          <input type="number" id="numSeed" value="42" min="0">
+        </label>
+      </div>
+      <div id="secDQLnote" class="info-box hidden">Para DQL: número de tratamentos = n×n (ex: 4 para 4×4).</div>
+    </div>
+
+    <!-- Fatorial -->
+    <div id="secFatorial" class="hidden">
+      <div class="row2">
+        <label><span>Fator A — nome</span>
+          <input type="text" id="fatAName" value="A" maxlength="10">
+        </label>
+        <label><span>Nº de níveis</span>
+          <input type="number" id="fatAn" value="3" min="2" max="10" onchange="autoLevels('A')">
+        </label>
+      </div>
+      <label><span>Níveis de A <span class="hint">(um por linha)</span></span>
+        <textarea id="fatALevels" rows="3">a1&#10;a2&#10;a3</textarea>
+      </label>
+      <div class="row2">
+        <label><span>Fator B — nome</span>
+          <input type="text" id="fatBName" value="B" maxlength="10">
+        </label>
+        <label><span>Nº de níveis</span>
+          <input type="number" id="fatBn" value="2" min="2" max="10" onchange="autoLevels('B')">
+        </label>
+      </div>
+      <label><span>Níveis de B</span>
+        <textarea id="fatBLevels" rows="2">b1&#10;b2</textarea>
+      </label>
+      <div class="check-row" style="margin-bottom:.5rem">
+        <input type="checkbox" id="chkFactorC" onchange="onFactorCToggle()">
+        <label for="chkFactorC" style="flex-direction:row;align-items:center;margin:0"><span>Incluir Fator C</span></label>
+      </div>
+      <div id="secFactorC" class="hidden">
+        <div class="row2">
+          <label><span>Fator C — nome</span>
+            <input type="text" id="fatCName" value="C" maxlength="10">
+          </label>
+          <label><span>Nº de níveis</span>
+            <input type="number" id="fatCn" value="2" min="2" max="6" onchange="autoLevels('C')">
+          </label>
+        </div>
+        <label><span>Níveis de C</span>
+          <textarea id="fatCLevels" rows="2">c1&#10;c2</textarea>
+        </label>
+      </div>
+      <div class="row2">
+        <label><span id="lblFatBlocks">Blocos</span>
+          <input type="number" id="numFatBlocks" value="3" min="1">
+        </label>
+        <label><span>Semente</span>
+          <input type="number" id="numFatSeed" value="42" min="0">
+        </label>
+      </div>
+    </div>
+
+    <!-- Split-plot -->
+    <div id="secSplitPlot" class="hidden">
+      <div class="info-box" style="margin-bottom:.75rem">Fator A = parcela principal · Fator B = subparcela</div>
+      <div class="row2">
+        <label><span>Fator A — nome</span>
+          <input type="text" id="splAName" value="Fator A" maxlength="12">
+        </label>
+        <label><span>Nº de níveis</span>
+          <input type="number" id="splAn" value="3" min="2" max="10" onchange="autoLevels('splA')">
+        </label>
+      </div>
+      <label><span>Níveis de A (parcela principal)</span>
+        <textarea id="splALevels" rows="3">A1&#10;A2&#10;A3</textarea>
+      </label>
+      <div class="row2">
+        <label><span>Fator B — nome</span>
+          <input type="text" id="splBName" value="Fator B" maxlength="12">
+        </label>
+        <label><span>Nº de níveis</span>
+          <input type="number" id="splBn" value="4" min="2" max="10" onchange="autoLevels('splB')">
+        </label>
+      </div>
+      <label><span>Níveis de B (subparcela)</span>
+        <textarea id="splBLevels" rows="4">B1&#10;B2&#10;B3&#10;B4</textarea>
+      </label>
+      <div class="row2">
+        <label><span id="lblSplBlocks">Blocos</span>
+          <input type="number" id="numSplBlocks" value="3" min="2">
+        </label>
+        <label><span>Semente</span>
+          <input type="number" id="numSplSeed" value="42" min="0">
+        </label>
+      </div>
+    </div>
+
+    <div id="errMsg" class="error-msg hidden"></div>
+  </div>
+
+  <!-- Parâmetros da UE -->
+  <div class="form-section">
+    <div class="form-section-title">Parâmetros da Unidade Experimental</div>
+    <div id="secVegetal">
+      <div class="row2">
+        <label><span>Esp. entre linhas (m)</span>
+          <input type="number" id="rowSpacing" value="0.5" min="0.01" step="0.05">
+        </label>
+        <label><span>Esp. entre plantas (m)</span>
+          <input type="number" id="plantSpacing" value="0.2" min="0.01" step="0.05">
+        </label>
+      </div>
+      <div class="row2">
+        <label><span>Linhas por parcela</span>
+          <input type="number" id="rowsPerPlot" value="4" min="1">
+        </label>
+        <label><span>Compr. da parcela (m)</span>
+          <input type="number" id="plotLength" value="5" min="0.1" step="0.5">
+        </label>
+      </div>
+      <div class="check-row" style="margin-bottom:.3rem">
+        <input type="checkbox" id="chkBorders" onchange="toggleBorders()">
+        <label for="chkBorders" style="flex-direction:row;align-items:center;margin:0"><span>Bordaduras</span></label>
+        <input type="number" id="borderRows" value="1" min="1" max="5" style="width:50px;display:none">
+        <span id="lblBorderUnit" style="display:none;font-size:.75rem;color:var(--text-muted)">linhas</span>
+      </div>
+    </div>
+    <div id="secAnimal" class="hidden">
+      <div class="row2">
+        <label><span id="lblUeArea">Área da UE (m²)</span>
+          <input type="number" id="ueArea" value="12" min="0.1" step="0.5">
+        </label>
+        <label><span>Animais por UE</span>
+          <input type="number" id="animalsPerUnit" value="1" min="1">
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Layout -->
+  <div class="form-section">
+    <div class="form-section-title">Layout da Área / Instalação</div>
+    <div class="check-row" style="margin-bottom:.5rem">
+      <input type="checkbox" id="chkAlley" onchange="toggleAlley()">
+      <label for="chkAlley" style="flex-direction:row;align-items:center;margin:0"><span>Ruas/corredores entre blocos</span></label>
+    </div>
+    <div id="secAlley" class="hidden">
+      <label><span>Largura das ruas (m)</span>
+        <input type="number" id="alleyWidth" value="1.5" min="0.1" step="0.1" style="width:120px">
+      </label>
+    </div>
+    <label style="margin-top:.25rem"><span>Orientação do gradiente principal</span>
+      <select id="selGradient">
+        <option value="NS">Norte–Sul (declive, fertilidade)</option>
+        <option value="EW">Leste–Oeste</option>
+        <option value="horiz">Horizontal (temperatura, ventilação)</option>
+        <option value="vert">Vertical (luminosidade, umidade)</option>
+        <option value="none">Sem gradiente definido</option>
+      </select>
+    </label>
+  </div>
+
+  <!-- Actions -->
+  <div class="action-row">
+    <button class="btn btn-primary" onclick="generateCroqui()" style="flex:1">🌿 Gerar Croqui</button>
+    <button class="btn btn-ghost btn-sm" onclick="clearAll()" title="Novo experimento">🗑 Novo</button>
+  </div>
+  <div class="action-row" style="margin-top:.4rem">
+    <button class="btn btn-secondary btn-sm" onclick="toggleExamples()" style="flex:1">📋 Carregar Exemplo</button>
+    <button class="btn btn-ghost btn-sm" onclick="openPresetsModal()">💾 Presets</button>
+  </div>
+  <div id="examplesMenu" class="hidden" style="border:1px solid var(--border);border-radius:var(--radius);margin-top:.4rem;overflow:hidden">
+    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('milho_dbc')">🌽 Milho em DBC (4 tratamentos, 4 blocos)</button>
+    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('frango_dic')">🐔 Frangos em DIC (5 dietas, 4 reps)</button>
+    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('vacas_fat')">🐄 Vacas — Fatorial 3×3 em DBC</button>
+    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('caes_dql')">🐕 Cães — DQL (4 protocolos)</button>
+    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('suinos_spl')">🐖 Suínos — Parcelas Subdivididas em DBC</button>
+  </div>
+</aside>
+
+<!-- ═══ RESULTS PANEL ═══ -->
+<section class="result-panel">
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="showTab('resumo')">📊 Resumo</button>
+    <button class="tab-btn" onclick="showTab('croqui')">🗺 Croqui</button>
+    <button class="tab-btn" onclick="showTab('fieldbook')">📋 Field Book</button>
+  </div>
+
+  <!-- Resumo Tab -->
+  <div id="tabResumo" class="tab-content active">
+    <div id="emptyState" class="empty-state">
+      <span class="icon">🌱</span>
+      <strong>Configure o experimento e clique em Gerar Croqui</strong>
+      <span class="hint">DIC · DBC · DQL · Fatorial · Parcelas Subdivididas</span>
+    </div>
+    <div id="summaryContent" class="hidden">
+      <div class="summary-grid" id="summaryGrid"></div>
+      <div class="info-box" id="summaryGradient"></div>
+    </div>
+  </div>
+
+  <!-- Croqui Tab -->
+  <div id="tabCroqui" class="tab-content">
+    <div id="emptyCroqui" class="empty-state">
+      <span class="icon">🗺</span>
+      <span class="hint">Gere o croqui para visualizá-lo aqui.</span>
+    </div>
+    <div id="croquiContent" class="hidden" style="display:flex;flex-direction:column;gap:.75rem">
+      <div class="croqui-toolbar">
+        <div class="zoom-wrap">
+          <span>Zoom</span>
+          <input type="range" id="zoomSlider" min="30" max="200" value="100" oninput="setZoom(this.value)">
+          <span id="zoomLabel">100%</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportPNG()">🖼 Salvar PNG</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir / PDF</button>
+        <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.8rem">
+          <input type="checkbox" id="chkShowIds" onchange="rerenderCroqui()" style="width:auto"> IDs
+        </label>
+      </div>
+      <div class="svg-scroll" id="svgScroll">
+        <div class="svg-inner" id="svgInner"></div>
+      </div>
+      <div class="croqui-legend" id="croquiLegend"></div>
+    </div>
+  </div>
+
+  <!-- Field Book Tab -->
+  <div id="tabFieldbook" class="tab-content">
+    <div id="emptyFieldbook" class="empty-state">
+      <span class="icon">📋</span>
+      <span class="hint">Gere o croqui para ver o field book.</span>
+    </div>
+    <div id="fieldbookContent" class="hidden" style="display:flex;flex-direction:column;gap:.5rem">
+      <button class="btn btn-secondary btn-sm" style="align-self:flex-start" onclick="exportCSV()">⬇ Exportar CSV</button>
+      <div class="table-wrap">
+        <table id="fieldbookTable"><thead id="fbHead"></thead><tbody id="fbBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+</div><!-- app-layout -->
+
+<footer>
+  <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
+  <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
+  <span id="appVersion">© MGC · v1.1.0</span>
+</footer>
+
+<!-- ═══ UNIT TOOLTIP ═══ -->
+<div id="unitTooltip" class="hidden">
+  <dl id="tooltipContent"></dl>
+</div>
+
+<!-- ═══ PIX MODAL ═══ -->
+<div id="pixModal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closePixModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">☕ Apoiar o Projeto</div>
+      <button class="modal-close-btn" type="button" onclick="closePixModal()">✕</button>
+    </div>
+    <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem">O app é gratuito. Se foi útil no seu ensino ou pesquisa, considere apoiar via PIX.</p>
+    <div id="pixQrContainer" style="text-align:center;margin-bottom:.75rem;min-height:210px;display:flex;align-items:center;justify-content:center"></div>
+    <div style="text-align:center;margin-bottom:1rem">
+      <button type="button" id="pixCopyBtn" onclick="copyPixCode()" class="btn btn-secondary">Copiar código PIX</button>
+    </div>
+    <hr style="border-color:var(--border);margin:.75rem 0">
+    <button type="button" onclick="closePixModal();openReviewsModal('form')" class="btn btn-primary btn-block">✅ Já fiz o PIX — quero avaliar</button>
+  </div>
+</div>
+
+<!-- ═══ REVIEWS MODAL ═══ -->
+<div id="reviewsModal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeReviewsModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">⭐ Avaliações</div>
+      <button class="modal-close-btn" type="button" onclick="closeReviewsModal()">✕</button>
+    </div>
+    <div id="reviewListMode">
+      <div id="reviewsList" style="max-height:260px;overflow-y:auto;margin-bottom:.75rem"></div>
+      <hr style="border-color:var(--border);margin:.5rem 0 .75rem">
+      <button type="button" onclick="closeReviewsModal();openPixModal()" class="btn btn-primary btn-block">☕ Apoiar via PIX para avaliar</button>
+    </div>
+    <div id="reviewFormMode" class="hidden">
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:.75rem">Obrigado pelo apoio! Deixe sua avaliação.</p>
+      <div style="text-align:center;margin-bottom:.5rem">
+        <span class="star-btn" onclick="setReviewStar(1)">★</span>
+        <span class="star-btn" onclick="setReviewStar(2)">★</span>
+        <span class="star-btn" onclick="setReviewStar(3)">★</span>
+        <span class="star-btn" onclick="setReviewStar(4)">★</span>
+        <span class="star-btn" onclick="setReviewStar(5)">★</span>
+      </div>
+      <input type="hidden" id="reviewStarInput" value="0">
+      <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.5rem">
+        <label style="font-size:.85rem"><span>Seu nome *</span>
+          <input id="reviewNameInput" type="text" maxlength="40" placeholder="Ex: Maria">
+        </label>
+        <label style="font-size:.85rem"><span>Comentário (opcional)</span>
+          <textarea id="reviewCommentInput" rows="2" maxlength="200" placeholder="O que você achou do app?"></textarea>
+        </label>
+        <div class="check-row" style="font-size:.82rem">
+          <input type="checkbox" id="reviewDonatedCheck" checked style="width:auto">
+          <label for="reviewDonatedCheck" style="flex-direction:row;margin:0"><span>Já apoiei via PIX ☕</span></label>
+        </div>
+      </div>
+      <button type="button" onclick="submitReview()" class="btn btn-primary btn-block">Enviar avaliação</button>
+    </div>
+    <div id="reviewThankYou" class="hidden" style="text-align:center;padding:1rem 0">
+      <p style="font-size:1.5rem;margin-bottom:.5rem">🎉</p>
+      <p style="font-weight:600;margin-bottom:.25rem">Obrigado pela avaliação!</p>
+      <p id="reviewSyncMsg" style="font-size:.82rem;color:var(--text-muted);margin-bottom:1rem">Sua opinião ajuda outros usuários a conhecer o app.</p>
+      <button type="button" onclick="openReviewsModal('list')" class="btn btn-secondary">Ver todas as avaliações</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PRESETS MODAL ═══ -->
+<div id="presetsModal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closePresetsModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">💾 Presets de Experimento</div>
+      <button class="modal-close-btn" type="button" onclick="closePresetsModal()">✕</button>
+    </div>
+    <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
+      <input type="text" id="presetName" placeholder="Nome do preset" style="flex:1">
+      <button class="btn btn-primary btn-sm" onclick="savePreset()">Salvar atual</button>
+    </div>
+    <div id="presetList" style="display:flex;flex-direction:column;gap:.4rem;max-height:300px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+'use strict';
+
+/* ── Segurança ── */
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+/* ── Constantes ── */
+const APP_VERSION  = '1.0.0';
+const APP_NAME     = 'AgroDesign';
+const PROJECT_ID   = 'agrodesign';
+const PIX_KEY      = '4c6086a2-4bb8-474b-a4cf-ced8c8d82189';
+const PIX_NAME     = 'MGC Dev';
+const PIX_CITY     = 'Sao Raimundo';
+const REV_SB_URL   = 'https://qvddbmlhucxndvbakvyd.supabase.co';
+const REV_SB_KEY   = 'sb_publishable_0Saq2ZYXgGEApcbvWAahtw_VQ9b9iTq';
+
+const UNIT_LABELS = { parcela:'Parcela vegetal', animal:'Animal individual', baia:'Baia/Lote', piquete:'Piquete', clinica:'Unidade clínica' };
+const GRAD_LABELS = { NS:'Norte–Sul', EW:'Leste–Oeste', horiz:'Horizontal', vert:'Vertical', none:'Sem gradiente definido' };
+
+const TREAT_COLORS = [
+  '#a8e6cf','#ffd3b6','#a2d2ff','#cdb4db','#ffc8dd',
+  '#b5ead7','#ffdac1','#d4e09b','#f6c5c5','#c5d8f6',
+  '#faedcd','#e2cfc4','#dcedc1','#ffaaa5','#bde0fe',
+  '#f6ecc5','#c5f6dc','#d8b4fe','#fed7aa','#a5f3fc'
+];
+
+/* ── State ── */
+let units = [];
+let treatmentColors = {};
+
+/* ── PRNG (LCG) ── */
+function makeLCG(seed) {
+  let s = (seed >>> 0) || 1;
+  return () => { s = (Math.imul(1664525, s) + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+function shuffle(arr, rng) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ── Parsers ── */
+function parseTreatments(txt) {
+  return txt.split('\n').map(s => s.trim()).filter(Boolean);
+}
+
+function getSimpleConfig() {
+  const design = document.getElementById('selDesign').value;
+  const seed   = parseInt(document.getElementById('numSeed').value) || 42;
+  const reps   = parseInt(document.getElementById('numReps').value) || 3;
+  const treats = parseTreatments(document.getElementById('txtTreatments').value);
+  return { design, seed, reps, treats };
+}
+
+/* ── Design Generators ── */
+function generateDIC(treats, reps, seed) {
+  const rng = makeLCG(seed);
+  let pool = [];
+  treats.forEach(t => { for (let r = 0; r < reps; r++) pool.push(t); });
+  pool = shuffle(pool, rng);
+  const total = pool.length;
+  const cols = Math.ceil(Math.sqrt(total));
+  const rows = Math.ceil(total / cols);
+  return pool.map((t, i) => ({
+    id: i + 1, row: Math.floor(i / cols), col: i % cols,
+    block: null, mainPlot: null, treatment: t,
+    factorA: null, factorB: null, factorC: null
+  }));
+}
+
+function generateDBC(treats, blocks, seed) {
+  const rng = makeLCG(seed);
+  const n = treats.length;
+  const cols = n;
+  const result = [];
+  let id = 1;
+  for (let b = 0; b < blocks; b++) {
+    const perm = shuffle(treats, rng);
+    perm.forEach((t, i) => {
+      result.push({ id: id++, row: b, col: i, block: b + 1, mainPlot: null, treatment: t, factorA: null, factorB: null, factorC: null });
+    });
+  }
+  return result;
+}
+
+function generateDQL(treats, seed) {
+  const n = treats.length;
+  const rng = makeLCG(seed);
+  const base = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => (i + j) % n));
+  const rowPerm   = shuffle([...Array(n).keys()], rng);
+  const colPerm   = shuffle([...Array(n).keys()], rng);
+  const treatPerm = shuffle([...Array(n).keys()], rng);
+  const result = [];
+  let id = 1;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      result.push({
+        id: id++, row: i, col: j, block: null, mainPlot: null,
+        treatment: treats[treatPerm[base[rowPerm[i]][colPerm[j]]]],
+        factorA: null, factorB: null, factorC: null,
+        rowLabel: String.fromCharCode(65 + i), colLabel: String(j + 1)
+      });
+    }
+  }
+  return result;
+}
+
+function buildFactorialTreatments() {
+  const aN = document.getElementById('fatAName').value || 'A';
+  const bN = document.getElementById('fatBName').value || 'B';
+  const aL = parseTreatments(document.getElementById('fatALevels').value);
+  const bL = parseTreatments(document.getElementById('fatBLevels').value);
+  const hasC = document.getElementById('chkFactorC').checked;
+  const treats = [];
+  for (const a of aL) {
+    for (const b of bL) {
+      if (hasC) {
+        const cL = parseTreatments(document.getElementById('fatCLevels').value);
+        for (const c of cL) {
+          treats.push({ label:`${a}${b}${c}`, factorA:a, factorB:b, factorC:c });
+        }
+      } else {
+        treats.push({ label:`${a}${b}`, factorA:a, factorB:b, factorC:null });
+      }
+    }
+  }
+  return treats;
+}
+
+function generateFactorial(design) {
+  const seed   = parseInt(document.getElementById('numFatSeed').value) || 42;
+  const blocks = parseInt(document.getElementById('numFatBlocks').value) || 3;
+  const fatTreats = buildFactorialTreatments();
+  const labels = fatTreats.map(t => t.label);
+  let raw;
+  if (design === 'FAT_DIC') raw = generateDIC(labels, blocks, seed);
+  else raw = generateDBC(labels, blocks, seed);
+  return raw.map(u => ({
+    ...u,
+    factorA: fatTreats.find(t => t.label === u.treatment)?.factorA ?? null,
+    factorB: fatTreats.find(t => t.label === u.treatment)?.factorB ?? null,
+    factorC: fatTreats.find(t => t.label === u.treatment)?.factorC ?? null,
+  }));
+}
+
+function generateSplitPlot(design) {
+  const seed   = parseInt(document.getElementById('numSplSeed').value) || 42;
+  const blocks = parseInt(document.getElementById('numSplBlocks').value) || 3;
+  const aLevels = parseTreatments(document.getElementById('splALevels').value);
+  const bLevels = parseTreatments(document.getElementById('splBLevels').value);
+  const na = aLevels.length, nb = bLevels.length;
+  const rng = makeLCG(seed);
+  const result = [];
+  let id = 1;
+  const blockCount = design === 'SPL_DBC' ? blocks : 1;
+  const repsForDIC = design === 'SPL_DIC' ? blocks : 1;
+
+  for (let rep = 0; rep < (design === 'SPL_DIC' ? repsForDIC : blockCount); rep++) {
+    const aShuffled = shuffle(aLevels, rng);
+    for (let ai = 0; ai < na; ai++) {
+      const bShuffled = shuffle(bLevels, rng);
+      for (let bi = 0; bi < nb; bi++) {
+        result.push({
+          id: id++,
+          row: design === 'SPL_DIC' ? rep * na + ai : rep,
+          col: ai * nb + bi,
+          block: design === 'SPL_DBC' ? rep + 1 : null,
+          mainPlot: rep * na + ai + 1,
+          mainPlotLabel: aShuffled[ai],
+          treatment: `${aShuffled[ai]}×${bShuffled[bi]}`,
+          factorA: aShuffled[ai],
+          factorB: bShuffled[bi],
+          factorC: null
+        });
+      }
+    }
+  }
+  return result;
+}
+
+/* ── Validate ── */
+function validate(design, treats, reps, blocks) {
+  if (design === 'DIC' || design === 'DBC' || design === 'DQL') {
+    if (treats.length < 2) return 'Informe pelo menos 2 tratamentos.';
+    if (design === 'DIC' && reps < 1) return 'Número de repetições inválido.';
+    if (design === 'DBC' && blocks < 2) return 'DBC requer pelo menos 2 blocos.';
+    if (design === 'DQL') {
+      if (treats.length < 2) return 'DQL requer pelo menos 2 tratamentos.';
+    }
+  }
+  if (design === 'FAT_DIC' || design === 'FAT_DBC') {
+    const fatT = buildFactorialTreatments();
+    if (fatT.length < 2) return 'Configure ao menos 2 tratamentos fatoriais.';
+  }
+  if (design === 'SPL_DIC' || design === 'SPL_DBC') {
+    const aL = parseTreatments(document.getElementById('splALevels').value);
+    const bL = parseTreatments(document.getElementById('splBLevels').value);
+    if (aL.length < 2) return 'Fator A requer pelo menos 2 níveis.';
+    if (bL.length < 2) return 'Fator B requer pelo menos 2 níveis.';
+  }
+  return null;
+}
+
+/* ── Main generator ── */
+function generateCroqui() {
+  const design = document.getElementById('selDesign').value;
+  const errEl  = document.getElementById('errMsg');
+  errEl.classList.add('hidden');
+
+  let error = null;
+  const { treats, reps, seed } = getSimpleConfig();
+  const blocks = parseInt(document.getElementById('numReps').value) || 3;
+
+  error = validate(design, treats, reps, blocks);
+  if (error) { errEl.textContent = error; errEl.classList.remove('hidden'); return; }
+
+  try {
+    if (design === 'DIC') units = generateDIC(treats, reps, seed);
+    else if (design === 'DBC') units = generateDBC(treats, blocks, seed);
+    else if (design === 'DQL') units = generateDQL(treats, seed);
+    else if (design === 'FAT_DIC' || design === 'FAT_DBC') units = generateFactorial(design);
+    else if (design === 'SPL_DIC' || design === 'SPL_DBC') units = generateSplitPlot(design);
+  } catch(e) {
+    errEl.textContent = 'Erro ao gerar: ' + e.message;
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  assignColors();
+  renderSummary();
+  renderCroqui();
+  renderFieldbook();
+  showTab('croqui');
+}
+
+/* ── Colors ── */
+function assignColors() {
+  const allT = [...new Set(units.map(u => u.treatment))].sort();
+  treatmentColors = {};
+  allT.forEach((t, i) => { treatmentColors[t] = TREAT_COLORS[i % TREAT_COLORS.length]; });
+}
+
+/* ── Summary ── */
+function renderSummary() {
+  const design  = document.getElementById('selDesign').value;
+  const unitType= document.getElementById('selUnitType').value;
+  const gradient= document.getElementById('selGradient').value;
+  const treats  = [...new Set(units.map(u => u.treatment))];
+  const total   = units.length;
+
+  let areaPorUe = null, areaTotal = null;
+  if (unitType === 'parcela') {
+    const rs = parseFloat(document.getElementById('rowSpacing').value) || 0.5;
+    const ps = parseFloat(document.getElementById('plantSpacing').value) || 0.2;
+    const rpp= parseInt(document.getElementById('rowsPerPlot').value) || 4;
+    const pl = parseFloat(document.getElementById('plotLength').value) || 5;
+    areaPorUe = (rs * rpp) * pl;
+    const plants = Math.floor(pl / ps) * rpp;
+    areaTotal = areaPorUe * total;
+    document.getElementById('summaryGrid').innerHTML = `
+      <div class="summary-card"><div class="label">Unidades</div><div class="value">${total}</div></div>
+      <div class="summary-card"><div class="label">Tratamentos</div><div class="value">${treats.length}</div></div>
+      <div class="summary-card"><div class="label">Área/parcela</div><div class="value">${areaPorUe.toFixed(1)}</div><div class="unit">m²</div></div>
+      <div class="summary-card"><div class="label">Área total</div><div class="value">${areaTotal.toFixed(0)}</div><div class="unit">m²</div></div>
+      <div class="summary-card"><div class="label">Plantas/parcela</div><div class="value">${plants}</div></div>
+      <div class="summary-card"><div class="label">Delineamento</div><div class="value" style="font-size:.85rem">${design}</div></div>`;
+  } else {
+    const ueA = parseFloat(document.getElementById('ueArea').value) || 12;
+    const apu = parseInt(document.getElementById('animalsPerUnit').value) || 1;
+    areaTotal = ueA * total;
+    document.getElementById('summaryGrid').innerHTML = `
+      <div class="summary-card"><div class="label">Unidades</div><div class="value">${total}</div></div>
+      <div class="summary-card"><div class="label">Tratamentos</div><div class="value">${treats.length}</div></div>
+      <div class="summary-card"><div class="label">Área/UE</div><div class="value">${ueA.toFixed(1)}</div><div class="unit">m²</div></div>
+      <div class="summary-card"><div class="label">Área total</div><div class="value">${areaTotal.toFixed(0)}</div><div class="unit">m²</div></div>
+      <div class="summary-card"><div class="label">Animais/UE</div><div class="value">${apu}</div></div>
+      <div class="summary-card"><div class="label">Delineamento</div><div class="value" style="font-size:.85rem">${design}</div></div>`;
+  }
+
+  document.getElementById('summaryGradient').textContent = `Orientação do gradiente: ${GRAD_LABELS[gradient]}`;
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('summaryContent').classList.remove('hidden');
+  document.getElementById('summaryContent').style.display = 'flex';
+  document.getElementById('summaryContent').style.flexDirection = 'column';
+  document.getElementById('summaryContent').style.gap = '.75rem';
+}
+
+/* ── Croqui SVG ── */
+function rerenderCroqui() { renderCroqui(); }
+
+function renderCroqui() {
+  const design = document.getElementById('selDesign').value;
+  const showIds= document.getElementById('chkShowIds').checked;
+  if (!units.length) return;
+
+  const maxRow = Math.max(...units.map(u => u.row));
+  const maxCol = Math.max(...units.map(u => u.col));
+  const UW = 72, UH = 54, GAP = 10, PAD = 20;
+
+  const blocks = [...new Set(units.map(u => u.block).filter(b => b !== null))];
+  const hasSplit = units.some(u => u.mainPlot !== null);
+
+  // Calculate block boundaries for gaps
+  const blockRows = {};
+  if (blocks.length) {
+    units.forEach(u => {
+      if (u.block !== null) {
+        if (!blockRows[u.block]) blockRows[u.block] = new Set();
+        blockRows[u.block].add(u.row);
+      }
+    });
+  }
+
+  // Map row index → Y, accounting for gaps between blocks
+  const rowGaps = {};  // row → extra Y offset
+  if (blocks.length) {
+    const blockList = Object.entries(blockRows).sort((a, b) => Math.min(...a[1]) - Math.min(...b[1]));
+    let extra = 0;
+    for (let i = 1; i < blockList.length; i++) {
+      const prevMaxRow = Math.max(...blockList[i-1][1]);
+      const curMinRow  = Math.min(...blockList[i][1]);
+      if (curMinRow === prevMaxRow + 1) {
+        extra += GAP;
+      }
+      for (const r of blockList[i][1]) rowGaps[r] = extra;
+    }
+  }
+
+  const getY = row => PAD + row * UH + (rowGaps[row] || 0);
+  const getX = col => PAD + col * UW;
+
+  const svgH = PAD * 2 + (maxRow + 1) * UH + Object.values(rowGaps).reduce((a, b) => a > b ? a : b, 0);
+  const svgW = PAD * 2 + (maxCol + 1) * UW;
+
+  // Main plot boundaries for split-plot
+  const mpBounds = {};
+  if (hasSplit) {
+    units.forEach(u => {
+      if (!mpBounds[u.mainPlot]) mpBounds[u.mainPlot] = {minR:Infinity,maxR:-Infinity,minC:Infinity,maxC:-Infinity};
+      const b = mpBounds[u.mainPlot];
+      b.minR = Math.min(b.minR, u.row); b.maxR = Math.max(b.maxR, u.row);
+      b.minC = Math.min(b.minC, u.col); b.maxC = Math.max(b.maxC, u.col);
+    });
+  }
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" id="croquiSvg" style="display:block">`;
+
+  // Background
+  svg += `<rect width="${svgW}" height="${svgH}" fill="#f8fdf9"/>`;
+
+  // Block labels (DBC/split)
+  if (blocks.length) {
+    blocks.forEach(b => {
+      const bUnits = units.filter(u => u.block === b);
+      const minRow = Math.min(...bUnits.map(u => u.row));
+      const y = getY(minRow);
+      svg += `<text x="${PAD - 6}" y="${y + UH/2 + 5}" text-anchor="end" font-size="11" fill="#6b7c6e" font-weight="600">B${b}</text>`;
+    });
+  }
+
+  // DQL row/col labels
+  if (document.getElementById('selDesign').value === 'DQL') {
+    [...new Set(units.map(u => u.row))].forEach(r => {
+      const u = units.find(x => x.row === r);
+      svg += `<text x="${PAD - 6}" y="${getY(r) + UH/2 + 5}" text-anchor="end" font-size="11" fill="#6b7c6e" font-weight="600">${esc(u.rowLabel||'')}</text>`;
+    });
+    [...new Set(units.map(u => u.col))].forEach(c => {
+      svg += `<text x="${getX(c) + UW/2}" y="${PAD - 4}" text-anchor="middle" font-size="11" fill="#6b7c6e" font-weight="600">${c+1}</text>`;
+    });
+  }
+
+  // Main plot boundaries (split-plot thick borders)
+  if (hasSplit) {
+    Object.values(mpBounds).forEach(b => {
+      const x = getX(b.minC) - 2;
+      const y = getY(b.minR) - 2;
+      const w = (b.maxC - b.minC + 1) * UW + 4;
+      const h = (b.maxR - b.minR + 1) * UH + 4;
+      svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#2d6a4f" stroke-width="2.5" rx="3"/>`;
+    });
+  }
+
+  // Units
+  units.forEach(u => {
+    const x = getX(u.col), y = getY(u.row);
+    const color = treatmentColors[u.treatment] || '#e2e8f0';
+    const label = showIds ? String(u.id) : esc(u.treatment.length > 8 ? u.treatment.slice(0,7)+'…' : u.treatment);
+    const tooltipData = encodeURIComponent(JSON.stringify({
+      id: u.id, block: u.block, treatment: u.treatment,
+      factorA: u.factorA, factorB: u.factorB, factorC: u.factorC,
+      mainPlot: u.mainPlot, mainPlotLabel: u.mainPlotLabel
+    }));
+    svg += `<g class="unit" style="cursor:pointer" onclick="showUnitTooltip(event,'${tooltipData}')">`;
+    svg += `<rect x="${x}" y="${y}" width="${UW}" height="${UH}" fill="${esc(color)}" stroke="#fff" stroke-width="1.5" rx="2"/>`;
+    svg += `<text x="${x+UW/2}" y="${y+UH/2-5}" text-anchor="middle" font-size="10" fill="#1b2a1e" font-weight="600">${label}</text>`;
+    if (!showIds && u.treatment.length > 8) {
+      svg += `<title>${esc(u.treatment)}</title>`;
+    }
+    if (showIds) {
+      svg += `<text x="${x+UW/2}" y="${y+UH/2+8}" text-anchor="middle" font-size="8" fill="#4b7a5e">${esc(u.treatment.length>6?u.treatment.slice(0,5)+'…':u.treatment)}</text>`;
+    }
+    svg += '</g>';
+  });
+
+  svg += '</svg>';
+
+  document.getElementById('svgInner').innerHTML = svg;
+  setZoom(document.getElementById('zoomSlider').value);
+
+  // Legend
+  const allT = [...new Set(units.map(u => u.treatment))].sort();
+  document.getElementById('croquiLegend').innerHTML = allT.map(t =>
+    `<div class="legend-item"><div class="legend-swatch" style="background:${esc(treatmentColors[t]||'#eee')}"></div><span>${esc(t)}</span></div>`
+  ).join('');
+
+  document.getElementById('emptyCroqui').classList.add('hidden');
+  document.getElementById('croquiContent').classList.remove('hidden');
+  document.getElementById('croquiContent').style.display = 'flex';
+}
+
+function setZoom(v) {
+  const pct = parseInt(v);
+  document.getElementById('zoomLabel').textContent = pct + '%';
+  const inner = document.getElementById('svgInner');
+  if (inner) inner.style.transform = `scale(${pct/100})`;
+}
+
+/* ── Unit Tooltip ── */
+function showUnitTooltip(e, dataEnc) {
+  const data = JSON.parse(decodeURIComponent(dataEnc));
+  const tip  = document.getElementById('unitTooltip');
+  const content = document.getElementById('tooltipContent');
+
+  let html = `<dt>Unidade</dt><dd>#${esc(String(data.id))}</dd>`;
+  if (data.block) html += `<dt>Bloco</dt><dd>${esc(String(data.block))}</dd>`;
+  html += `<dt>Tratamento</dt><dd>${esc(data.treatment)}</dd>`;
+  if (data.factorA) html += `<dt>Fator A</dt><dd>${esc(data.factorA)}</dd>`;
+  if (data.factorB) html += `<dt>Fator B</dt><dd>${esc(data.factorB)}</dd>`;
+  if (data.factorC) html += `<dt>Fator C</dt><dd>${esc(data.factorC)}</dd>`;
+  if (data.mainPlot) html += `<dt>Parcela principal</dt><dd>${esc(data.mainPlotLabel || String(data.mainPlot))}</dd>`;
+  content.innerHTML = html;
+
+  tip.classList.remove('hidden');
+  const x = Math.min(e.clientX + 12, window.innerWidth - 260);
+  const y = Math.min(e.clientY + 12, window.innerHeight - 160);
+  tip.style.left = x + 'px';
+  tip.style.top  = y + 'px';
+  setTimeout(() => { document.addEventListener('click', hideTooltip, { once: true }); }, 0);
+}
+
+function hideTooltip() { document.getElementById('unitTooltip').classList.add('hidden'); }
+
+/* ── Field Book ── */
+function renderFieldbook() {
+  if (!units.length) return;
+  const design = document.getElementById('selDesign').value;
+  const isFat  = design.startsWith('FAT');
+  const isSpl  = design.startsWith('SPL');
+  const isDQL  = design === 'DQL';
+
+  const cols = ['#', 'Bloco', 'Linha', 'Coluna', 'Tratamento'];
+  if (isFat || isSpl) cols.push('Fator A', 'Fator B');
+  if (units.some(u => u.factorC)) cols.push('Fator C');
+  if (isSpl) cols.push('Parcela Principal');
+  if (isDQL) cols.push('Linha DQL', 'Coluna DQL');
+
+  document.getElementById('fbHead').innerHTML = '<tr>' + cols.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
+
+  const rows = units.map(u => {
+    let cells = [u.id, u.block ?? '—', u.row + 1, u.col + 1, u.treatment];
+    if (isFat || isSpl) cells.push(u.factorA ?? '—', u.factorB ?? '—');
+    if (units.some(x => x.factorC)) cells.push(u.factorC ?? '—');
+    if (isSpl) cells.push(u.mainPlotLabel || u.mainPlot || '—');
+    if (isDQL) cells.push(u.rowLabel ?? '—', u.colLabel ?? '—');
+    return '<tr>' + cells.map(c => `<td>${esc(String(c))}</td>`).join('') + '</tr>';
+  });
+
+  document.getElementById('fbBody').innerHTML = rows.join('');
+  document.getElementById('emptyFieldbook').classList.add('hidden');
+  document.getElementById('fieldbookContent').classList.remove('hidden');
+  document.getElementById('fieldbookContent').style.display = 'flex';
+}
+
+/* ── Export ── */
+function exportCSV() {
+  if (!units.length) return;
+  const design = document.getElementById('selDesign').value;
+  const isFat  = design.startsWith('FAT');
+  const isSpl  = design.startsWith('SPL');
+  const isDQL  = design === 'DQL';
+
+  const headers = ['id','bloco','linha','coluna','tratamento'];
+  if (isFat || isSpl) { headers.push('fator_a','fator_b'); }
+  if (units.some(u => u.factorC)) headers.push('fator_c');
+  if (isSpl) headers.push('parcela_principal');
+  if (isDQL) { headers.push('linha_dql','coluna_dql'); }
+
+  const rows = units.map(u => {
+    const r = [u.id, u.block ?? '', u.row+1, u.col+1, u.treatment];
+    if (isFat || isSpl) r.push(u.factorA ?? '', u.factorB ?? '');
+    if (units.some(x => x.factorC)) r.push(u.factorC ?? '');
+    if (isSpl) r.push(u.mainPlotLabel || u.mainPlot || '');
+    if (isDQL) r.push(u.rowLabel ?? '', u.colLabel ?? '');
+    return r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+  });
+
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `AgroDesign_${design}_fieldbook.csv`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function exportPNG() {
+  const svg = document.getElementById('croquiSvg');
+  if (!svg) return;
+  const serializer = new XMLSerializer();
+  const svgStr = serializer.serializeToString(svg);
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = svg.width.baseVal.value * 2;
+    canvas.height = svg.height.baseVal.value * 2;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(2, 2);
+    ctx.drawImage(img, 0, 0);
+    const url = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = url; a.download = 'AgroDesign_croqui.png';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+}
+
+/* ── UI helpers ── */
+function showTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const tabs = ['resumo','croqui','fieldbook'];
+    b.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
+}
+
+function onDesignChange() {
+  const d = document.getElementById('selDesign').value;
+  const isSimple = ['DIC','DBC','DQL'].includes(d);
+  const isFat    = d.startsWith('FAT');
+  const isSpl    = d.startsWith('SPL');
+
+  document.getElementById('secSimple').classList.toggle('hidden', !isSimple);
+  document.getElementById('secFatorial').classList.toggle('hidden', !isFat);
+  document.getElementById('secSplitPlot').classList.toggle('hidden', !isSpl);
+  document.getElementById('secDQLnote').classList.toggle('hidden', d !== 'DQL');
+
+  if (d === 'DIC') {
+    document.getElementById('lblReps').textContent = 'Repetições';
+    document.getElementById('secReps').classList.remove('hidden');
+  } else if (d === 'DBC') {
+    document.getElementById('lblReps').textContent = 'Blocos';
+    document.getElementById('secReps').classList.remove('hidden');
+  } else if (d === 'DQL') {
+    document.getElementById('secReps').classList.add('hidden');
+  }
+
+  if (isFat) {
+    document.getElementById('lblFatBlocks').textContent = d === 'FAT_DIC' ? 'Repetições' : 'Blocos';
+  }
+  if (isSpl) {
+    document.getElementById('lblSplBlocks').textContent = d === 'SPL_DIC' ? 'Repetições' : 'Blocos';
+  }
+}
+
+function onUnitTypeChange() {
+  const ut = document.getElementById('selUnitType').value;
+  const isVeg = ut === 'parcela';
+  document.getElementById('secVegetal').classList.toggle('hidden', !isVeg);
+  document.getElementById('secAnimal').classList.toggle('hidden', isVeg);
+  const labels = { animal:'Área por animal (m²)', baia:'Área da baia (m²)', piquete:'Área do piquete (m²)', clinica:'Área da unidade clínica (m²)' };
+  const el = document.getElementById('lblUeArea');
+  if (el && labels[ut]) el.textContent = labels[ut];
+}
+
+function toggleBorders() {
+  const v = document.getElementById('chkBorders').checked;
+  document.getElementById('borderRows').style.display = v ? 'inline-block' : 'none';
+  document.getElementById('lblBorderUnit').style.display = v ? 'inline' : 'none';
+}
+
+function toggleAlley() {
+  document.getElementById('secAlley').classList.toggle('hidden', !document.getElementById('chkAlley').checked);
+}
+
+function onFactorCToggle() {
+  document.getElementById('secFactorC').classList.toggle('hidden', !document.getElementById('chkFactorC').checked);
+}
+
+function autoLevels(factor) {
+  const map = { A:['fatAn','fatALevels','a'], B:['fatBn','fatBLevels','b'], C:['fatCn','fatCLevels','c'], splA:['splAn','splALevels','A'], splB:['splBn','splBLevels','B'] };
+  const [nId, txtId, prefix] = map[factor] || [];
+  if (!nId) return;
+  const n = parseInt(document.getElementById(nId).value) || 2;
+  const txt = document.getElementById(txtId);
+  const lines = txt.value.split('\n').filter(Boolean);
+  if (lines.length !== n) {
+    txt.value = Array.from({length: n}, (_, i) => `${prefix}${i+1}`).join('\n');
+  }
+}
+
+function toggleExamples() {
+  document.getElementById('examplesMenu').classList.toggle('hidden');
+}
+
+function clearAll() {
+  units = []; treatmentColors = {};
+  document.getElementById('emptyState').classList.remove('hidden');
+  document.getElementById('summaryContent').classList.add('hidden');
+  document.getElementById('emptyCroqui').classList.remove('hidden');
+  document.getElementById('croquiContent').classList.add('hidden');
+  document.getElementById('emptyFieldbook').classList.remove('hidden');
+  document.getElementById('fieldbookContent').classList.add('hidden');
+  document.getElementById('svgInner').innerHTML = '';
+  document.getElementById('croquiLegend').innerHTML = '';
+  document.getElementById('fbBody').innerHTML = '';
+  document.getElementById('fbHead').innerHTML = '';
+  showTab('resumo');
+}
+
+/* ── Examples ── */
+const EXAMPLES = {
+  milho_dbc: () => {
+    document.getElementById('selDesign').value = 'DBC';
+    document.getElementById('selArea').value = 'agronomia';
+    document.getElementById('selUnitType').value = 'parcela';
+    document.getElementById('txtTreatments').value = 'Adubação 0 kg/ha\nAdubação 60 kg/ha\nAdubação 120 kg/ha\nAdubação 180 kg/ha';
+    document.getElementById('numReps').value = '4';
+    document.getElementById('numSeed').value = '7';
+    document.getElementById('rowSpacing').value = '0.9';
+    document.getElementById('plantSpacing').value = '0.2';
+    document.getElementById('rowsPerPlot').value = '4';
+    document.getElementById('plotLength').value = '5';
+    document.getElementById('selGradient').value = 'NS';
+    onDesignChange(); onUnitTypeChange();
+  },
+  frango_dic: () => {
+    document.getElementById('selDesign').value = 'DIC';
+    document.getElementById('selArea').value = 'zootecnia';
+    document.getElementById('selUnitType').value = 'baia';
+    document.getElementById('txtTreatments').value = 'Dieta Controle\nDieta 18% PB\nDieta 20% PB\nDieta 22% PB\nDieta 24% PB';
+    document.getElementById('numReps').value = '4';
+    document.getElementById('numSeed').value = '13';
+    document.getElementById('ueArea').value = '6';
+    document.getElementById('animalsPerUnit').value = '8';
+    onDesignChange(); onUnitTypeChange();
+  },
+  vacas_fat: () => {
+    document.getElementById('selDesign').value = 'FAT_DBC';
+    document.getElementById('selArea').value = 'zootecnia';
+    document.getElementById('selUnitType').value = 'baia';
+    document.getElementById('fatAName').value = 'Dieta';
+    document.getElementById('fatAn').value = '3';
+    document.getElementById('fatALevels').value = 'Pastagem\nConfinamento\nSemiconfinamento';
+    document.getElementById('fatBName').value = 'Aditivo';
+    document.getElementById('fatBn').value = '3';
+    document.getElementById('fatBLevels').value = 'Sem aditivo\nMonensina\nLevamisol';
+    document.getElementById('chkFactorC').checked = false;
+    document.getElementById('numFatBlocks').value = '3';
+    document.getElementById('numFatSeed').value = '21';
+    document.getElementById('ueArea').value = '50';
+    document.getElementById('animalsPerUnit').value = '3';
+    onDesignChange(); onUnitTypeChange();
+    document.getElementById('secFactorC').classList.add('hidden');
+  },
+  caes_dql: () => {
+    document.getElementById('selDesign').value = 'DQL';
+    document.getElementById('selArea').value = 'medvet';
+    document.getElementById('selUnitType').value = 'animal';
+    document.getElementById('txtTreatments').value = 'Protocolo A\nProtocolo B\nProtocolo C\nProtocolo D';
+    document.getElementById('numSeed').value = '99';
+    document.getElementById('ueArea').value = '4';
+    document.getElementById('animalsPerUnit').value = '1';
+    document.getElementById('selGradient').value = 'none';
+    onDesignChange(); onUnitTypeChange();
+  },
+  suinos_spl: () => {
+    document.getElementById('selDesign').value = 'SPL_DBC';
+    document.getElementById('selArea').value = 'zootecnia';
+    document.getElementById('selUnitType').value = 'baia';
+    document.getElementById('splAName').value = 'Criação';
+    document.getElementById('splAn').value = '3';
+    document.getElementById('splALevels').value = 'Intensivo\nSemiintensivo\nExtensivo';
+    document.getElementById('splBName').value = 'Ração';
+    document.getElementById('splBn').value = '4';
+    document.getElementById('splBLevels').value = 'Ração A\nRação B\nRação C\nRação D';
+    document.getElementById('numSplBlocks').value = '3';
+    document.getElementById('numSplSeed').value = '55';
+    document.getElementById('ueArea').value = '15';
+    document.getElementById('animalsPerUnit').value = '4';
+    onDesignChange(); onUnitTypeChange();
+  }
+};
+
+function loadExample(key) {
+  clearAll();
+  EXAMPLES[key] && EXAMPLES[key]();
+  document.getElementById('examplesMenu').classList.add('hidden');
+  generateCroqui();
+}
+
+/* ── Presets ── */
+function getPresetsFromStorage() {
+  try { return JSON.parse(localStorage.getItem('agrodesign_presets') || '{}'); } catch(e) { return {}; }
+}
+
+function savePresetsToStorage(p) {
+  try { localStorage.setItem('agrodesign_presets', JSON.stringify(p)); } catch(e) {}
+}
+
+function captureCurrentConfig() {
+  return {
+    design: document.getElementById('selDesign').value,
+    area: document.getElementById('selArea').value,
+    unitType: document.getElementById('selUnitType').value,
+    treatments: document.getElementById('txtTreatments').value,
+    reps: document.getElementById('numReps').value,
+    seed: document.getElementById('numSeed').value,
+    fatAName: document.getElementById('fatAName').value,
+    fatAn: document.getElementById('fatAn').value,
+    fatALevels: document.getElementById('fatALevels').value,
+    fatBName: document.getElementById('fatBName').value,
+    fatBn: document.getElementById('fatBn').value,
+    fatBLevels: document.getElementById('fatBLevels').value,
+    fatBlocks: document.getElementById('numFatBlocks').value,
+    fatSeed: document.getElementById('numFatSeed').value,
+    splALevels: document.getElementById('splALevels').value,
+    splBLevels: document.getElementById('splBLevels').value,
+    splBlocks: document.getElementById('numSplBlocks').value,
+    splSeed: document.getElementById('numSplSeed').value,
+  };
+}
+
+function applyConfig(c) {
+  if (!c) return;
+  const set = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.value = v; };
+  set('selDesign', c.design); set('selArea', c.area); set('selUnitType', c.unitType);
+  set('txtTreatments', c.treatments); set('numReps', c.reps); set('numSeed', c.seed);
+  set('fatAName', c.fatAName); set('fatAn', c.fatAn); set('fatALevels', c.fatALevels);
+  set('fatBName', c.fatBName); set('fatBn', c.fatBn); set('fatBLevels', c.fatBLevels);
+  set('numFatBlocks', c.fatBlocks); set('numFatSeed', c.fatSeed);
+  set('splALevels', c.splALevels); set('splBLevels', c.splBLevels);
+  set('numSplBlocks', c.splBlocks); set('numSplSeed', c.splSeed);
+  onDesignChange(); onUnitTypeChange();
+}
+
+function savePreset() {
+  const name = document.getElementById('presetName').value.trim();
+  if (!name) { alert('Digite um nome para o preset.'); return; }
+  const presets = getPresetsFromStorage();
+  presets[name] = captureCurrentConfig();
+  savePresetsToStorage(presets);
+  renderPresetList();
+  document.getElementById('presetName').value = '';
+}
+
+function renderPresetList() {
+  const presets = getPresetsFromStorage();
+  const names = Object.keys(presets);
+  const el = document.getElementById('presetList');
+  if (!names.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;text-align:center;padding:.5rem">Nenhum preset salvo.</p>'; return; }
+  el.innerHTML = names.map(n => `
+    <div style="display:flex;gap:.4rem;align-items:center">
+      <button class="btn btn-secondary btn-sm" style="flex:1;justify-content:flex-start" onclick="loadPreset('${esc(n)}')">${esc(n)}</button>
+      <button class="btn btn-danger btn-sm" onclick="deletePreset('${esc(n)}')">✕</button>
+    </div>`).join('');
+}
+
+function loadPreset(name) {
+  const presets = getPresetsFromStorage();
+  if (presets[name]) { applyConfig(presets[name]); closePresetsModal(); generateCroqui(); }
+}
+
+function deletePreset(name) {
+  const presets = getPresetsFromStorage();
+  delete presets[name];
+  savePresetsToStorage(presets);
+  renderPresetList();
+}
+
+function openPresetsModal() { renderPresetList(); document.getElementById('presetsModal').classList.remove('hidden'); }
+function closePresetsModal() { document.getElementById('presetsModal').classList.add('hidden'); }
+
+/* ══ PIX ══ */
+function pixEmv(key, name, city, amount) {
+  const f = (id, val) => { const v = String(val); return id + String(v.length).padStart(2,'0') + v; };
+  const mai = f('26', f('00','BR.GOV.BCB.PIX') + f('01', key));
+  const adf = f('62', f('05','***'));
+  let emv = f('00','01') + mai + f('52','0000') + f('53','986') +
+    (amount && parseFloat(amount) > 0 ? f('54', parseFloat(amount).toFixed(2)) : '') +
+    f('58','BR') + f('59', name.slice(0,25)) + f('60', city.slice(0,15)) +
+    adf + '6304';
+  let crc = 0xFFFF;
+  for (let i = 0; i < emv.length; i++) {
+    crc ^= emv.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) { crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1); crc &= 0xFFFF; }
+  }
+  return emv + crc.toString(16).toUpperCase().padStart(4,'0');
+}
+
+let _pixCode = '';
+
+function openPixModal() {
+  document.getElementById('pixModal').classList.remove('hidden');
+  _pixCode = pixEmv(PIX_KEY, PIX_NAME, PIX_CITY, '');
+  const container = document.getElementById('pixQrContainer');
+  const encoded   = encodeURIComponent(_pixCode);
+  const qr1 = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&data=' + encoded;
+  const qr2 = 'https://chart.googleapis.com/chart?chs=200x200&cht=qr&choe=UTF-8&chl=' + encoded;
+  container.innerHTML = `<img id="pixQrImg" src="${qr1}" width="200" height="200" style="border-radius:8px;background:#fff;padding:6px;display:block;margin:0 auto" alt="QR Code PIX">
+    <p id="pixQrFallback" style="display:none;color:var(--text-muted);font-size:.8rem;text-align:center;margin-top:.5rem">Copie o código abaixo para pagar.</p>`;
+  document.getElementById('pixQrImg').onerror = function() {
+    this.src = qr2;
+    this.onerror = function() { this.style.display='none'; document.getElementById('pixQrFallback').style.display='block'; };
+  };
+}
+function closePixModal() { document.getElementById('pixModal').classList.add('hidden'); }
+function copyPixCode() {
+  const btn = document.getElementById('pixCopyBtn');
+  navigator.clipboard.writeText(_pixCode).then(() => {
+    btn.textContent = '✅ Copiado!';
+    setTimeout(() => { btn.textContent = 'Copiar código PIX'; }, 2000);
+  }).catch(() => {
+    const tmp = document.createElement('textarea');
+    tmp.value = _pixCode; document.body.appendChild(tmp); tmp.select();
+    document.execCommand('copy'); document.body.removeChild(tmp);
+  });
+}
+
+/* ══ Reviews ══ */
+let revClient = null;
+function initRevClient() {
+  try {
+    if (window.supabase && typeof window.supabase.createClient === 'function')
+      revClient = window.supabase.createClient(REV_SB_URL, REV_SB_KEY);
+  } catch(e) { console.error('[Reviews] init:', e); }
+}
+initRevClient();
+
+let localReviews = (() => { try { return JSON.parse(localStorage.getItem('agrodesign_reviews') || '[]'); } catch(e) { return []; } })();
+let sharedReviews = [];
+
+function mergeReviews(local, shared) {
+  const map = new Map();
+  [...shared, ...local].forEach(r => map.set(r.id, r));
+  return [...map.values()].sort((a, b) => new Date(b.ts||0).getTime() - new Date(a.ts||0).getTime());
+}
+
+async function loadSharedReviews() {
+  if (!revClient) return;
+  try {
+    const { data, error } = await revClient.from('app_reviews').select('*')
+      .eq('project_id', PROJECT_ID).order('ts', { ascending: false }).limit(200);
+    if (!error && data) sharedReviews = data;
+  } catch(e) { console.error('[Reviews] load', e); }
+}
+
+async function pushReviewToCloud(review) {
+  if (!revClient) return { ok: false, reason: 'Biblioteca Supabase não carregou' };
+  try {
+    const { error } = await revClient.from('app_reviews').insert({
+      id: review.id, project_id: PROJECT_ID, name: review.name,
+      comment: review.comment, stars: review.stars, donated: review.donated,
+      date: review.date, ts: review.ts
+    });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  } catch(e) { return { ok: false, reason: e.message }; }
+}
+
+function renderReviewsList() {
+  const all = mergeReviews(localReviews, sharedReviews);
+  const el  = document.getElementById('reviewsList');
+  if (!all.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;text-align:center;padding:.5rem">Nenhuma avaliação ainda.</p>'; return; }
+  el.innerHTML = all.map(r => {
+    const stars = '★'.repeat(Math.max(0, Math.min(5, r.stars || 0))) + '☆'.repeat(5 - Math.max(0, Math.min(5, r.stars || 0)));
+    return `<div style="border-bottom:1px solid var(--border);padding:.5rem 0">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong style="font-size:.85rem">${esc(r.name)}</strong>
+        <span style="color:#facc15;font-size:.9rem">${stars}</span>
+      </div>
+      ${r.comment ? `<p style="font-size:.82rem;color:var(--text-muted);margin:.2rem 0">${esc(r.comment)}</p>` : ''}
+      <span style="font-size:.72rem;color:#9ca3af">${esc(r.date||'')}${r.donated ? ' · ☕' : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+async function openReviewsModal(mode = 'list') {
+  if (!revClient) initRevClient();
+  document.getElementById('reviewsModal').classList.remove('hidden');
+  document.getElementById('reviewListMode').classList.toggle('hidden', mode !== 'list');
+  document.getElementById('reviewFormMode').classList.toggle('hidden', mode !== 'form');
+  document.getElementById('reviewThankYou').classList.add('hidden');
+  if (mode === 'list') {
+    document.getElementById('reviewsList').innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;text-align:center">Carregando...</p>';
+    await loadSharedReviews();
+    renderReviewsList();
+  }
+  if (mode === 'form') {
+    setReviewStar(0);
+    document.getElementById('reviewNameInput').value = '';
+    document.getElementById('reviewCommentInput').value = '';
+    document.getElementById('reviewDonatedCheck').checked = true;
+  }
+}
+
+function closeReviewsModal() { document.getElementById('reviewsModal').classList.add('hidden'); }
+
+function setReviewStar(n) {
+  document.getElementById('reviewStarInput').value = n;
+  document.querySelectorAll('.star-btn').forEach((btn, i) => { btn.style.color = i < n ? '#facc15' : '#4b5563'; });
+}
+
+async function submitReview() {
+  const stars   = parseInt(document.getElementById('reviewStarInput').value || '0');
+  const name    = document.getElementById('reviewNameInput').value.trim();
+  const comment = document.getElementById('reviewCommentInput').value.trim();
+  const donated = document.getElementById('reviewDonatedCheck').checked;
+  if (!stars) { alert('Selecione uma avaliação de 1 a 5 estrelas.'); return; }
+  if (!name)  { alert('Digite seu nome.'); return; }
+  const now = new Date();
+  const review = {
+    id: `${PROJECT_ID}_${now.getTime()}_${Math.random().toString(36).slice(2,7)}`,
+    name, comment, stars, donated,
+    date: now.toLocaleDateString('pt-BR'),
+    ts: now.toISOString()
+  };
+  localReviews = [review, ...localReviews];
+  try { localStorage.setItem('agrodesign_reviews', JSON.stringify(localReviews)); } catch(e) {}
+  renderReviewsList();
+  const result = await pushReviewToCloud(review);
+  document.getElementById('reviewFormMode').classList.add('hidden');
+  document.getElementById('reviewSyncMsg').textContent = result?.ok
+    ? '✅ Avaliação sincronizada! Outros usuários já podem ver.'
+    : `⚠️ Salvo só neste dispositivo. Motivo: ${result?.reason || 'desconhecido'}`;
+  document.getElementById('reviewThankYou').classList.remove('hidden');
+}
+
+/* ══ Version ══ */
+(async () => {
+  const el = document.getElementById('appVersion');
+  if (!el) return;
+  const CACHE_KEY = 'agrodesign_app_version';
+  const CACHE_TTL = 6 * 60 * 60 * 1000;
+  const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+  if (cached && Date.now() - cached.ts < CACHE_TTL) { el.textContent = '© MGC · ' + cached.v; return; }
+  try {
+    const res = await fetch('./CHANGELOG.md?_=' + Date.now(), { cache: 'no-cache' });
+    if (!res.ok) return;
+    const text  = await res.text();
+    const match = text.match(/##\s+\[(\d+\.\d+\.\d+)\]/);
+    if (!match) return;
+    const v = 'v' + match[1];
+    el.textContent = '© MGC · ' + v;
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ v, ts: Date.now() }));
+  } catch(e) {}
+})();
+
+(async () => {
+  if (!revClient) return;
+  const LOCAL_VERSION = APP_VERSION;
+  const CACHE_KEY = 'agrodesign_update_check';
+  const CACHE_TTL = 24 * 60 * 60 * 1000;
+  const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return;
+  try {
+    const { data, error } = await revClient.from('app_config').select('value')
+      .eq('project_id', PROJECT_ID).eq('key', 'version').single();
+    if (error || !data) return;
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now() }));
+    const parse = v => v.split('.').map(Number);
+    const [ra,rb,rc] = parse(data.value.replace(/^v/,''));
+    const [la,lb,lc] = parse(LOCAL_VERSION);
+    if (!(ra>la||(ra===la&&rb>lb)||(ra===la&&rb===lb&&rc>lc))) return;
+    const banner = document.getElementById('updateBanner');
+    document.getElementById('updateBannerMsg').textContent = `🆕 Nova versão disponível (v${data.value}) — recarregue o app para atualizar.`;
+    banner.classList.remove('hidden');
+  } catch(e) {}
+})();
+
+/* ══ Ping ══ */
+(async () => {
+  if (!revClient) return;
+  const today = new Date().toISOString().slice(0,10);
+  const PING_KEY = 'agrodesign_ping_date';
+  if (localStorage.getItem(PING_KEY) === today) return;
+  let deviceId = localStorage.getItem('agrodesign_device_id');
+  if (!deviceId) { deviceId = crypto.randomUUID(); localStorage.setItem('agrodesign_device_id', deviceId); }
+  try {
+    await revClient.from('app_pings').upsert(
+      { app_name: APP_NAME, version: APP_VERSION, device_id: deviceId, ping_date: today },
+      { onConflict: 'app_name,device_id,ping_date', ignoreDuplicates: true }
+    );
+    localStorage.setItem(PING_KEY, today);
+  } catch(e) {}
+})();
+
+/* ══ Service Worker ══ */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+/* ══ Init ══ */
+onDesignChange();
+onUnitTypeChange();
+</script>
+</body>
+</html>
