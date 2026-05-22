@@ -1,6 +1,6 @@
-/* AgroDesign — Service Worker v1.0.0 */
+/* AgroDesign — Service Worker v1.0.0 — cache v8 */
 
-const CACHE_NAME = 'agrodesign-v1';
+const CACHE_NAME = 'agrodesign-v8';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
@@ -18,17 +18,20 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   if (!event.request.url.startsWith(self.location.origin)) return;
 
+  const isAppFile = event.request.url.includes('AgroDesign.html') ||
+                    event.request.url.includes('manifest.json') ||
+                    event.request.url.includes('icon-');
+
+  // Network-first: busca sempre a versão mais recente quando online;
+  // usa o cache apenas como fallback offline.
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      return cached || fetch(event.request).then(response => {
-        if (event.request.url.includes('AgroDesign.html') ||
-            event.request.url.includes('manifest.json') ||
-            event.request.url.includes('icon-')) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        }
-        return response;
-      }).catch(() => cached || new Response('Offline', { status: 503 }));
-    })
+    fetch(event.request).then(response => {
+      if (response.ok && isAppFile) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+      }
+      return response;
+    }).catch(() => caches.match(event.request)
+                    .then(cached => cached || new Response('Offline', { status: 503 })))
   );
 });

@@ -190,6 +190,12 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 <!-- ═══ CONFIG PANEL ═══ -->
 <aside class="config-panel">
 
+  <!-- Badge do projeto ativo -->
+  <div id="currentProjectBadge" class="hidden" style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;padding:.3rem .6rem;background:var(--primary-pale);border-radius:6px;margin-bottom:.6rem;font-size:.78rem;color:var(--primary)">
+    <span>📂 <strong id="currentProjectName"></strong></span>
+    <button onclick="saveCurrentProject(true)" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--primary);font-weight:600;padding:0" title="Salvar agora">💾</button>
+  </div>
+
   <!-- Projeto Estatístico -->
   <div class="form-section">
     <div class="form-section-title">Projeto Estatístico</div>
@@ -408,7 +414,8 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     <button class="btn btn-ghost btn-sm" onclick="clearAll()" title="Novo experimento">🗑 Novo</button>
   </div>
   <div class="action-row" style="margin-top:.4rem">
-    <button class="btn btn-secondary btn-sm" onclick="toggleExamples()" style="flex:1">📋 Carregar Exemplo</button>
+    <button class="btn btn-secondary btn-sm" onclick="openProjectsModal()" style="flex:1">📂 Projetos</button>
+    <button class="btn btn-ghost btn-sm" onclick="toggleExamples()">📋 Exemplos</button>
     <button class="btn btn-ghost btn-sm" onclick="openPresetsModal()">💾 Presets</button>
   </div>
   <div id="examplesMenu" class="hidden" style="border:1px solid var(--border);border-radius:var(--radius);margin-top:.4rem;overflow:hidden">
@@ -609,6 +616,37 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <button class="btn btn-primary btn-sm" onclick="savePreset()">Salvar atual</button>
     </div>
     <div id="presetList" style="display:flex;flex-direction:column;gap:.4rem;max-height:300px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- ═══ PROJECTS MODAL ═══ -->
+<div id="projectsModal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeProjectsModal()"></div>
+  <div class="modal-content" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title">📂 Projetos</div>
+      <button class="modal-close-btn" type="button" onclick="closeProjectsModal()">✕</button>
+    </div>
+
+    <!-- Salvar projeto atual -->
+    <div style="display:flex;gap:.5rem;margin-bottom:.5rem">
+      <input type="text" id="projectSaveName" placeholder="Nome do projeto..." style="flex:1">
+      <button class="btn btn-primary btn-sm" id="btnSaveProject" onclick="saveCurrentProject()">Salvar</button>
+    </div>
+    <p class="hint" style="margin-bottom:.75rem">Salva a configuração + croqui gerado + observações.</p>
+
+    <!-- Importar JSON -->
+    <div style="margin-bottom:.75rem">
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('projectImportInput').click()">
+        📥 Importar projeto (.json)
+      </button>
+      <input type="file" id="projectImportInput" accept=".json" style="display:none">
+    </div>
+
+    <hr style="border-color:var(--border);margin:.5rem 0 .75rem">
+
+    <!-- Lista de projetos -->
+    <div id="projectList" style="display:flex;flex-direction:column;gap:.4rem;max-height:320px;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -1777,6 +1815,7 @@ function toggleExamples() {
 
 function clearAll() {
   units = []; treatmentColors = {};
+  currentProjectName = null; updateProjectBadge();
   document.getElementById('emptyState').classList.remove('hidden');
   document.getElementById('summaryContent').classList.add('hidden');
   document.getElementById('emptyCroqui').classList.remove('hidden');
@@ -1970,6 +2009,162 @@ function deletePreset(name) {
 
 function openPresetsModal() { renderPresetList(); document.getElementById('presetsModal').classList.remove('hidden'); }
 function closePresetsModal() { document.getElementById('presetsModal').classList.add('hidden'); }
+
+/* ══ Projetos ══ */
+const PROJECTS_KEY = 'agrodesign_projects';
+let currentProjectName = null;
+
+function getProjectsFromStorage() {
+  try { return JSON.parse(localStorage.getItem(PROJECTS_KEY) || '[]'); } catch(e) { return []; }
+}
+function storeProjects(p) {
+  try { localStorage.setItem(PROJECTS_KEY, JSON.stringify(p)); } catch(e) {}
+}
+
+function updateProjectBadge() {
+  const badge = document.getElementById('currentProjectBadge');
+  const nameEl = document.getElementById('currentProjectName');
+  if (currentProjectName) {
+    nameEl.textContent = currentProjectName;
+    badge.classList.remove('hidden');
+    badge.style.display = 'flex';
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function saveCurrentProject(silent = false) {
+  const input = document.getElementById('projectSaveName');
+  const name  = (input?.value?.trim() || currentProjectName || '').trim();
+  if (!name) { alert('Digite um nome para o projeto.'); return; }
+  if (!units.length) { alert('Gere o croqui antes de salvar o projeto.'); return; }
+
+  const projects = getProjectsFromStorage();
+  const idx = projects.findIndex(p => p.name === name);
+  const proj = {
+    name,
+    savedAt: new Date().toISOString(),
+    appVersion: APP_VERSION,
+    config: captureCurrentConfig(),
+    units: JSON.parse(JSON.stringify(units)),
+    treatmentColors: { ...treatmentColors },
+    notes: { ...unitNotes }
+  };
+  if (idx >= 0) projects[idx] = proj; else projects.unshift(proj);
+  storeProjects(projects);
+
+  currentProjectName = name;
+  updateProjectBadge();
+  if (input) input.value = '';
+  renderProjectList();
+
+  if (!silent) {
+    const btn = document.getElementById('btnSaveProject');
+    if (btn) { btn.textContent = '✅ Salvo!'; setTimeout(() => { btn.textContent = 'Salvar'; }, 1500); }
+  }
+}
+
+function loadProject(idx) {
+  const projects = getProjectsFromStorage();
+  const proj = projects[idx];
+  if (!proj) return;
+
+  applyConfig(proj.config);
+  units = Array.isArray(proj.units) ? proj.units : [];
+  treatmentColors = proj.treatmentColors || {};
+  unitNotes = proj.notes || {};
+
+  currentProjectName = proj.name;
+  updateProjectBadge();
+  document.getElementById('projectSaveName').value = proj.name;
+
+  if (units.length) {
+    assignColors();
+    renderSummary();
+    renderCroqui();
+    renderFieldbook();
+    renderUnidade();
+    closeProjectsModal();
+    showTab('croqui');
+  } else {
+    closeProjectsModal();
+  }
+}
+
+function exportProjectJSON(idx) {
+  const proj = getProjectsFromStorage()[idx];
+  if (!proj) return;
+  const blob = new Blob([JSON.stringify(proj, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'AgroDesign_' + proj.name.replace(/[^a-zA-Z0-9_\-]/g, '_') + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function deleteProject(idx) {
+  const projects = getProjectsFromStorage();
+  const name = projects[idx]?.name;
+  if (!name) return;
+  if (!confirm(`Excluir o projeto "${name}"?`)) return;
+  projects.splice(idx, 1);
+  storeProjects(projects);
+  if (currentProjectName === name) { currentProjectName = null; updateProjectBadge(); }
+  renderProjectList();
+}
+
+function renderProjectList() {
+  const projects = getProjectsFromStorage();
+  window._projRefs = projects;
+  const el = document.getElementById('projectList');
+  if (!el) return;
+  if (!projects.length) {
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;text-align:center;padding:.75rem">Nenhum projeto salvo.</p>';
+    return;
+  }
+  el.innerHTML = projects.map((p, i) => `
+    <div style="display:flex;gap:.4rem;align-items:center;padding:.45rem .5rem;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis${p.name === currentProjectName ? ';color:var(--primary)' : ''}">${esc(p.name)}</div>
+        <div style="font-size:.7rem;color:var(--text-muted)">${esc(new Date(p.savedAt).toLocaleString('pt-BR'))} · ${(p.units||[]).length} UEs</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="loadProject(${i})">Abrir</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportProjectJSON(${i})" title="Exportar JSON">⬇</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteProject(${i})">✕</button>
+    </div>`).join('');
+}
+
+function openProjectsModal() {
+  if (currentProjectName) document.getElementById('projectSaveName').value = currentProjectName;
+  renderProjectList();
+  document.getElementById('projectsModal').classList.remove('hidden');
+}
+function closeProjectsModal() { document.getElementById('projectsModal').classList.add('hidden'); }
+
+// Importar projeto de arquivo JSON
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('projectImportInput');
+  if (inp) inp.addEventListener('change', async e => {
+    const file = e.target.files?.[0]; if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (!data?.name || !data?.config) throw new Error('Arquivo inválido ou corrompido.');
+      const projects = getProjectsFromStorage();
+      const idx = projects.findIndex(p => p.name === data.name);
+      if (idx >= 0) {
+        if (!confirm(`Projeto "${data.name}" já existe. Sobrescrever?`)) { e.target.value = ''; return; }
+        projects[idx] = data;
+      } else {
+        projects.unshift(data);
+      }
+      storeProjects(projects);
+      renderProjectList();
+      if (confirm(`Projeto "${data.name}" importado com sucesso. Abrir agora?`)) loadProject(projects.findIndex(p => p.name === data.name));
+    } catch(err) { alert('Erro ao importar: ' + err.message); }
+    e.target.value = '';
+  });
+});
 
 /* ══ PIX ══ */
 function pixEmv(key, name, city, amount) {
