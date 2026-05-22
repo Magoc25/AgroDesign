@@ -225,6 +225,10 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       </label>
     </div>
 
+    <label><span>Espécie / Sistema de produção</span>
+      <input type="text" id="txtSpecies" placeholder="Ex: Milho, Frangos de corte, Bovinos leiteiros">
+    </label>
+
     <!-- DIC / DBC / DQL -->
     <div id="secSimple">
       <label><span>Tratamentos <span class="hint">(um por linha)</span></span>
@@ -388,6 +392,12 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <option value="horiz">Horizontal (temperatura, ventilação)</option>
         <option value="vert">Vertical (luminosidade, umidade)</option>
         <option value="none">Sem gradiente definido</option>
+      </select>
+    </label>
+    <label style="margin-top:.25rem"><span>Numeração das unidades</span>
+      <select id="selNumbering">
+        <option value="cartesian">Cartesiana (→ linha a linha)</option>
+        <option value="serpentine">Serpentina (↔ ida e volta por linha)</option>
       </select>
     </label>
   </div>
@@ -577,6 +587,23 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <button class="btn btn-primary btn-sm" onclick="savePreset()">Salvar atual</button>
     </div>
     <div id="presetList" style="display:flex;flex-direction:column;gap:.4rem;max-height:300px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- ═══ UNIT MODAL ═══ -->
+<div id="unitModal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeUnitModal()"></div>
+  <div class="modal-content" style="max-width:340px">
+    <div class="modal-header">
+      <div class="modal-title" id="unitModalTitle">Unidade #</div>
+      <button class="modal-close-btn" type="button" onclick="closeUnitModal()">✕</button>
+    </div>
+    <dl id="unitModalDl" style="font-size:.85rem;line-height:1.9;margin-bottom:.75rem"></dl>
+    <label style="font-size:.82rem">
+      <span style="font-weight:600;color:var(--text-muted)">Observações</span>
+      <textarea id="unitNoteInput" rows="2" maxlength="200"
+        placeholder="Anotação rápida (opcional)..." style="margin-top:.3rem;resize:none"></textarea>
+    </label>
   </div>
 </div>
 
@@ -813,12 +840,32 @@ function generateCroqui() {
     return;
   }
 
+  // Numeração serpentina
+  if (document.getElementById('selNumbering').value === 'serpentine') {
+    units = applySerpentine(units);
+  }
+
+  // Auto-save da configuração atual
+  try { localStorage.setItem('agrodesign_last_config', JSON.stringify(captureCurrentConfig())); } catch(e) {}
+
   assignColors();
   renderSummary();
   renderCroqui();
   renderFieldbook();
   renderUnidade();
   showTab('croqui');
+}
+
+function applySerpentine(arr) {
+  const allRows = [...new Set(arr.map(u => u.row))].sort((a, b) => a - b);
+  let counter = 1;
+  const out = [];
+  allRows.forEach((row, rowIdx) => {
+    let rowUnits = arr.filter(u => u.row === row).sort((a, b) => a.col - b.col);
+    if (rowIdx % 2 === 1) rowUnits = [...rowUnits].reverse();
+    rowUnits.forEach(u => out.push({ ...u, id: counter++ }));
+  });
+  return out;
 }
 
 /* ── Colors ── */
@@ -836,6 +883,9 @@ function renderSummary() {
   const treats  = [...new Set(units.map(u => u.treatment))];
   const total   = units.length;
 
+  const spec = document.getElementById('txtSpecies').value.trim();
+  const specCard = spec ? `<div class="summary-card" style="grid-column:1/-1"><div class="label">Espécie / Sistema</div><div class="value" style="font-size:.9rem">${esc(spec)}</div></div>` : '';
+
   let areaPorUe = null, areaTotal = null;
   if (unitType === 'parcela') {
     const rs = parseFloat(document.getElementById('rowSpacing').value) || 0.5;
@@ -845,7 +895,7 @@ function renderSummary() {
     areaPorUe = (rs * rpp) * pl;
     const plants = Math.floor(pl / ps) * rpp;
     areaTotal = areaPorUe * total;
-    document.getElementById('summaryGrid').innerHTML = `
+    document.getElementById('summaryGrid').innerHTML = specCard + `
       <div class="summary-card"><div class="label">Unidades</div><div class="value">${total}</div></div>
       <div class="summary-card"><div class="label">Tratamentos</div><div class="value">${treats.length}</div></div>
       <div class="summary-card"><div class="label">Área/parcela</div><div class="value">${areaPorUe.toFixed(1)}</div><div class="unit">m²</div></div>
@@ -856,7 +906,7 @@ function renderSummary() {
     const ueA = parseFloat(document.getElementById('ueArea').value) || 12;
     const apu = parseInt(document.getElementById('animalsPerUnit').value) || 1;
     areaTotal = ueA * total;
-    document.getElementById('summaryGrid').innerHTML = `
+    document.getElementById('summaryGrid').innerHTML = specCard + `
       <div class="summary-card"><div class="label">Unidades</div><div class="value">${total}</div></div>
       <div class="summary-card"><div class="label">Tratamentos</div><div class="value">${treats.length}</div></div>
       <div class="summary-card"><div class="label">Área/UE</div><div class="value">${ueA.toFixed(1)}</div><div class="unit">m²</div></div>
@@ -982,10 +1032,11 @@ function renderCroqui() {
     const td    = encodeURIComponent(JSON.stringify({
       id: u.id, block: u.block, treatment: u.treatment,
       factorA: u.factorA, factorB: u.factorB, factorC: u.factorC,
-      mainPlot: u.mainPlot, mainPlotLabel: u.mainPlotLabel
+      mainPlot: u.mainPlot, mainPlotLabel: u.mainPlotLabel,
+      row: u.row, col: u.col
     }));
 
-    svg += `<g class="unit" style="cursor:pointer" onclick="showUnitTooltip(event,'${td}')">`;
+    svg += `<g class="unit" style="cursor:pointer" onclick="openUnitModal('${td}')">`;
     svg += `<rect x="${x}" y="${y}" width="${UW}" height="${UH}" fill="${esc(color)}" stroke="#fff" stroke-width="1.5" rx="2"/>`;
 
     // Texto do tratamento
@@ -1008,6 +1059,18 @@ function renderCroqui() {
 
     svg += '</g>';
   });
+
+  // Rótulo de escala (rodapé do SVG)
+  const _ut = document.getElementById('selUnitType').value;
+  if (_ut === 'parcela') {
+    const _pl  = parseFloat(document.getElementById('plotLength').value)  || 5;
+    const _rs  = parseFloat(document.getElementById('rowSpacing').value)  || 0.5;
+    const _rpp = parseInt(document.getElementById('rowsPerPlot').value)   || 4;
+    svg += `<text x="${PAD}" y="${svgH - 5}" font-size="9" fill="#9ca3af">Escala: 1 UE = ${_pl.toFixed(1)} m (comp.) × ${(_rs*_rpp).toFixed(2)} m (larg.)</text>`;
+  } else {
+    const _ua = parseFloat(document.getElementById('ueArea').value) || 12;
+    svg += `<text x="${PAD}" y="${svgH - 5}" font-size="9" fill="#9ca3af">Escala: 1 UE = ${_ua.toFixed(1)} m²</text>`;
+  }
 
   svg += '</svg>';
 
@@ -1054,30 +1117,71 @@ function setZoom(v) {
   }
 }
 
-/* ── Unit Tooltip ── */
-function showUnitTooltip(e, dataEnc) {
-  const data = JSON.parse(decodeURIComponent(dataEnc));
-  const tip  = document.getElementById('unitTooltip');
-  const content = document.getElementById('tooltipContent');
+/* ── Unit Modal ── */
+let unitNotes = {};
+const NOTES_KEY = 'agrodesign_notes';
 
-  let html = `<dt>Unidade</dt><dd>#${esc(String(data.id))}</dd>`;
-  if (data.block) html += `<dt>Bloco</dt><dd>${esc(String(data.block))}</dd>`;
-  html += `<dt>Tratamento</dt><dd>${esc(data.treatment)}</dd>`;
-  if (data.factorA) html += `<dt>Fator A</dt><dd>${esc(data.factorA)}</dd>`;
-  if (data.factorB) html += `<dt>Fator B</dt><dd>${esc(data.factorB)}</dd>`;
-  if (data.factorC) html += `<dt>Fator C</dt><dd>${esc(data.factorC)}</dd>`;
-  if (data.mainPlot) html += `<dt>Parcela principal</dt><dd>${esc(data.mainPlotLabel || String(data.mainPlot))}</dd>`;
-  content.innerHTML = html;
-
-  tip.classList.remove('hidden');
-  const x = Math.min(e.clientX + 12, window.innerWidth - 260);
-  const y = Math.min(e.clientY + 12, window.innerHeight - 160);
-  tip.style.left = x + 'px';
-  tip.style.top  = y + 'px';
-  setTimeout(() => { document.addEventListener('click', hideTooltip, { once: true }); }, 0);
+function loadNotes() {
+  try { unitNotes = JSON.parse(localStorage.getItem(NOTES_KEY) || '{}'); } catch(e) { unitNotes = {}; }
+}
+function saveNote(id, text) {
+  unitNotes[String(id)] = text;
+  try { localStorage.setItem(NOTES_KEY, JSON.stringify(unitNotes)); } catch(e) {}
 }
 
-function hideTooltip() { document.getElementById('unitTooltip').classList.add('hidden'); }
+function openUnitModal(dataEnc) {
+  const data     = JSON.parse(decodeURIComponent(dataEnc));
+  const unitType = document.getElementById('selUnitType').value;
+  const rs   = parseFloat(document.getElementById('rowSpacing').value)   || 0.5;
+  const rpp  = parseInt(document.getElementById('rowsPerPlot').value)    || 4;
+  const pl   = parseFloat(document.getElementById('plotLength').value)   || 5;
+  const ps   = parseFloat(document.getElementById('plantSpacing').value) || 0.2;
+  const br   = document.getElementById('chkBorders').checked
+               ? (parseInt(document.getElementById('borderRows').value) || 0) : 0;
+  const ueA  = parseFloat(document.getElementById('ueArea').value)       || 12;
+  const apu  = parseInt(document.getElementById('animalsPerUnit').value) || 1;
+  const spec = document.getElementById('txtSpecies').value.trim();
+
+  document.getElementById('unitModalTitle').textContent = `Unidade #${data.id}`;
+
+  let html = '';
+  if (spec)          html += `<dt>Espécie</dt><dd>${esc(spec)}</dd>`;
+  if (data.block)    html += `<dt>Bloco</dt><dd>${esc(String(data.block))}</dd>`;
+  html += `<dt>Tratamento</dt><dd><strong>${esc(data.treatment)}</strong></dd>`;
+  if (data.factorA)  html += `<dt>Fator A</dt><dd>${esc(data.factorA)}</dd>`;
+  if (data.factorB)  html += `<dt>Fator B</dt><dd>${esc(data.factorB)}</dd>`;
+  if (data.factorC)  html += `<dt>Fator C</dt><dd>${esc(data.factorC)}</dd>`;
+  if (data.mainPlot) html += `<dt>Parc. principal</dt><dd>${esc(data.mainPlotLabel || String(data.mainPlot))}</dd>`;
+  html += `<dt>Posição</dt><dd>Linha ${data.row + 1}, Coluna ${data.col + 1}</dd>`;
+  html += `<dt>Tipo de UE</dt><dd>${esc(UNIT_LABELS[unitType] || unitType)}</dd>`;
+
+  if (unitType === 'parcela') {
+    const areaBruta = (rs * rpp * pl).toFixed(2);
+    const usefulR   = Math.max(0, rpp - 2 * br);
+    const areaUtil  = (usefulR * rs * pl).toFixed(2);
+    const plants    = rpp * (Math.floor(pl / ps) + 1);
+    const pUtil     = usefulR * (Math.floor(pl / ps) + 1);
+    html += `<dt>Área bruta</dt><dd>${areaBruta} m²</dd>`;
+    if (br > 0) html += `<dt>Área útil</dt><dd>${areaUtil} m²</dd>`;
+    html += `<dt>Plantas/parcela</dt><dd>${plants}${br > 0 ? ` (${pUtil} úteis)` : ''}</dd>`;
+  } else {
+    html += `<dt>Área da UE</dt><dd>${ueA.toFixed(1)} m²</dd>`;
+    html += `<dt>Animais/UE</dt><dd>${apu}</dd>`;
+    html += `<dt>Área/animal</dt><dd>${(ueA / apu).toFixed(1)} m²</dd>`;
+  }
+
+  document.getElementById('unitModalDl').innerHTML = html;
+
+  const inp = document.getElementById('unitNoteInput');
+  inp.value   = unitNotes[String(data.id)] || '';
+  inp.oninput = () => saveNote(data.id, inp.value);
+
+  document.getElementById('unitModal').classList.remove('hidden');
+}
+
+function closeUnitModal() {
+  document.getElementById('unitModal').classList.add('hidden');
+}
 
 /* ── Field Book ── */
 function renderFieldbook() {
@@ -1114,15 +1218,25 @@ function renderFieldbook() {
 function exportCSV() {
   if (!units.length) return;
   const design = document.getElementById('selDesign').value;
+  const spec   = document.getElementById('txtSpecies').value.trim();
   const isFat  = design.startsWith('FAT');
   const isSpl  = design.startsWith('SPL');
   const isDQL  = design === 'DQL';
+
+  const meta = [
+    `# AgroDesign — Field Book`,
+    `# Espécie/Sistema: ${spec || '—'}`,
+    `# Delineamento: ${design}`,
+    `# Gerado em: ${new Date().toLocaleString('pt-BR')}`,
+    ``
+  ].join('\n');
 
   const headers = ['id','bloco','linha','coluna','tratamento'];
   if (isFat || isSpl) { headers.push('fator_a','fator_b'); }
   if (units.some(u => u.factorC)) headers.push('fator_c');
   if (isSpl) headers.push('parcela_principal');
   if (isDQL) { headers.push('linha_dql','coluna_dql'); }
+  headers.push('observacoes');
 
   const rows = units.map(u => {
     const r = [u.id, u.block ?? '', u.row+1, u.col+1, u.treatment];
@@ -1130,10 +1244,11 @@ function exportCSV() {
     if (units.some(x => x.factorC)) r.push(u.factorC ?? '');
     if (isSpl) r.push(u.mainPlotLabel || u.mainPlot || '');
     if (isDQL) r.push(u.rowLabel ?? '', u.colLabel ?? '');
+    r.push(unitNotes[String(u.id)] || '');
     return r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
   });
 
-  const csv = [headers.join(','), ...rows].join('\n');
+  const csv = meta + [headers.join(','), ...rows].join('\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -1498,8 +1613,12 @@ function clearAll() {
   document.getElementById('croquiContent').classList.add('hidden');
   document.getElementById('emptyFieldbook').classList.remove('hidden');
   document.getElementById('fieldbookContent').classList.add('hidden');
+  document.getElementById('emptyUnidade').classList.remove('hidden');
+  document.getElementById('unidadeContent').classList.add('hidden');
   document.getElementById('svgInner').innerHTML = '';
+  document.getElementById('svgUnidade').innerHTML = '';
   document.getElementById('croquiLegend').innerHTML = '';
+  document.getElementById('unidadeStats').innerHTML = '';
   document.getElementById('fbBody').innerHTML = '';
   document.getElementById('fbHead').innerHTML = '';
   showTab('resumo');
@@ -1600,9 +1719,17 @@ function captureCurrentConfig() {
     design: document.getElementById('selDesign').value,
     area: document.getElementById('selArea').value,
     unitType: document.getElementById('selUnitType').value,
+    species: document.getElementById('txtSpecies').value,
+    numbering: document.getElementById('selNumbering').value,
     treatments: document.getElementById('txtTreatments').value,
     reps: document.getElementById('numReps').value,
     seed: document.getElementById('numSeed').value,
+    rowSpacing: document.getElementById('rowSpacing').value,
+    plantSpacing: document.getElementById('plantSpacing').value,
+    rowsPerPlot: document.getElementById('rowsPerPlot').value,
+    plotLength: document.getElementById('plotLength').value,
+    ueArea: document.getElementById('ueArea').value,
+    animalsPerUnit: document.getElementById('animalsPerUnit').value,
     fatAName: document.getElementById('fatAName').value,
     fatAn: document.getElementById('fatAn').value,
     fatALevels: document.getElementById('fatALevels').value,
@@ -1615,6 +1742,7 @@ function captureCurrentConfig() {
     splBLevels: document.getElementById('splBLevels').value,
     splBlocks: document.getElementById('numSplBlocks').value,
     splSeed: document.getElementById('numSplSeed').value,
+    gradient: document.getElementById('selGradient').value,
   };
 }
 
@@ -1622,12 +1750,17 @@ function applyConfig(c) {
   if (!c) return;
   const set = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.value = v; };
   set('selDesign', c.design); set('selArea', c.area); set('selUnitType', c.unitType);
+  set('txtSpecies', c.species); set('selNumbering', c.numbering);
   set('txtTreatments', c.treatments); set('numReps', c.reps); set('numSeed', c.seed);
+  set('rowSpacing', c.rowSpacing); set('plantSpacing', c.plantSpacing);
+  set('rowsPerPlot', c.rowsPerPlot); set('plotLength', c.plotLength);
+  set('ueArea', c.ueArea); set('animalsPerUnit', c.animalsPerUnit);
   set('fatAName', c.fatAName); set('fatAn', c.fatAn); set('fatALevels', c.fatALevels);
   set('fatBName', c.fatBName); set('fatBn', c.fatBn); set('fatBLevels', c.fatBLevels);
   set('numFatBlocks', c.fatBlocks); set('numFatSeed', c.fatSeed);
   set('splALevels', c.splALevels); set('splBLevels', c.splBLevels);
   set('numSplBlocks', c.splBlocks); set('numSplSeed', c.splSeed);
+  set('selGradient', c.gradient);
   onDesignChange(); onUnitTypeChange();
 }
 
@@ -1895,8 +2028,16 @@ window.addEventListener('resize', () => {
 });
 
 /* ══ Init ══ */
+loadNotes();
 onDesignChange();
 onUnitTypeChange();
+// Restaura a última configuração usada
+(function() {
+  try {
+    const last = JSON.parse(localStorage.getItem('agrodesign_last_config') || 'null');
+    if (last) applyConfig(last);
+  } catch(e) {}
+})();
 </script>
 </body>
 </html>
