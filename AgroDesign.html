@@ -88,7 +88,22 @@ textarea { resize: vertical; min-height: 70px; }
 .tab-content.active { display: flex; flex-direction: column; gap: 1rem; }
 #tabCroqui  { overflow: hidden; padding: .75rem; gap: .5rem; }
 #tabUnidade { overflow: hidden; padding: .75rem; gap: .5rem; }
+#tabColeta  { overflow: hidden; padding: .75rem; gap: .5rem; }
 #unidadeContent { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .5rem; }
+#coletaContent  { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .5rem; }
+
+/* Tabela de coleta de dados */
+.data-table-wrap { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; }
+.data-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.data-table th { background: var(--primary); color: #fff; padding: .4rem .55rem; text-align: left; font-weight: 600; position: sticky; top: 0; white-space: nowrap; }
+.data-table th.fix { position: sticky; top: 0; z-index: 3; }
+.data-table td { padding: .2rem .3rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.data-table tr:nth-child(even) td { background: #f9fbfa; }
+.data-table tr:hover td { background: var(--primary-pale); }
+.data-input { width: 100%; border: none; background: transparent; font-size: .82rem; padding: 2px 4px; min-width: 70px; text-align: right; }
+.data-input:focus { outline: none; background: var(--primary-pale); border-radius: 3px; text-align: right; }
+.data-input.cat { text-align: left; }
+.data-input.cat:focus { text-align: left; }
 
 /* Summary cards */
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .6rem; }
@@ -434,6 +449,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     <button class="tab-btn" onclick="showTab('croqui')">🗺 Croqui</button>
     <button class="tab-btn" onclick="showTab('fieldbook')">📋 Field Book</button>
     <button class="tab-btn" onclick="showTab('unidade')">📐 Unidade</button>
+    <button class="tab-btn" onclick="showTab('coleta')">📝 Coleta</button>
   </div>
 
   <!-- Resumo Tab -->
@@ -523,6 +539,27 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <div id="svgUnidade" style="margin:auto;display:block;line-height:0"></div>
       </div>
       <div class="summary-grid" id="unidadeStats" style="flex-shrink:0"></div>
+    </div>
+  </div>
+
+  <!-- Coleta Tab -->
+  <div id="tabColeta" class="tab-content">
+    <div id="emptyColeta" class="empty-state">
+      <span class="icon">📝</span>
+      <strong>Coleta de Dados</strong>
+      <span class="hint">Gere o croqui e adicione variáveis para iniciar.</span>
+      <button class="btn btn-primary btn-sm" onclick="openVarsModal()" style="margin-top:.5rem">+ Adicionar variáveis</button>
+    </div>
+    <div id="coletaContent" class="hidden">
+      <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;flex-shrink:0">
+        <button class="btn btn-secondary btn-sm" onclick="openVarsModal()">⚙ Variáveis</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportDataXLSX()">⬇ XLSX</button>
+        <button class="btn btn-ghost btn-sm" onclick="exportDataCSV()">⬇ CSV</button>
+        <span id="coletaHint" class="hint"></span>
+      </div>
+      <div class="data-table-wrap">
+        <table class="data-table"><thead id="dataHead"></thead><tbody id="dataBody"></tbody></table>
+      </div>
     </div>
   </div>
 </section>
@@ -616,6 +653,50 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <button class="btn btn-primary btn-sm" onclick="savePreset()">Salvar atual</button>
     </div>
     <div id="presetList" style="display:flex;flex-direction:column;gap:.4rem;max-height:300px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- ═══ VARIABLES MODAL ═══ -->
+<div id="varsModal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeVarsModal()"></div>
+  <div class="modal-content" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title">⚙ Variáveis de Coleta</div>
+      <button class="modal-close-btn" type="button" onclick="closeVarsModal()">✕</button>
+    </div>
+
+    <!-- Formulário nova variável -->
+    <div style="background:var(--bg);border-radius:8px;padding:.75rem;margin-bottom:.75rem">
+      <p style="font-size:.82rem;font-weight:600;color:var(--text-muted);margin-bottom:.5rem">Nova variável</p>
+      <div class="row2" style="margin-bottom:.4rem">
+        <label><span>Nome</span>
+          <input type="text" id="varName" placeholder="Ex: Altura de plantas" maxlength="40">
+        </label>
+        <label><span>Tipo</span>
+          <select id="varType" onchange="onVarTypeChange()">
+            <option value="numeric">Numérico</option>
+            <option value="categorical">Categórico</option>
+          </select>
+        </label>
+      </div>
+      <div id="varNumericRow" class="row2" style="margin-bottom:.5rem">
+        <label><span>Unidade (opcional)</span>
+          <input type="text" id="varUnit" placeholder="Ex: cm, g, kg/ha" maxlength="15">
+        </label>
+        <label><span>Decimais</span>
+          <input type="number" id="varDecimals" value="2" min="0" max="6" style="width:60px">
+        </label>
+      </div>
+      <div id="varCatRow" class="hidden" style="margin-bottom:.5rem">
+        <label><span>Categorias (separadas por vírgula)</span>
+          <input type="text" id="varOptions" placeholder="Ex: Ausente, Leve, Moderado, Severo">
+        </label>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="addVariable()">+ Adicionar</button>
+    </div>
+
+    <!-- Lista de variáveis -->
+    <div id="varList" style="display:flex;flex-direction:column;gap:.35rem;max-height:280px;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -914,8 +995,8 @@ function generateCroqui() {
   renderCroqui();
   renderFieldbook();
   renderUnidade();
+  renderDataTab();
   showTab('croqui');
-  // Auto-salva projeto ativo ao regenerar
   if (currentProjectName) saveCurrentProject(true);
 }
 
@@ -1751,13 +1832,14 @@ function fitUnidade() {
 /* ── UI helpers ── */
 function showTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const tabs = ['resumo','croqui','fieldbook','unidade'];
+    const tabs = ['resumo','croqui','fieldbook','unidade','coleta'];
     b.classList.toggle('active', tabs[i] === name);
   });
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
   if (name === 'croqui'  && units.length) requestAnimationFrame(fitAndZoom);
-  if (name === 'unidade' && units.length) renderUnidade(); // renderUnidade já chama fitUnidade
+  if (name === 'unidade' && units.length) renderUnidade();
+  if (name === 'coleta'  && units.length) renderDataTab();
 }
 
 function onDesignChange() {
@@ -1831,6 +1913,7 @@ function toggleExamples() {
 
 function clearAll() {
   units = []; treatmentColors = {};
+  projectVariables = []; collectionData = {};
   currentProjectName = null; updateProjectBadge();
   document.getElementById('emptyState').classList.remove('hidden');
   document.getElementById('summaryContent').classList.add('hidden');
@@ -1840,6 +1923,10 @@ function clearAll() {
   document.getElementById('fieldbookContent').classList.add('hidden');
   document.getElementById('emptyUnidade').classList.remove('hidden');
   document.getElementById('unidadeContent').classList.add('hidden');
+  document.getElementById('emptyColeta').classList.remove('hidden');
+  document.getElementById('coletaContent').classList.add('hidden');
+  document.getElementById('dataHead').innerHTML = '';
+  document.getElementById('dataBody').innerHTML = '';
   document.getElementById('svgInner').innerHTML = '';
   document.getElementById('svgUnidade').innerHTML = '';
   document.getElementById('croquiLegend').innerHTML = '';
@@ -2026,6 +2113,207 @@ function deletePreset(name) {
 function openPresetsModal() { renderPresetList(); document.getElementById('presetsModal').classList.remove('hidden'); }
 function closePresetsModal() { document.getElementById('presetsModal').classList.add('hidden'); }
 
+/* ══ Fase 2 — Variáveis de Coleta ══ */
+let projectVariables = [];   // [{ id, name, type, unit, decimals, options }]
+let collectionData   = {};   // { unitId: { varId: value } }
+
+/* ── Gerenciamento de variáveis ── */
+function onVarTypeChange() {
+  const isNum = document.getElementById('varType').value === 'numeric';
+  document.getElementById('varNumericRow').classList.toggle('hidden', !isNum);
+  document.getElementById('varCatRow').classList.toggle('hidden', isNum);
+}
+
+function addVariable() {
+  const name = document.getElementById('varName').value.trim();
+  if (!name) { alert('Digite um nome para a variável.'); return; }
+  const type     = document.getElementById('varType').value;
+  const unit     = document.getElementById('varUnit').value.trim();
+  const decimals = parseInt(document.getElementById('varDecimals').value) || 2;
+  const optStr   = document.getElementById('varOptions').value.trim();
+  const options  = type === 'categorical' ? optStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  projectVariables.push({ id: 'v' + Date.now(), name, type, unit, decimals, options });
+  document.getElementById('varName').value = '';
+  document.getElementById('varUnit').value = '';
+  document.getElementById('varOptions').value = '';
+  document.getElementById('varDecimals').value = '2';
+  renderVarList();
+  renderDataTab();
+  if (currentProjectName) saveCurrentProject(true);
+}
+
+function deleteVariable(id) {
+  if (!confirm('Excluir esta variável e todos os dados coletados nela?')) return;
+  projectVariables = projectVariables.filter(v => v.id !== id);
+  Object.values(collectionData).forEach(d => delete d[id]);
+  renderVarList();
+  renderDataTab();
+  if (currentProjectName) saveCurrentProject(true);
+}
+
+function clearAllData() {
+  if (!confirm('Limpar TODOS os dados coletados desta sessão?')) return;
+  collectionData = {};
+  renderDataTab();
+  if (currentProjectName) saveCurrentProject(true);
+}
+
+function renderVarList() {
+  const el = document.getElementById('varList');
+  if (!el) return;
+  if (!projectVariables.length) {
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;text-align:center;padding:.5rem">Nenhuma variável definida. Adicione acima.</p>';
+    return;
+  }
+  el.innerHTML = projectVariables.map(v => `
+    <div style="display:flex;align-items:center;gap:.4rem;padding:.35rem .5rem;background:var(--surface);border:1px solid var(--border);border-radius:6px">
+      <div style="flex:1;font-size:.85rem">
+        <strong>${esc(v.name)}</strong>
+        <span style="color:var(--text-muted);font-size:.75rem"> · ${v.type === 'numeric' ? 'Num.' : 'Cat.'}${v.unit ? ' · ' + esc(v.unit) : ''}${v.options?.length ? ' · [' + v.options.slice(0,4).map(esc).join(', ') + (v.options.length > 4 ? '…' : '') + ']' : ''}</span>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="deleteVariable('${esc(v.id)}')">✕</button>
+    </div>`).join('');
+}
+
+function openVarsModal() {
+  renderVarList();
+  onVarTypeChange();
+  document.getElementById('varsModal').classList.remove('hidden');
+}
+function closeVarsModal() {
+  document.getElementById('varsModal').classList.add('hidden');
+  renderDataTab();
+}
+
+/* ── Tabela de coleta ── */
+function saveCellValue(inp) {
+  const uid = inp.dataset.uid;
+  const vid = inp.dataset.vid;
+  if (!collectionData[uid]) collectionData[uid] = {};
+  const val = inp.value.trim();
+  if (val === '') delete collectionData[uid][vid];
+  else collectionData[uid][vid] = val;
+  if (currentProjectName) saveCurrentProject(true);
+}
+
+function renderDataTab() {
+  if (!units.length) return;
+  document.getElementById('emptyColeta').classList.add('hidden');
+  const content = document.getElementById('coletaContent');
+  content.classList.remove('hidden');
+
+  const hint = document.getElementById('coletaHint');
+  if (!projectVariables.length) {
+    hint.textContent = 'Sem variáveis — clique em ⚙ Variáveis para adicionar.';
+    document.getElementById('dataHead').innerHTML = '';
+    document.getElementById('dataBody').innerHTML =
+      `<tr><td colspan="3" style="text-align:center;padding:1.5rem;color:var(--text-muted)">
+        Nenhuma variável definida. Clique em ⚙ Variáveis para começar.
+      </td></tr>`;
+    return;
+  }
+
+  const filled = Object.values(collectionData).reduce((n, d) => n + Object.values(d).filter(v => v !== '').length, 0);
+  const total  = units.length * projectVariables.length;
+  hint.textContent = `${projectVariables.length} variável(is) · ${units.length} UEs · ${filled}/${total} células preenchidas`;
+
+  /* Cabeçalho */
+  const fixedTh = ['#','Bloco','Tratamento'].map(h =>
+    `<th class="fix" style="min-width:${h==='Tratamento'?130:44}px">${h}</th>`).join('');
+  const varTh = projectVariables.map(v =>
+    `<th style="min-width:90px">${esc(v.name)}${v.unit ? '<br><small style="font-weight:400;opacity:.8">'+esc(v.unit)+'</small>' : ''}</th>`).join('');
+  document.getElementById('dataHead').innerHTML = `<tr>${fixedTh}${varTh}</tr>`;
+
+  /* Linhas */
+  const rows = units.map(u => {
+    const fixedTd =
+      `<td style="text-align:center;color:var(--text-muted);font-size:.78rem">${u.id}</td>` +
+      `<td style="color:var(--text-muted);font-size:.78rem">${u.block ?? '—'}</td>` +
+      `<td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(u.treatment)}">${esc(u.treatment)}</td>`;
+
+    const varTd = projectVariables.map(v => {
+      const val = collectionData[String(u.id)]?.[v.id] ?? '';
+      if (v.type === 'numeric') {
+        return `<td><input class="data-input" type="number" step="${v.decimals > 0 ? '0.' + '0'.repeat(v.decimals - 1) + '1' : '1'}"
+          value="${esc(String(val))}" data-uid="${u.id}" data-vid="${esc(v.id)}"
+          oninput="saveCellValue(this)"></td>`;
+      } else {
+        const listId = `dl-${esc(v.id)}-${u.id}`;
+        const dl = v.options?.length
+          ? `<datalist id="${listId}">${v.options.map(o => `<option value="${esc(o)}">`).join('')}</datalist>` : '';
+        return `<td>${dl}<input class="data-input cat" type="text" value="${esc(String(val))}"
+          ${v.options?.length ? `list="${listId}"` : ''}
+          data-uid="${u.id}" data-vid="${esc(v.id)}"
+          oninput="saveCellValue(this)"></td>`;
+      }
+    }).join('');
+
+    return `<tr>${fixedTd}${varTd}</tr>`;
+  });
+
+  document.getElementById('dataBody').innerHTML = rows.join('');
+}
+
+/* ── Exportação de dados ── */
+function _buildDataRows() {
+  const design = document.getElementById('selDesign').value;
+  const isFat  = design.startsWith('FAT');
+  const isSpl  = design.startsWith('SPL');
+  const headers = ['ID','Bloco','Tratamento'];
+  if (isFat || isSpl) headers.push('Fator A','Fator B');
+  projectVariables.forEach(v => headers.push(v.name + (v.unit ? ' (' + v.unit + ')' : '')));
+
+  const rows = units.map(u => {
+    const r = [u.id, u.block ?? '', u.treatment];
+    if (isFat || isSpl) r.push(u.factorA ?? '', u.factorB ?? '');
+    projectVariables.forEach(v => {
+      const raw = collectionData[String(u.id)]?.[v.id] ?? '';
+      r.push(v.type === 'numeric' && raw !== '' ? parseFloat(raw) : raw);
+    });
+    return r;
+  });
+  return { headers, rows };
+}
+
+function exportDataXLSX() {
+  if (!units.length || !projectVariables.length) { alert('Adicione variáveis antes de exportar.'); return; }
+  if (typeof XLSX === 'undefined') { alert('Biblioteca XLSX não carregou.'); return; }
+  const design = document.getElementById('selDesign').value;
+  const spec   = document.getElementById('txtSpecies').value.trim();
+  const { headers, rows } = _buildDataRows();
+  const wsData = [
+    ['AgroDesign — Dados de Coleta'],
+    ['Espécie/Sistema:', spec || '—'],
+    ['Delineamento:', design],
+    ['Gerado em:', new Date().toLocaleString('pt-BR')],
+    [],
+    headers,
+    ...rows
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 2, 10) }));
+  ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:headers.length-1} }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Dados');
+  XLSX.writeFile(wb, `AgroDesign_dados_${design}.xlsx`);
+}
+
+function exportDataCSV() {
+  if (!units.length || !projectVariables.length) { alert('Adicione variáveis antes de exportar.'); return; }
+  const design = document.getElementById('selDesign').value;
+  const spec   = document.getElementById('txtSpecies').value.trim();
+  const { headers, rows } = _buildDataRows();
+  const meta = [`# AgroDesign — Dados de Coleta`, `# Espécie/Sistema: ${spec||'—'}`, `# Delineamento: ${design}`, ``].join('\n');
+  const csv  = meta + [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `AgroDesign_dados_${design}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 /* ══ Projetos ══ */
 const PROJECTS_KEY = 'agrodesign_projects';
 let currentProjectName = null;
@@ -2063,7 +2351,9 @@ function saveCurrentProject(silent = false) {
     config: captureCurrentConfig(),
     units: JSON.parse(JSON.stringify(units)),
     treatmentColors: { ...treatmentColors },
-    notes: { ...unitNotes }
+    notes: { ...unitNotes },
+    variables: JSON.parse(JSON.stringify(projectVariables)),
+    collectionData: JSON.parse(JSON.stringify(collectionData))
   };
   if (idx >= 0) projects[idx] = proj; else projects.unshift(proj);
   storeProjects(projects);
@@ -2087,6 +2377,8 @@ function loadProject(idx) {
   units = Array.isArray(proj.units) ? proj.units : [];
   treatmentColors = proj.treatmentColors || {};
   unitNotes = proj.notes || {};
+  projectVariables = Array.isArray(proj.variables) ? proj.variables : [];
+  collectionData   = proj.collectionData || {};
 
   currentProjectName = proj.name;
   updateProjectBadge();
@@ -2098,6 +2390,7 @@ function loadProject(idx) {
     renderCroqui();
     renderFieldbook();
     renderUnidade();
+    renderDataTab();
     closeProjectsModal();
     showTab('croqui');
   } else {
