@@ -86,7 +86,9 @@ textarea { resize: vertical; min-height: 70px; }
 .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
 .tab-content { display: none; flex: 1; overflow: auto; padding: 1rem; min-height: 0; }
 .tab-content.active { display: flex; flex-direction: column; gap: 1rem; }
-#tabCroqui { overflow: hidden; padding: .75rem; gap: .5rem; }
+#tabCroqui  { overflow: hidden; padding: .75rem; gap: .5rem; }
+#tabUnidade { overflow: hidden; padding: .75rem; gap: .5rem; }
+#unidadeContent { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .5rem; }
 
 /* Summary cards */
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .6rem; }
@@ -477,11 +479,11 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <strong>Detalhamento da Unidade Experimental</strong>
       <span class="hint">Configure e gere o croqui para visualizar a parcela/UE com dimensões.</span>
     </div>
-    <div id="unidadeContent" class="hidden" style="display:flex;flex-direction:column;gap:.75rem">
-      <div class="svg-scroll" style="flex:1;min-height:220px">
+    <div id="unidadeContent" class="hidden">
+      <div class="svg-scroll">
         <div id="svgUnidade" style="margin:auto;display:block;line-height:0"></div>
       </div>
-      <div class="summary-grid" id="unidadeStats"></div>
+      <div class="summary-grid" id="unidadeStats" style="flex-shrink:0"></div>
     </div>
   </div>
 </section>
@@ -1389,9 +1391,22 @@ function renderUnidade() {
   el.innerHTML = svgStr;
   statsEl.innerHTML = statsHtml;
   document.getElementById('emptyUnidade').classList.add('hidden');
-  const uc = document.getElementById('unidadeContent');
-  uc.classList.remove('hidden');
-  uc.style.display = 'flex';
+  document.getElementById('unidadeContent').classList.remove('hidden');
+  requestAnimationFrame(fitUnidade);
+}
+
+function fitUnidade() {
+  const svg = document.querySelector('#svgUnidade svg');
+  if (!svg) return;
+  const vb = svg.getAttribute('viewBox').split(' ').map(Number);
+  const nW = vb[2], nH = vb[3];
+  const scroll = document.getElementById('tabUnidade').querySelector('.svg-scroll');
+  if (!scroll) return;
+  const availW = Math.max(80, scroll.clientWidth  - 8);
+  const availH = Math.max(60, scroll.clientHeight - 8);
+  const scale  = Math.min(availW / nW, availH / nH);
+  svg.setAttribute('width',  Math.round(nW * scale));
+  svg.setAttribute('height', Math.round(nH * scale));
 }
 
 /* ── UI helpers ── */
@@ -1402,8 +1417,8 @@ function showTab(name) {
   });
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.getElementById('tab' + name.charAt(0).toUpperCase() + name.slice(1)).classList.add('active');
-  if (name === 'croqui' && units.length) requestAnimationFrame(fitAndZoom);
-  if (name === 'unidade' && units.length) renderUnidade();
+  if (name === 'croqui'  && units.length) requestAnimationFrame(fitAndZoom);
+  if (name === 'unidade' && units.length) renderUnidade(); // renderUnidade já chama fitUnidade
 }
 
 function onDesignChange() {
@@ -1873,7 +1888,11 @@ if ('serviceWorker' in navigator) {
 }
 
 /* ══ Resize ══ */
-window.addEventListener('resize', () => { if (units.length) fitAndZoom(); });
+window.addEventListener('resize', () => {
+  if (!units.length) return;
+  fitAndZoom();
+  fitUnidade();
+});
 
 /* ══ Init ══ */
 onDesignChange();
