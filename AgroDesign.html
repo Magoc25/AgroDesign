@@ -489,8 +489,10 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
           <input type="range" id="zoomSlider" min="25" max="400" value="100" oninput="setZoom(this.value)">
           <span id="zoomLabel">100%</span>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="exportPNG()">🖼 Salvar PNG</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir / PDF</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportPNG()">🖼 PNG</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportSVG()">⬇ SVG</button>
+        <button class="btn btn-ghost btn-sm" onclick="openPubTextModal()">📄 Texto</button>
+        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir</button>
         <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
           Rótulo:
           <select id="selLabelMode" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
@@ -616,7 +618,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 <footer>
   <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
   <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
-  <span id="appVersion">© MGC · v1.2.0</span>
+  <span id="appVersion">© MGC · v1.2.1</span>
 </footer>
 
 <!-- ═══ UNIT TOOLTIP ═══ -->
@@ -824,6 +826,28 @@ df = pd.read_csv("AgroDesign_dados.csv",
   </div>
 </div>
 
+<!-- ═══ PUBLICATION TEXT MODAL ═══ -->
+<div id="modalPubText" class="modal hidden">
+  <div class="modal-backdrop" onclick="closePubTextModal()"></div>
+  <div class="modal-content" style="max-width:640px">
+    <div class="modal-header">
+      <span class="modal-title">📄 Texto para Publicação</span>
+      <button class="modal-close-btn" onclick="closePubTextModal()">✕</button>
+    </div>
+    <div style="display:flex;gap:.4rem;margin-bottom:1.1rem">
+      <button id="btnPubLangPT" class="btn btn-primary btn-sm" onclick="setPubLang('pt')">🇧🇷 Português</button>
+      <button id="btnPubLangEN" class="btn btn-ghost btn-sm" onclick="setPubLang('en')">🇺🇸 English</button>
+    </div>
+    <div class="form-section-title">Materiais e Métodos — Delineamento experimental</div>
+    <textarea id="pubTextMM" readonly rows="7" style="width:100%;font-size:.82rem;line-height:1.65;resize:vertical;border:1px solid var(--border);border-radius:var(--radius);padding:.5rem .75rem;background:#fafafa;color:var(--text);margin-bottom:.3rem"></textarea>
+    <button class="btn btn-ghost btn-sm" onclick="copyPubText('mm')" id="btnCopyMM">📋 Copiar</button>
+    <div class="form-section-title" style="margin-top:1rem">Legenda da figura</div>
+    <textarea id="pubTextCaption" readonly rows="3" style="width:100%;font-size:.82rem;line-height:1.65;resize:vertical;border:1px solid var(--border);border-radius:var(--radius);padding:.5rem .75rem;background:#fafafa;color:var(--text);margin-bottom:.3rem"></textarea>
+    <button class="btn btn-ghost btn-sm" onclick="copyPubText('caption')" id="btnCopyCaption">📋 Copiar</button>
+    <p class="hint" style="margin-top:.85rem;font-size:.74rem;line-height:1.5">Substitua "Figura X" pelo número correto. Complemente com local, ano, variedade e outros detalhes específicos do seu experimento.</p>
+  </div>
+</div>
+
 <!-- ═══ UNIT MODAL ═══ -->
 <div id="unitModal" class="modal hidden">
   <div class="modal-backdrop" onclick="closeUnitModal()"></div>
@@ -850,7 +874,7 @@ df = pd.read_csv("AgroDesign_dados.csv",
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 /* ── Constantes ── */
-const APP_VERSION  = '1.1.0';
+const APP_VERSION  = '1.1.1';
 const APP_NAME     = 'AgroDesign';
 const PROJECT_ID   = 'agrodesign';
 const PIX_KEY      = '4c6086a2-4bb8-474b-a4cf-ced8c8d82189';
@@ -1962,6 +1986,197 @@ function exportPNG() {
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+}
+
+/* ── Exportação SVG ── */
+function exportSVG() {
+  const svg = document.getElementById('croquiSvg');
+  if (!svg) { alert('Gere o croqui primeiro.'); return; }
+  const svgStr = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `AgroDesign_croqui_${document.getElementById('selDesign').value}.svg`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+/* ── Texto para Publicação ── */
+let _pubLang = 'pt';
+
+function openPubTextModal() {
+  if (!units.length) { alert('Gere o croqui primeiro.'); return; }
+  _pubLang = document.getElementById('chkEnglish').checked ? 'en' : 'pt';
+  _renderPubText();
+  document.getElementById('modalPubText').classList.remove('hidden');
+}
+function closePubTextModal() { document.getElementById('modalPubText').classList.add('hidden'); }
+function setPubLang(lang) { _pubLang = lang; _renderPubText(); }
+
+function _renderPubText() {
+  const { mm, caption } = buildPublicationText(_pubLang);
+  document.getElementById('pubTextMM').value      = mm;
+  document.getElementById('pubTextCaption').value = caption;
+  document.getElementById('btnPubLangPT').className = `btn btn-sm ${_pubLang === 'pt' ? 'btn-primary' : 'btn-ghost'}`;
+  document.getElementById('btnPubLangEN').className = `btn btn-sm ${_pubLang === 'en' ? 'btn-primary' : 'btn-ghost'}`;
+}
+
+function copyPubText(which) {
+  const id  = which === 'mm' ? 'pubTextMM' : 'pubTextCaption';
+  const btn = which === 'mm' ? 'btnCopyMM'  : 'btnCopyCaption';
+  navigator.clipboard.writeText(document.getElementById(id).value).then(() => {
+    const b = document.getElementById(btn), orig = b.textContent;
+    b.textContent = '✓ Copiado!'; setTimeout(() => b.textContent = orig, 1600);
+  });
+}
+
+function buildPublicationText(lang) {
+  if (!units.length) return { mm: '', caption: '' };
+  const isEng  = lang === 'en';
+  const design = document.getElementById('selDesign').value;
+  const unitType = document.getElementById('selUnitType').value;
+  const pl_s = (n, s, p) => n === 1 ? s : p; // singular/plural helper
+
+  const DN = {
+    en: {
+      DIC:     'completely randomized design (CRD)',
+      DBC:     'randomized complete block design (RCBD)',
+      DQL:     'Latin square design (LSD)',
+      FAT_DIC: 'factorial experiment in a completely randomized design (CRD)',
+      FAT_DBC: 'factorial experiment in a randomized complete block design (RCBD)',
+      SPL_DIC: 'split-plot design in a completely randomized arrangement',
+      SPL_DBC: 'split-plot design in randomized complete blocks (RCBD)'
+    },
+    pt: {
+      DIC:     'delineamento inteiramente casualizado (DIC)',
+      DBC:     'delineamento em blocos casualizados (DBC)',
+      DQL:     'delineamento em quadrado latino (DQL)',
+      FAT_DIC: 'esquema fatorial em delineamento inteiramente casualizado (DIC)',
+      FAT_DBC: 'esquema fatorial em delineamento em blocos casualizados (DBC)',
+      SPL_DIC: 'delineamento em parcelas subdivididas em DIC',
+      SPL_DBC: 'delineamento em parcelas subdivididas em DBC'
+    }
+  };
+  const dname = DN[lang][design] || design;
+
+  const allTreats = [...new Set(units.map(u => u.treatment))];
+  const allBlocks = [...new Set(units.map(u => u.block).filter(b => b !== null))];
+  const nTreat = allTreats.length;
+  const nBlock = allBlocks.length;
+  const nReps  = parseInt(document.getElementById('numReps').value) || nBlock || 1;
+
+  const hasAlley = document.getElementById('chkAlley').checked && allBlocks.length > 1;
+  const alleyM   = hasAlley ? (parseFloat(document.getElementById('alleyWidth').value) || 1.5) : 0;
+
+  const gradient = document.getElementById('selGradient').value;
+  const GD = {
+    en: { NS:'north–south', EW:'east–west', horiz:'horizontal', vert:'vertical', none:'' },
+    pt: { NS:'norte–sul',   EW:'leste–oeste', horiz:'horizontal', vert:'vertical', none:'' }
+  };
+  const gradDir = (GD[lang] || GD.en)[gradient] || '';
+
+  // Dimensões da unidade experimental
+  let unitDimText = '', unitDimCaption = '';
+  if (unitType === 'parcela') {
+    const pl   = parseFloat(document.getElementById('plotLength').value)  || 5;
+    const rs   = parseFloat(document.getElementById('rowSpacing').value)  || 0.5;
+    const rpp  = parseInt(document.getElementById('rowsPerPlot').value)   || 4;
+    const ps   = parseFloat(document.getElementById('plantSpacing').value)|| 0.5;
+    const plotW = +(rs * rpp).toFixed(2);
+    const area  = +(pl * plotW).toFixed(2);
+    if (isEng) {
+      unitDimText    = `Each experimental unit (plot) measured ${pl.toFixed(1)} m × ${plotW.toFixed(2)} m (${area.toFixed(1)} m²), comprising ${rpp} planting ${pl_s(rpp,'row','rows')} spaced ${rs.toFixed(2)} m apart, with plants spaced ${ps.toFixed(2)} m within rows.`;
+      unitDimCaption = `Plot size: ${pl.toFixed(1)} m × ${plotW.toFixed(2)} m (${area.toFixed(1)} m²).`;
+    } else {
+      unitDimText    = `Cada unidade experimental (parcela) mediu ${pl.toFixed(1)} m × ${plotW.toFixed(2)} m (${area.toFixed(1)} m²), com ${rpp} ${pl_s(rpp,'fileira','fileiras')} de plantio espaçadas ${rs.toFixed(2)} m entre si e plantas espaçadas ${ps.toFixed(2)} m na fileira.`;
+      unitDimCaption = `Dimensão da parcela: ${pl.toFixed(1)} m × ${plotW.toFixed(2)} m (${area.toFixed(1)} m²).`;
+    }
+  } else {
+    const ueA = parseFloat(document.getElementById('ueArea').value) || 12;
+    const apu = parseInt(document.getElementById('animalsPerUnit').value) || 4;
+    const tEN = { animal:'individual pen', baia:'pen/group', piquete:'paddock', clinica:'clinical unit' };
+    const tPT = { animal:'animal individual', baia:'baia', piquete:'piquete', clinica:'unidade clínica' };
+    const tname = isEng ? (tEN[unitType]||'unit') : (tPT[unitType]||'unidade');
+    if (isEng) {
+      unitDimText    = `Each experimental unit (${tname}) had an area of ${ueA.toFixed(1)} m², accommodating ${apu} ${pl_s(apu,'animal','animals')} (${(ueA/apu).toFixed(1)} m²/animal).`;
+      unitDimCaption = `Unit: ${ueA.toFixed(1)} m² (${apu} ${pl_s(apu,'animal','animals')}).`;
+    } else {
+      unitDimText    = `Cada unidade experimental (${tname}) teve área de ${ueA.toFixed(1)} m², alojando ${apu} ${pl_s(apu,'animal','animais')} (${(ueA/apu).toFixed(1)} m²/animal).`;
+      unitDimCaption = `Dimensão da unidade: ${ueA.toFixed(1)} m² (${apu} ${pl_s(apu,'animal','animais')}).`;
+    }
+  }
+
+  const alleyText = (hasAlley && alleyM > 0)
+    ? (isEng ? ` Alleys of ${alleyM.toFixed(1)} m were maintained between blocks.`
+             : ` Ruas de ${alleyM.toFixed(1)} m foram mantidas entre os blocos.`)
+    : '';
+  const gradText = (gradient !== 'none' && gradDir)
+    ? (isEng ? ` A ${gradDir} gradient was present in the experimental area.`
+             : ` Um gradiente ${gradDir} foi identificado na área experimental.`)
+    : '';
+
+  const treatRange = nTreat <= 6
+    ? allTreats.map((_, i) => `T${i+1}`).join(', ')
+    : `T1–T${nTreat}`;
+
+  // Parágrafo de M&M
+  let mm = '';
+  if (design === 'DIC') {
+    mm = isEng
+      ? `The experiment was conducted in a ${dname} with ${nTreat} ${pl_s(nTreat,'treatment','treatments')} and ${nReps} ${pl_s(nReps,'replication','replications')} per treatment, totaling ${units.length} experimental units. ${unitDimText}${alleyText}${gradText}`
+      : `O experimento foi conduzido em ${dname} com ${nTreat} ${pl_s(nTreat,'tratamento','tratamentos')} e ${nReps} ${pl_s(nReps,'repetição','repetições')} por tratamento, totalizando ${units.length} unidades experimentais. ${unitDimText}${alleyText}${gradText}`;
+  } else if (design === 'DBC') {
+    mm = isEng
+      ? `The experiment was conducted in a ${dname} with ${nTreat} ${pl_s(nTreat,'treatment','treatments')} and ${nBlock} ${pl_s(nBlock,'block','blocks')}, totaling ${units.length} experimental units. ${unitDimText}${alleyText}${gradText}`
+      : `O experimento foi conduzido em ${dname} com ${nTreat} ${pl_s(nTreat,'tratamento','tratamentos')} e ${nBlock} ${pl_s(nBlock,'bloco','blocos')}, totalizando ${units.length} unidades experimentais. ${unitDimText}${alleyText}${gradText}`;
+  } else if (design === 'DQL') {
+    const n = Math.round(Math.sqrt(nTreat));
+    mm = isEng
+      ? `The experiment was conducted in a ${dname} with ${nTreat} treatments arranged in a ${n}×${n} matrix (${n} rows and ${n} columns), totaling ${units.length} experimental units. ${unitDimText}${gradText}`
+      : `O experimento foi conduzido em ${dname} com ${nTreat} tratamentos dispostos em matriz ${n}×${n} (${n} linhas e ${n} colunas), totalizando ${units.length} unidades experimentais. ${unitDimText}${gradText}`;
+  } else if (design === 'FAT_DIC' || design === 'FAT_DBC') {
+    const aN = document.getElementById('fatAName').value || 'A';
+    const bN = document.getElementById('fatBName').value || 'B';
+    const aL = parseTreatments(document.getElementById('fatALevels').value);
+    const bL = parseTreatments(document.getElementById('fatBLevels').value);
+    const fBlk = parseInt(document.getElementById('numFatBlocks').value) || 3;
+    if (isEng) {
+      const rStr = design === 'FAT_DIC' ? `${fBlk} ${pl_s(fBlk,'replication','replications')}` : `${fBlk} ${pl_s(fBlk,'block','blocks')}`;
+      mm = `The experiment was conducted in a ${aL.length}×${bL.length} ${dname} with ${rStr}, totaling ${units.length} experimental units. Factor ${aN} comprised ${aL.length} ${pl_s(aL.length,'level','levels')} (${aL.join(', ')}) and factor ${bN} comprised ${bL.length} ${pl_s(bL.length,'level','levels')} (${bL.join(', ')}). ${unitDimText}${alleyText}${gradText}`;
+    } else {
+      const rStr = design === 'FAT_DIC' ? `${fBlk} ${pl_s(fBlk,'repetição','repetições')}` : `${fBlk} ${pl_s(fBlk,'bloco','blocos')}`;
+      mm = `O experimento foi conduzido em ${dname} ${aL.length}×${bL.length} com ${rStr}, totalizando ${units.length} unidades experimentais. O fator ${aN} teve ${aL.length} ${pl_s(aL.length,'nível','níveis')} (${aL.join(', ')}) e o fator ${bN} teve ${bL.length} ${pl_s(bL.length,'nível','níveis')} (${bL.join(', ')}). ${unitDimText}${alleyText}${gradText}`;
+    }
+  } else if (design === 'SPL_DIC' || design === 'SPL_DBC') {
+    const aL   = parseTreatments(document.getElementById('splALevels').value);
+    const bL   = parseTreatments(document.getElementById('splBLevels').value);
+    const sBlk = parseInt(document.getElementById('numSplBlocks').value) || 3;
+    if (isEng) {
+      const rStr = design === 'SPL_DIC' ? `${sBlk} ${pl_s(sBlk,'replication','replications')}` : `${sBlk} ${pl_s(sBlk,'block','blocks')}`;
+      mm = `The experiment was conducted in a ${dname} with ${rStr}, totaling ${units.length} experimental units. The main-plot factor comprised ${aL.length} ${pl_s(aL.length,'level','levels')} (${aL.join(', ')}), and the subplot factor comprised ${bL.length} ${pl_s(bL.length,'level','levels')} (${bL.join(', ')}). ${unitDimText}${alleyText}${gradText}`;
+    } else {
+      const rStr = design === 'SPL_DIC' ? `${sBlk} ${pl_s(sBlk,'repetição','repetições')}` : `${sBlk} ${pl_s(sBlk,'bloco','blocos')}`;
+      mm = `O experimento foi conduzido em ${dname} com ${rStr}, totalizando ${units.length} unidades experimentais. O fator de parcela principal teve ${aL.length} ${pl_s(aL.length,'nível','níveis')} (${aL.join(', ')}) e o fator de subparcela teve ${bL.length} ${pl_s(bL.length,'nível','níveis')} (${bL.join(', ')}). ${unitDimText}${alleyText}${gradText}`;
+    }
+  }
+
+  // Legenda da figura
+  let caption = '';
+  const gradArrow = (gradient !== 'none' && gradDir)
+    ? (isEng ? ` The arrow indicates the ${gradDir} gradient.` : ` A seta indica o gradiente ${gradDir}.`)
+    : '';
+  if (isEng) {
+    const blockInfo  = ['DBC','FAT_DBC','SPL_DBC'].includes(design) ? ` and ${nBlock} ${pl_s(nBlock,'block','blocks')}` : (design==='DIC' ? ` and ${nReps} ${pl_s(nReps,'replication','replications')}` : '');
+    const treatInfo  = ['DIC','DBC','DQL'].includes(design) ? ` with ${nTreat} ${pl_s(nTreat,'treatment','treatments')} (${treatRange})${blockInfo}` : '';
+    caption = `Figure X. Layout of the experiment arranged in a ${dname}${treatInfo}. ${unitDimCaption}${gradArrow}`;
+  } else {
+    const blockInfo  = ['DBC','FAT_DBC','SPL_DBC'].includes(design) ? ` e ${nBlock} ${pl_s(nBlock,'bloco','blocos')}` : (design==='DIC' ? ` e ${nReps} ${pl_s(nReps,'repetição','repetições')}` : '');
+    const treatInfo  = ['DIC','DBC','DQL'].includes(design) ? ` com ${nTreat} ${pl_s(nTreat,'tratamento','tratamentos')} (${treatRange})${blockInfo}` : '';
+    caption = `Figura X. Croqui do experimento em ${dname}${treatInfo}. ${unitDimCaption}${gradArrow}`;
+  }
+
+  return { mm: mm.trim(), caption: caption.trim() };
 }
 
 /* ── Unidade Experimental ── */
