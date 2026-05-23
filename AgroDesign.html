@@ -364,24 +364,24 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     <div id="secVegetal">
       <div class="row2">
         <label><span>Esp. entre linhas (m)</span>
-          <input type="number" id="rowSpacing" value="0.5" min="0.01" step="0.05">
+          <input type="number" id="rowSpacing" value="0.5" min="0.01" step="0.05" onchange="rerenderCroqui()">
         </label>
         <label><span>Esp. entre plantas (m)</span>
-          <input type="number" id="plantSpacing" value="0.2" min="0.01" step="0.05">
+          <input type="number" id="plantSpacing" value="0.2" min="0.01" step="0.05" onchange="rerenderCroqui()">
         </label>
       </div>
       <div class="row2">
         <label><span>Linhas por parcela</span>
-          <input type="number" id="rowsPerPlot" value="4" min="1">
+          <input type="number" id="rowsPerPlot" value="4" min="1" onchange="rerenderCroqui()">
         </label>
         <label><span>Compr. da parcela (m)</span>
-          <input type="number" id="plotLength" value="5" min="0.1" step="0.5">
+          <input type="number" id="plotLength" value="5" min="0.1" step="0.5" onchange="rerenderCroqui()">
         </label>
       </div>
       <div class="check-row" style="margin-bottom:.3rem">
         <input type="checkbox" id="chkBorders" onchange="toggleBorders()">
         <label for="chkBorders" style="flex-direction:row;align-items:center;margin:0"><span>Bordadura de linhas</span></label>
-        <input type="number" id="borderRows" value="1" min="1" max="5" style="width:50px;display:none">
+        <input type="number" id="borderRows" value="1" min="1" max="5" style="width:50px;display:none" onchange="rerenderCroqui()">
         <span id="lblBorderUnit" style="display:none;font-size:.75rem;color:var(--text-muted)">linhas</span>
       </div>
       <div class="check-row" style="margin-bottom:.3rem">
@@ -389,17 +389,17 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <label for="chkLateralBorder" style="flex-direction:row;align-items:center;margin:0">
           <span>Bordadura lateral (extremidades da linha)</span>
         </label>
-        <input type="number" id="lateralBorderPlants" value="1" min="1" max="20" style="width:50px;display:none">
+        <input type="number" id="lateralBorderPlants" value="1" min="1" max="20" style="width:50px;display:none" onchange="rerenderCroqui()">
         <span id="lblLateralUnit" style="display:none;font-size:.75rem;color:var(--text-muted)">plantas</span>
       </div>
     </div>
     <div id="secAnimal" class="hidden">
       <div class="row2">
         <label><span id="lblUeArea">Área da UE (m²)</span>
-          <input type="number" id="ueArea" value="12" min="0.1" step="0.5">
+          <input type="number" id="ueArea" value="12" min="0.1" step="0.5" onchange="rerenderCroqui()">
         </label>
         <label><span>Animais por UE</span>
-          <input type="number" id="animalsPerUnit" value="1" min="1">
+          <input type="number" id="animalsPerUnit" value="1" min="1" onchange="rerenderCroqui()">
         </label>
       </div>
     </div>
@@ -414,11 +414,11 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     </div>
     <div id="secAlley" class="hidden">
       <label><span>Largura das ruas (m)</span>
-        <input type="number" id="alleyWidth" value="1.5" min="0.1" step="0.1" style="width:120px">
+        <input type="number" id="alleyWidth" value="1.5" min="0.1" step="0.1" style="width:120px" onchange="rerenderCroqui()">
       </label>
     </div>
     <label style="margin-top:.25rem"><span>Orientação do gradiente principal</span>
-      <select id="selGradient">
+      <select id="selGradient" onchange="rerenderCroqui()">
         <option value="NS">Norte–Sul (declive, fertilidade)</option>
         <option value="EW">Leste–Oeste</option>
         <option value="horiz">Horizontal (temperatura, ventilação)</option>
@@ -1346,7 +1346,13 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
       `<text x="${x - 8}" y="${my}" text-anchor="middle" dominant-baseline="middle" font-size="7.5" fill="${cDim}" font-weight="700" transform="rotate(-90,${x - 8},${my})">${esc(label)}</text>`;
   };
 
-  const TITLE_H = 17, INFO_H = 20;
+  const TITLE_H = 17;
+  // INFO_H aumenta quando há legenda de área útil
+  const _bf  = params.borderFrac    || 0;
+  const _lbf = params.latBorderFrac || 0;
+  const hasUsefulArea = (unitType === 'parcela') && (_bf > 0 || _lbf > 0);
+  const INFO_H = hasUsefulArea ? 32 : 20;
+
   let out = `<rect x="0" y="0" width="${W}" height="${H}" fill="${cBg}" stroke="${cBorder}" stroke-width="${isPub ? '0.7' : '1'}"${isPub ? '' : ' rx="5"'}/>`;
   out += `<text x="${W / 2}" y="${TITLE_H - 3}" text-anchor="middle" font-size="9" fill="${cFg}" font-weight="700">${isEng ? 'Experimental Unit' : 'Unidade Experimental'}</text>`;
   out += `<line x1="4" y1="${TITLE_H}" x2="${W - 4}" y2="${TITLE_H}" stroke="${cSep}" stroke-width="0.6"/>`;
@@ -1414,7 +1420,21 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
     out += vDim(ox - 14, oy, oy + dH, `${plotW.toFixed(2)} m`);
 
     // Info inferior
-    out += `<text x="${W / 2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${pl.toFixed(1)} m × ${plotW.toFixed(2)} m · ${(pl * plotW).toFixed(2)} m²</text>`;
+    out += `<text x="${W / 2}" y="${H - INFO_H + 12}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${pl.toFixed(1)} m × ${plotW.toFixed(2)} m · ${(pl * plotW).toFixed(2)} m²</text>`;
+
+    // Legenda área útil + planta (quando bordaduras ativas)
+    if (hasUsefulArea) {
+      const ly = H - 8;
+      const dotC = isPub ? '#444' : '#2d6a4f';
+      const boxC = isPub ? 'none' : 'rgba(52,183,100,0.28)';
+      const boxS = isPub ? '#222' : 'rgba(34,139,34,.5)';
+      // Área útil
+      out += `<rect x="10" y="${ly - 6}" width="9" height="9" fill="${boxC}" stroke="${boxS}" stroke-width="${isPub ? '1' : '1'}" ${isPub ? 'stroke-dasharray="3 1.5"' : 'rx="1.5"'}/>`;
+      out += `<text x="22" y="${ly + 2}" font-size="7" fill="${cMuted}">${isEng ? 'Useful area' : 'Área útil'}</text>`;
+      // Planta
+      out += `<circle cx="${Math.round(W / 2) + 10}" cy="${ly - 1}" r="3" fill="${dotC}" opacity="0.7"/>`;
+      out += `<text x="${Math.round(W / 2) + 16}" y="${ly + 2}" font-size="7" fill="${cMuted}">${isEng ? 'Plant' : 'Planta'}</text>`;
+    }
 
   } else {
     // Unidade animal
@@ -1760,8 +1780,8 @@ function renderCroqui() {
   if (showNorth) {
     const nc  = theme === 'pub' ? '#111' : '#1b4332';
     const ncW = theme === 'pub' ? '#fff' : '#fff';
-    // canto superior direito do grid, no espaço do PAD
-    const nx = gx + gridW - 18, nTop = gy + PAD - 28;
+    // canto superior direito do grid, dentro do PAD (deslocado para baixo para o N não ser cortado)
+    const nx = gx + gridW - 18, nTop = gy + PAD - 16;
     const ncy = nTop + 22; // centro vertical da agulha
     svg += `<g>` +
       // "N" acima
@@ -2663,16 +2683,19 @@ function toggleBorders() {
   const v = document.getElementById('chkBorders').checked;
   document.getElementById('borderRows').style.display = v ? 'inline-block' : 'none';
   document.getElementById('lblBorderUnit').style.display = v ? 'inline' : 'none';
+  rerenderCroqui();
 }
 
 function toggleLateralBorder() {
   const v = document.getElementById('chkLateralBorder').checked;
   document.getElementById('lateralBorderPlants').style.display = v ? 'inline-block' : 'none';
   document.getElementById('lblLateralUnit').style.display = v ? 'inline' : 'none';
+  rerenderCroqui();
 }
 
 function toggleAlley() {
   document.getElementById('secAlley').classList.toggle('hidden', !document.getElementById('chkAlley').checked);
+  rerenderCroqui();
 }
 
 function onFactorCToggle() {
