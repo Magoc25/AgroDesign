@@ -610,7 +610,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 <footer>
   <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
   <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
-  <span id="appVersion">© MGC · v1.1.2</span>
+  <span id="appVersion">© MGC · v1.1.3</span>
 </footer>
 
 <!-- ═══ UNIT TOOLTIP ═══ -->
@@ -844,7 +844,7 @@ df = pd.read_csv("AgroDesign_dados.csv",
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 /* ── Constantes ── */
-const APP_VERSION  = '1.0.2';
+const APP_VERSION  = '1.0.3';
 const APP_NAME     = 'AgroDesign';
 const PROJECT_ID   = 'agrodesign';
 const PIX_KEY      = '4c6086a2-4bb8-474b-a4cf-ced8c8d82189';
@@ -1171,18 +1171,18 @@ function cellBg(uw, uh, color, style) {
              `<rect x="0" y="0" width="${uw}" height="${sh}" fill="${esc(color)}" rx="2"/>`;
     }
     case 'dot': {
-      const r = Math.min(7, uw / 8);
+      const r = Math.min(10, Math.floor(uw / 7));
       return `<rect x="0" y="0" width="${uw}" height="${uh}" fill="#f9fafb" stroke="#e5e7eb" stroke-width="0.8" rx="2"/>` +
-             `<circle cx="${uw - r - 3}" cy="${r + 3}" r="${r}" fill="${esc(color)}"/>`;
+             `<circle cx="${r + 3}" cy="${r + 3}" r="${r}" fill="${esc(color)}"/>`;
     }
     default: // 'fill'
       return `<rect x="0" y="0" width="${uw}" height="${uh}" fill="${esc(color)}" stroke="#fff" stroke-width="1.5" rx="2"/>`;
   }
 }
 
-// Texto da célula — suporta 5 modos de rótulo e 3 posições
+// Texto da célula — suporta 5 modos de rótulo, 3 posições e integração com estilo Ponto
 // Coordenadas relativas ao centro da célula (0,0) via transform externo
-function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, labelPos) {
+function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, labelPos, cellStyle) {
   const maxW = uw - 8;
   const fc = '#1b2a1e', sc = '#4b7a5e';
 
@@ -1203,6 +1203,16 @@ function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, labelPo
     case 'code': display = treatCode; break;
     case 'fact': display = factCode; break;
     default:     display = text; break; // 'desc'
+  }
+
+  // Ponto + rótulo curto: texto branco dentro do círculo (já desenhado por cellBg)
+  const shortMode = labelMode === 'code' || labelMode === 'id' || labelMode === 'fact';
+  if (cellStyle === 'dot' && shortMode) {
+    const r  = Math.min(10, Math.floor(uw / 7));
+    const dx = -(uw / 2) + r + 3;
+    const dy = -(uh / 2) + r + 3;
+    const fs = Math.min(9, Math.max(5.5, (r * 1.6) / Math.max(display.length, 1)));
+    return `<text x="${dx}" y="${dy}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" fill="#fff" font-weight="700">${esc(display)}</text>`;
   }
 
   // Posição: canto superior esquerdo
@@ -1460,7 +1470,7 @@ function renderCroqui() {
     svg += `<g transform="translate(${x},${y})" style="cursor:pointer" onclick="openUnitModal('${td}')">`;
     svg += cellBg(UW, UH, cellFill, cellStyle);
     svg += `<g transform="translate(${UW / 2},${UH / 2})">`;
-    svg += cellLabel(raw, UW, UH, labelMode, u.id, treatCode, factCode, labelPos);
+    svg += cellLabel(raw, UW, UH, labelMode, u.id, treatCode, factCode, labelPos, cellStyle);
     svg += '</g>';
     // Overlay de bordaduras
     if (hasBorders && borderFrac > 0) {
