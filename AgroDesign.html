@@ -613,7 +613,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 <footer>
   <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
   <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
-  <span id="appVersion">© MGC · v1.1.4</span>
+  <span id="appVersion">© MGC · v1.1.5</span>
 </footer>
 
 <!-- ═══ UNIT TOOLTIP ═══ -->
@@ -847,7 +847,7 @@ df = pd.read_csv("AgroDesign_dados.csv",
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 /* ── Constantes ── */
-const APP_VERSION  = '1.0.4';
+const APP_VERSION  = '1.0.5';
 const APP_NAME     = 'AgroDesign';
 const PROJECT_ID   = 'agrodesign';
 const PIX_KEY      = '4c6086a2-4bb8-474b-a4cf-ced8c8d82189';
@@ -1310,7 +1310,7 @@ function buildUeSchematic(params, theme, W, H) {
     return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${cDim}" stroke-width="0.8"/>` +
       `<line x1="${x-3}" y1="${y1}" x2="${x+3}" y2="${y1}" stroke="${cDim}" stroke-width="0.8"/>` +
       `<line x1="${x-3}" y1="${y2}" x2="${x+3}" y2="${y2}" stroke="${cDim}" stroke-width="0.8"/>` +
-      `<text x="${x}" y="${my}" text-anchor="middle" dominant-baseline="middle" font-size="7.5" fill="${cDim}" font-weight="700" transform="rotate(-90,${x},${my})">${esc(label)}</text>`;
+      `<text x="${x - 8}" y="${my}" text-anchor="middle" dominant-baseline="middle" font-size="7.5" fill="${cDim}" font-weight="700" transform="rotate(-90,${x - 8},${my})">${esc(label)}</text>`;
   };
 
   const TITLE_H = 17, INFO_H = 20;
@@ -1328,7 +1328,7 @@ function buildUeSchematic(params, theme, W, H) {
     const ps   = plantSpacing || 0.5;
     const plotW = +(rs * rpp).toFixed(4);
 
-    const ANNOT_L = 26, ANNOT_T = 15, PAD_R = 6, PAD_B = 4;
+    const ANNOT_L = 34, ANNOT_T = 28, PAD_R = 6, PAD_B = 4;
     const availW = W - ANNOT_L - PAD_R;
     const availH = drawH - ANNOT_T - PAD_B;
     const sc  = Math.min(availW / pl, availH / plotW);
@@ -1361,8 +1361,8 @@ function buildUeSchematic(params, theme, W, H) {
     }
 
     // Cotas
-    out += hDim(ox, ox + dW, oy - 8, `${pl.toFixed(1)} m`);
-    out += vDim(ox - 10, oy, oy + dH, `${plotW.toFixed(2)} m`);
+    out += hDim(ox, ox + dW, oy - 12, `${pl.toFixed(1)} m`);
+    out += vDim(ox - 14, oy, oy + dH, `${plotW.toFixed(2)} m`);
 
     // Info inferior
     out += `<text x="${W / 2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${pl.toFixed(1)} m × ${plotW.toFixed(2)} m · ${(pl * plotW).toFixed(2)} m²</text>`;
@@ -1375,7 +1375,7 @@ function buildUeSchematic(params, theme, W, H) {
     const typeNames = { animal: 'Animal Individual', baia: 'Baia / Lote', piquete: 'Piquete', clinica: 'Unidade Clínica' };
     const tname = typeNames[unitType] || 'Unidade';
 
-    const ANNOT_S = 20, PAD_S = 8;
+    const ANNOT_S = 24, PAD_S = 8;
     const availW = W - ANNOT_S - PAD_S;
     const availH = drawH - ANNOT_S - PAD_S;
     const side = Math.min(availW, availH);
@@ -1407,8 +1407,8 @@ function buildUeSchematic(params, theme, W, H) {
     }
 
     // Cotas
-    out += hDim(ox, ox + side, oy - 8, `≈ ${dimV.toFixed(1)} m`);
-    out += vDim(ox - 10, oy, oy + side, `≈ ${dimV.toFixed(1)} m`);
+    out += hDim(ox, ox + side, oy - 12, `≈ ${dimV.toFixed(1)} m`);
+    out += vDim(ox - 14, oy, oy + side, `≈ ${dimV.toFixed(1)} m`);
 
     // Info inferior
     out += `<text x="${W / 2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${esc(tname)} · ${ua.toFixed(1)} m² · ${(ua / apu).toFixed(1)} m²/animal</text>`;
