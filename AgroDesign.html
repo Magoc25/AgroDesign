@@ -44,20 +44,6 @@ header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: .02em; }
 header p { font-size: .75rem; opacity: .8; }
 .header-logo { font-size: 1.6rem; line-height: 1; }
 
-/* Window Controls Overlay — header sobe e ocupa a barra de título */
-@media (display-mode: window-controls-overlay) {
-  header {
-    padding-top: calc(env(titlebar-area-y, 0px) + .75rem);
-    padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 1.5rem);
-    -webkit-app-region: drag;
-    app-region: drag;
-  }
-  header button, header a, header input, header select, header label {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
-  }
-}
-
 /* Layout */
 .app-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 .config-panel { width: 380px; min-width: 320px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 1rem; flex-shrink: 0; }
@@ -630,7 +616,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 <footer>
   <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
   <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
-  <span id="appVersion">© MGC · v1.1.9</span>
+  <span id="appVersion">© MGC · v1.2.0</span>
 </footer>
 
 <!-- ═══ UNIT TOOLTIP ═══ -->
@@ -864,7 +850,7 @@ df = pd.read_csv("AgroDesign_dados.csv",
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 /* ── Constantes ── */
-const APP_VERSION  = '1.0.9';
+const APP_VERSION  = '1.1.0';
 const APP_NAME     = 'AgroDesign';
 const PROJECT_ID   = 'agrodesign';
 const PIX_KEY      = '4c6086a2-4bb8-474b-a4cf-ced8c8d82189';
