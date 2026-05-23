@@ -492,7 +492,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <button class="btn btn-secondary btn-sm" onclick="exportPNG()">🖼 PNG</button>
         <button class="btn btn-secondary btn-sm" onclick="exportSVG()">⬇ SVG</button>
         <button class="btn btn-ghost btn-sm" onclick="openPubTextModal()">📄 Texto</button>
-        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨 Imprimir</button>
+        <button class="btn btn-ghost btn-sm" onclick="printCroqui()">🖨 Imprimir</button>
         <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
           Rótulo:
           <select id="selLabelMode" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
@@ -542,6 +542,12 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         </label>
         <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
           <input type="checkbox" id="chkEnglish" onchange="rerenderCroqui()" style="width:auto"> English
+        </label>
+        <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+          <input type="checkbox" id="chkNorthArrow" onchange="rerenderCroqui()" style="width:auto"> Norte
+        </label>
+        <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+          <input type="checkbox" id="chkGradArrow" onchange="rerenderCroqui()" style="width:auto"> Gradiente
         </label>
       </div>
       <div class="svg-scroll" id="svgScroll">
@@ -1473,6 +1479,19 @@ function renderCroqui() {
   const rowsPerPlot = hasBorders ? (parseInt(document.getElementById('rowsPerPlot').value) || 4) : 1;
   const borderFrac  = hasBorders ? Math.min(0.38, borderNRows / rowsPerPlot) : 0;
 
+  const hasLateralBorder = document.getElementById('chkLateralBorder').checked && unitType === 'parcela';
+  const latBorderFrac = (() => {
+    if (!hasLateralBorder) return 0;
+    const lbp = parseInt(document.getElementById('lateralBorderPlants').value) || 1;
+    const ps  = parseFloat(document.getElementById('plantSpacing').value) || 0.2;
+    const pl  = parseFloat(document.getElementById('plotLength').value)   || 5;
+    return Math.min(0.35, (lbp * ps) / pl);
+  })();
+
+  const showNorth    = document.getElementById('chkNorthArrow').checked;
+  const showGradArrow = document.getElementById('chkGradArrow').checked;
+  const gradientVal  = document.getElementById('selGradient').value;
+
   // ── Ruas / Corredores ──
   const blocks  = [...new Set(units.map(u => u.block).filter(b => b !== null))].sort((a, b) => a - b);
   const hasAlley = document.getElementById('chkAlley').checked && blocks.length > 1;
@@ -1587,6 +1606,14 @@ function renderCroqui() {
     }
   }
 
+  // ── Seta de gradiente — reservar espaço adicional ──
+  const GRAD_SIZE = 42;
+  const isGradVert  = showGradArrow && (gradientVal === 'NS' || gradientVal === 'vert');
+  const isGradHoriz = showGradArrow && (gradientVal === 'EW' || gradientVal === 'horiz');
+  let gradAX = 0, gradAY = 0;
+  if (isGradVert)  { gradAX = totalW; totalW += GRAD_SIZE; }
+  if (isGradHoriz) { gradAY = totalH; totalH += GRAD_SIZE; }
+
   // ── Montar SVG ──
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" id="croquiSvg" viewBox="0 0 ${totalW} ${totalH}" style="display:block">`;
   if (theme === 'pub') {
@@ -1674,22 +1701,16 @@ function renderCroqui() {
     svg += `<g transform="translate(${UW / 2},${UH / 2})">`;
     svg += cellLabel(raw, UW, UH, labelMode, u.id, treatCode, factCode, labelPos, cellStyle);
     svg += '</g>';
-    // Overlay de bordaduras
-    if (hasBorders && borderFrac > 0) {
-      const bh = Math.max(4, Math.round(UH * borderFrac));
-      if (theme === 'pub') {
-        svg += `<rect x="0" y="0" width="${UW}" height="${bh}" fill="url(#phBord)" pointer-events="none"/>`;
-        svg += `<rect x="0" y="${UH - bh}" width="${UW}" height="${bh}" fill="url(#phBord)" pointer-events="none"/>`;
-        if (bh >= 8) {
-          svg += `<text x="3" y="${bh - 2}" font-size="7" fill="#333" font-style="italic">bord.</text>`;
-          svg += `<text x="3" y="${UH - 2}" font-size="7" fill="#333" font-style="italic">bord.</text>`;
-        }
-      } else {
-        svg += `<rect x="0" y="0" width="${UW}" height="${bh}" fill="rgba(0,0,0,0.18)" rx="2" pointer-events="none"/>`;
-        svg += `<rect x="0" y="${UH - bh}" width="${UW}" height="${bh}" fill="rgba(0,0,0,0.18)" rx="2" pointer-events="none"/>`;
-        if (bh >= 8) {
-          svg += `<text x="3" y="${bh - 2}" font-size="7" fill="rgba(255,255,255,.85)" font-style="italic">bord.</text>`;
-          svg += `<text x="3" y="${UH - 2}" font-size="7" fill="rgba(255,255,255,.85)" font-style="italic">bord.</text>`;
+    // Área útil (highlight da zona de coleta)
+    if ((hasBorders && borderFrac > 0) || (hasLateralBorder && latBorderFrac > 0)) {
+      const bh = hasBorders    ? Math.max(4, Math.round(UH * borderFrac))      : 0;
+      const bw = hasLateralBorder ? Math.max(3, Math.round(UW * latBorderFrac)) : 0;
+      const uw = UW - 2 * bw, uh = UH - 2 * bh;
+      if (uw > 4 && uh > 4) {
+        if (theme === 'pub') {
+          svg += `<rect x="${bw}" y="${bh}" width="${uw}" height="${uh}" fill="none" stroke="#333" stroke-width="1" stroke-dasharray="4 2" pointer-events="none"/>`;
+        } else {
+          svg += `<rect x="${bw}" y="${bh}" width="${uw}" height="${uh}" fill="rgba(52,183,100,0.22)" stroke="rgba(34,139,34,.45)" stroke-width="1" rx="2" pointer-events="none"/>`;
         }
       }
     }
@@ -1728,6 +1749,60 @@ function renderCroqui() {
     };
     const ueSvgContent = buildUeSchematic(ueParams, theme, UE_W, UE_H, isEng);
     svg += `<g transform="translate(${ux.toFixed(1)},${uy.toFixed(1)})">${ueSvgContent}</g>`;
+  }
+
+  // ── Seta de Norte ──
+  if (showNorth) {
+    const nc = theme === 'pub' ? '#111' : '#2d6a4f';
+    // posicionada no canto superior direito do grid
+    const nx = gx + gridW - 17, ny = gy + PAD + 6;
+    svg += `<g>` +
+      `<polygon points="${nx},${ny} ${nx-5},${ny+13} ${nx+5},${ny+13}" fill="${nc}"/>` +
+      `<line x1="${nx}" y1="${ny+12}" x2="${nx}" y2="${ny+22}" stroke="${nc}" stroke-width="1.5"/>` +
+      `<text x="${nx}" y="${ny+33}" text-anchor="middle" font-size="9" font-weight="bold" fill="${nc}">N</text>` +
+      `</g>`;
+  }
+
+  // ── Seta de gradiente ──
+  if (isGradVert) {
+    const gc = theme === 'pub' ? '#444' : '#2d6a4f';
+    const ax  = gradAX + GRAD_SIZE / 2;
+    const ay1 = gy + PAD + 2;
+    const ay2 = gy + gridH - PAD - 18;
+    const aLen = ay2 - ay1;
+    if (aLen > 30) {
+      const aMid = (ay1 + ay2) / 2;
+      svg += `<g>` +
+        `<line x1="${ax}" y1="${ay1+10}" x2="${ax}" y2="${ay2-10}" stroke="${gc}" stroke-width="1.5"/>` +
+        `<polygon points="${ax},${ay1} ${ax-5},${ay1+11} ${ax+5},${ay1+11}" fill="${gc}"/>` +
+        `<polygon points="${ax},${ay2} ${ax-5},${ay2-11} ${ax+5},${ay2-11}" fill="${gc}"/>` +
+        `<text x="${ax}" y="${aMid}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="${gc}" transform="rotate(-90,${ax},${aMid})">${isEng ? 'Gradient' : 'Gradiente'}</text>`;
+      if (gradientVal === 'NS') {
+        svg += `<text x="${ax}" y="${ay1-3}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="${gc}">N</text>`;
+        svg += `<text x="${ax}" y="${ay2+11}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="${gc}">S</text>`;
+      }
+      svg += `</g>`;
+    }
+  }
+  if (isGradHoriz) {
+    const gc = theme === 'pub' ? '#444' : '#2d6a4f';
+    const ay  = gradAY + GRAD_SIZE / 2;
+    const ax1 = gx + PAD + 2;
+    const ax2 = gx + gridW - PAD - 2;
+    const aLen = ax2 - ax1;
+    if (aLen > 30) {
+      const aMid = (ax1 + ax2) / 2;
+      svg += `<g>` +
+        `<line x1="${ax1+10}" y1="${ay}" x2="${ax2-10}" y2="${ay}" stroke="${gc}" stroke-width="1.5"/>` +
+        `<polygon points="${ax1},${ay} ${ax1+11},${ay-5} ${ax1+11},${ay+5}" fill="${gc}"/>` +
+        `<polygon points="${ax2},${ay} ${ax2-11},${ay-5} ${ax2-11},${ay+5}" fill="${gc}"/>` +
+        `<text x="${aMid}" y="${ay-9}" text-anchor="middle" font-size="8" fill="${gc}">${isEng ? 'Gradient' : 'Gradiente'}</text>`;
+      if (gradientVal === 'EW') {
+        svg += `<text x="${ax1-3}" y="${ay+4}" text-anchor="end" font-size="7.5" font-weight="bold" fill="${gc}">${isEng ? 'E' : 'L'}</text>`;
+        svg += `<text x="${ax2+3}" y="${ay+4}" text-anchor="start" font-size="7.5" font-weight="bold" fill="${gc}">${isEng ? 'W' : 'O'}</text>`;
+      }
+      svg += `</g>`;
+    }
   }
 
   svg += '</svg>';
@@ -2000,6 +2075,33 @@ function exportSVG() {
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
+}
+
+/* ── Imprimir croqui ── */
+function printCroqui() {
+  const svg = document.getElementById('croquiSvg');
+  if (!svg) { alert('Gere o croqui primeiro.'); return; }
+  const vb = svg.getAttribute('viewBox').split(' ').map(Number);
+  const scale = 2;
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('width',  vb[2] * scale);
+  clone.setAttribute('height', vb[3] * scale);
+  const svgStr = new XMLSerializer().serializeToString(clone);
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = vb[2] * scale; canvas.height = vb[3] * scale;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    const dataUrl = canvas.toDataURL('image/png');
+    const pw = window.open('', '_blank');
+    pw.document.write(`<!DOCTYPE html><html><head><title>AgroDesign — Croqui</title>` +
+      `<style>@page{size:landscape;margin:8mm}*{margin:0;padding:0;box-sizing:border-box}` +
+      `body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#fff}` +
+      `img{max-width:100%;max-height:100vh;object-fit:contain}</style></head>` +
+      `<body><img src="${dataUrl}" onload="window.print()"></body></html>`);
+    pw.document.close();
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
 }
 
 /* ── Texto para Publicação ── */
