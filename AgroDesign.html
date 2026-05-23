@@ -535,6 +535,9 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
             <option value="top">Acima</option>
           </select>
         </label>
+        <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+          <input type="checkbox" id="chkShowUe" onchange="rerenderCroqui()" style="width:auto"> Parcela
+        </label>
       </div>
       <div class="svg-scroll" id="svgScroll">
         <div class="svg-inner" id="svgInner"></div>
@@ -610,7 +613,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 <footer>
   <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
   <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
-  <span id="appVersion">© MGC · v1.1.3</span>
+  <span id="appVersion">© MGC · v1.1.4</span>
 </footer>
 
 <!-- ═══ UNIT TOOLTIP ═══ -->
@@ -844,7 +847,7 @@ df = pd.read_csv("AgroDesign_dados.csv",
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 /* ── Constantes ── */
-const APP_VERSION  = '1.0.3';
+const APP_VERSION  = '1.0.4';
 const APP_NAME     = 'AgroDesign';
 const PROJECT_ID   = 'agrodesign';
 const PIX_KEY      = '4c6086a2-4bb8-474b-a4cf-ced8c8d82189';
@@ -1277,6 +1280,143 @@ function buildSvgLegend(allT, colors, pos, theme, pubFillMap) {
   return { svg: bg + inner, w: totalW, h: totalH };
 }
 
+/* ── Schematic da Unidade Experimental (embutido no croqui) ── */
+function buildUeSchematic(params, theme, W, H) {
+  const isPub = theme === 'pub';
+  const { unitType, plotLength, rowSpacing, rowsPerPlot, plantSpacing, ueArea, animalsPerUnit } = params;
+
+  const cFg     = isPub ? '#111'              : '#2d6a4f';
+  const cMuted  = isPub ? '#555'              : '#6b7c6e';
+  const cDim    = isPub ? '#333'              : '#374151';
+  const cFill   = isPub ? '#fff'              : '#d8f3dc';
+  const cStk    = isPub ? '#111'              : '#2d6a4f';
+  const cRow    = isPub ? 'rgba(0,0,0,0.06)' : 'rgba(82,183,136,0.13)';
+  const cDot    = isPub ? '#444'              : '#2d6a4f';
+  const cBg     = isPub ? '#fff'              : '#f8fdf9';
+  const cBorder = isPub ? '#bbb'              : '#cde0d3';
+  const cSep    = isPub ? '#aaa'              : '#c3dcc9';
+
+  // Linha de cota horizontal com ticks e label acima
+  const hDim = (x1, x2, y, label) => {
+    const mx = (x1 + x2) / 2;
+    return `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${cDim}" stroke-width="0.8"/>` +
+      `<line x1="${x1}" y1="${y-3}" x2="${x1}" y2="${y+3}" stroke="${cDim}" stroke-width="0.8"/>` +
+      `<line x1="${x2}" y1="${y-3}" x2="${x2}" y2="${y+3}" stroke="${cDim}" stroke-width="0.8"/>` +
+      `<text x="${mx}" y="${y-4}" text-anchor="middle" font-size="7.5" fill="${cDim}" font-weight="700">${esc(label)}</text>`;
+  };
+  // Linha de cota vertical com ticks e label rotacionado
+  const vDim = (x, y1, y2, label) => {
+    const my = (y1 + y2) / 2;
+    return `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${cDim}" stroke-width="0.8"/>` +
+      `<line x1="${x-3}" y1="${y1}" x2="${x+3}" y2="${y1}" stroke="${cDim}" stroke-width="0.8"/>` +
+      `<line x1="${x-3}" y1="${y2}" x2="${x+3}" y2="${y2}" stroke="${cDim}" stroke-width="0.8"/>` +
+      `<text x="${x}" y="${my}" text-anchor="middle" dominant-baseline="middle" font-size="7.5" fill="${cDim}" font-weight="700" transform="rotate(-90,${x},${my})">${esc(label)}</text>`;
+  };
+
+  const TITLE_H = 17, INFO_H = 20;
+  let out = `<rect x="0" y="0" width="${W}" height="${H}" fill="${cBg}" stroke="${cBorder}" stroke-width="${isPub ? '0.7' : '1'}"${isPub ? '' : ' rx="5"'}/>`;
+  out += `<text x="${W / 2}" y="${TITLE_H - 3}" text-anchor="middle" font-size="9" fill="${cFg}" font-weight="700">Unidade Experimental</text>`;
+  out += `<line x1="4" y1="${TITLE_H}" x2="${W - 4}" y2="${TITLE_H}" stroke="${cSep}" stroke-width="0.6"/>`;
+
+  const drawY0 = TITLE_H + 2;
+  const drawH  = H - TITLE_H - INFO_H;
+
+  if (unitType === 'parcela') {
+    const pl   = plotLength   || 5;
+    const rs   = rowSpacing   || 0.5;
+    const rpp  = rowsPerPlot  || 4;
+    const ps   = plantSpacing || 0.5;
+    const plotW = +(rs * rpp).toFixed(4);
+
+    const ANNOT_L = 26, ANNOT_T = 15, PAD_R = 6, PAD_B = 4;
+    const availW = W - ANNOT_L - PAD_R;
+    const availH = drawH - ANNOT_T - PAD_B;
+    const sc  = Math.min(availW / pl, availH / plotW);
+    const dW  = Math.round(pl * sc);
+    const dH  = Math.round(plotW * sc);
+    const ox  = ANNOT_L + Math.round((availW - dW) / 2);
+    const oy  = drawY0 + ANNOT_T + Math.round((availH - dH) / 2);
+    const rowH = rs * sc;
+
+    // Retângulo da parcela
+    out += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="${cFill}" stroke="${cStk}" stroke-width="${isPub ? '0.8' : '1.5'}"${isPub ? '' : ' rx="2"'}/>`;
+
+    // Faixas de linha
+    for (let i = 0; i < rpp; i++) {
+      const ry = +(oy + i * rowH).toFixed(1);
+      out += `<rect x="${ox}" y="${ry}" width="${dW}" height="${rowH.toFixed(1)}" fill="${cRow}" stroke="${isPub ? '#ccc' : '#cde0d3'}" stroke-width="0.4"/>`;
+    }
+
+    // Pontos de planta (representativos)
+    const nP  = Math.min(8, Math.floor(pl / ps) + 1);
+    const nR  = Math.min(rpp, 4);
+    const dr  = Math.max(1.5, Math.min(2.8, rowH * 0.3));
+    for (let r = 0; r < nR; r++) {
+      for (let p = 0; p < nP; p++) {
+        const px = ox + (nP > 1 ? p * (dW / (nP - 1)) : dW / 2);
+        const py = oy + (r + 0.5) * rowH;
+        if (px <= ox + dW + 1)
+          out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${dr}" fill="${cDot}" opacity="${isPub ? '0.75' : '0.65'}"/>`;
+      }
+    }
+
+    // Cotas
+    out += hDim(ox, ox + dW, oy - 8, `${pl.toFixed(1)} m`);
+    out += vDim(ox - 10, oy, oy + dH, `${plotW.toFixed(2)} m`);
+
+    // Info inferior
+    out += `<text x="${W / 2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${pl.toFixed(1)} m × ${plotW.toFixed(2)} m · ${(pl * plotW).toFixed(2)} m²</text>`;
+
+  } else {
+    // Unidade animal
+    const ua   = ueArea || 12;
+    const apu  = animalsPerUnit || 4;
+    const dimV = Math.sqrt(ua);
+    const typeNames = { animal: 'Animal Individual', baia: 'Baia / Lote', piquete: 'Piquete', clinica: 'Unidade Clínica' };
+    const tname = typeNames[unitType] || 'Unidade';
+
+    const ANNOT_S = 20, PAD_S = 8;
+    const availW = W - ANNOT_S - PAD_S;
+    const availH = drawH - ANNOT_S - PAD_S;
+    const side = Math.min(availW, availH);
+    const ox = ANNOT_S + Math.round((availW - side) / 2);
+    const oy = drawY0 + ANNOT_S + Math.round((availH - side) / 2);
+
+    // Retângulo da UE
+    out += `<rect x="${ox}" y="${oy}" width="${side}" height="${side}" fill="${cFill}" stroke="${cStk}" stroke-width="${isPub ? '0.8' : '1.5'}"${isPub ? '' : ' rx="3"'}/>`;
+
+    // Animais (até 16 mostrados)
+    const showApu = Math.min(apu, 16);
+    const cols = Math.ceil(Math.sqrt(showApu));
+    const rows = Math.ceil(showApu / cols);
+    const cw = side / cols, ch = side / rows;
+    let cnt = 0;
+    for (let r = 0; r < rows && cnt < showApu; r++) {
+      for (let c = 0; c < cols && cnt < showApu; c++, cnt++) {
+        const cx  = ox + (c + 0.5) * cw;
+        const cy  = oy + (r + 0.5) * ch;
+        const rad = Math.min(cw, ch) * 0.28;
+        out += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${rad.toFixed(1)}" fill="${isPub ? '#888' : '#52b788'}" opacity="${isPub ? '0.6' : '0.65'}" stroke="${isPub ? '#333' : '#fff'}" stroke-width="1"/>`;
+        if (rad > 8 && showApu <= 9)
+          out += `<text x="${cx.toFixed(1)}" y="${(cy + 4).toFixed(1)}" text-anchor="middle" font-size="${Math.min(10, rad).toFixed(0)}" fill="#fff" font-weight="700">${cnt + 1}</text>`;
+      }
+    }
+    if (apu > 16) {
+      out += `<text x="${(ox + side / 2).toFixed(1)}" y="${(oy + side / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="18" fill="${isPub ? '#444' : '#2d6a4f'}" font-weight="700">${apu}</text>`;
+      out += `<text x="${(ox + side / 2).toFixed(1)}" y="${(oy + side / 2 + 18).toFixed(1)}" text-anchor="middle" font-size="10" fill="${cMuted}">animais</text>`;
+    }
+
+    // Cotas
+    out += hDim(ox, ox + side, oy - 8, `≈ ${dimV.toFixed(1)} m`);
+    out += vDim(ox - 10, oy, oy + side, `≈ ${dimV.toFixed(1)} m`);
+
+    // Info inferior
+    out += `<text x="${W / 2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${esc(tname)} · ${ua.toFixed(1)} m² · ${(ua / apu).toFixed(1)} m²/animal</text>`;
+  }
+
+  return out;
+}
+
 /* ── Croqui SVG ── */
 function rerenderCroqui() { renderCroqui(); }
 
@@ -1290,6 +1430,10 @@ function renderCroqui() {
   const unitType  = document.getElementById('selUnitType').value;
   const cellStyle = theme === 'pub' ? 'pub' : document.getElementById('selCellStyle').value;
   const legendPos = document.getElementById('selLegendPos').value;
+  const showUe    = document.getElementById('chkShowUe').checked;
+
+  // Dimensões do schematic de UE (usadas no posicionamento abaixo)
+  const UE_W = 220, UE_H = 185, UE_GAP = 14;
 
   const UW = 82, UH = 62, PAD = 30;
 
@@ -1383,6 +1527,34 @@ function renderCroqui() {
     gy = LZONE_TB;
     lx = Math.max(PAD, (gridW - legW) / 2);
     ly = (LZONE_TB - legH) / 2;
+  }
+
+  // ── Posicionamento da Unidade Experimental (schematic) ──
+  let ux = 0, uy = 0;
+  if (showUe) {
+    if (legendPos === 'right' || legendPos === 'left') {
+      // Legenda e UE empilhadas na mesma coluna lateral (legenda topo, UE abaixo)
+      const zoneW = Math.max(legW + 2 * PAD, UE_W + 2 * PAD);
+      if (legendPos === 'right') {
+        totalW = gridW + zoneW;
+        lx = gridW + (zoneW - legW) / 2;
+        ux = gridW + (zoneW - UE_W) / 2;
+      } else {
+        totalW = gridW + zoneW;
+        gx = zoneW;
+        lx = (zoneW - legW) / 2;
+        ux = (zoneW - UE_W) / 2;
+      }
+      ly = PAD;
+      uy = PAD + legH + UE_GAP;
+      totalH = Math.max(gridH, uy + UE_H + PAD);
+    } else {
+      // Legenda topo/base/nenhuma: UE em nova coluna à direita
+      ux = totalW + PAD;
+      uy = Math.max(PAD, Math.round((totalH - UE_H) / 2));
+      totalW = ux + UE_W + PAD;
+      totalH = Math.max(totalH, uy + UE_H + PAD);
+    }
   }
 
   // ── Montar SVG ──
@@ -1511,6 +1683,21 @@ function renderCroqui() {
   // Bloco de legenda SVG (se selecionado)
   if (legendPos !== 'none') {
     svg += `<g transform="translate(${lx},${ly})">${legSvg}</g>`;
+  }
+
+  // Schematic da Unidade Experimental
+  if (showUe) {
+    const ueParams = {
+      unitType:       document.getElementById('selUnitType').value,
+      plotLength:     parseFloat(document.getElementById('plotLength').value)   || 5,
+      rowSpacing:     parseFloat(document.getElementById('rowSpacing').value)   || 0.5,
+      rowsPerPlot:    parseInt(document.getElementById('rowsPerPlot').value)    || 4,
+      plantSpacing:   parseFloat(document.getElementById('plantSpacing').value) || 0.5,
+      ueArea:         parseFloat(document.getElementById('ueArea').value)        || 12,
+      animalsPerUnit: parseInt(document.getElementById('animalsPerUnit').value)  || 4,
+    };
+    const ueSvgContent = buildUeSchematic(ueParams, theme, UE_W, UE_H);
+    svg += `<g transform="translate(${ux.toFixed(1)},${uy.toFixed(1)})">${ueSvgContent}</g>`;
   }
 
   svg += '</svg>';
@@ -2314,6 +2501,7 @@ function captureCurrentConfig() {
     labelMode: document.getElementById('selLabelMode').value,
     labelPos:  document.getElementById('selLabelPos').value,
     theme:     document.getElementById('selTheme').value,
+    showUe:    document.getElementById('chkShowUe').checked,
   };
 }
 
@@ -2340,6 +2528,7 @@ function applyConfig(c) {
   set('selLabelMode', c.labelMode);
   set('selLabelPos',  c.labelPos);
   set('selTheme',     c.theme);
+  if (c.showUe !== undefined) document.getElementById('chkShowUe').checked = c.showUe;
   onDesignChange(); onUnitTypeChange();
 }
 
