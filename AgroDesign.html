@@ -570,6 +570,11 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <button class="btn btn-ghost btn-sm" onclick="exportDataXLSX()">⬇ XLSX</button>
         <button class="btn btn-ghost btn-sm" onclick="exportDataCSV()">⬇ CSV</button>
         <button class="btn btn-ghost btn-sm" onclick="exportDataTXT()">⬇ TXT</button>
+        <span style="color:var(--border);font-size:.9rem">|</span>
+        <button class="btn btn-secondary btn-sm" onclick="exportScriptR()"   title="Script R com ANOVA para o delineamento">⬇ R</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportScriptSAS()" title="Script SAS com PROC GLM">⬇ SAS</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportScriptPy()"  title="Script Python com pingouin/scipy">⬇ Python</button>
+        <button class="btn btn-ghost btn-sm"    onclick="openImportHelpModal()" title="Como importar em outros softwares">📖 Softwares</button>
         <span id="coletaHint" class="hint" style="margin-left:.25rem"></span>
       </div>
       <div class="data-table-wrap">
@@ -668,6 +673,51 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <button class="btn btn-primary btn-sm" onclick="savePreset()">Salvar atual</button>
     </div>
     <div id="presetList" style="display:flex;flex-direction:column;gap:.4rem;max-height:300px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- ═══ IMPORT HELP MODAL ═══ -->
+<div id="importHelpModal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeImportHelpModal()"></div>
+  <div class="modal-content" style="max-width:560px">
+    <div class="modal-header">
+      <div class="modal-title">📖 Como importar em softwares estatísticos</div>
+      <button class="modal-close-btn" type="button" onclick="closeImportHelpModal()">✕</button>
+    </div>
+    <p class="hint" style="margin-bottom:.75rem">Exporte os dados como <strong>CSV</strong> (separador decimal configurável) e importe no software desejado.</p>
+    <div style="display:flex;flex-direction:column;gap:.5rem;max-height:400px;overflow-y:auto;font-size:.82rem">
+
+      <details open><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🔵 R (agricolae / ExpDes.pt)</summary>
+        <div style="padding:.5rem .25rem;color:var(--text-muted)">Use o <strong>Script R</strong> gerado pelo botão acima — ele já tem ANOVA, Tukey e verificação de pressupostos prontos para o seu delineamento.<br><br>Pacotes necessários: <code>agricolae</code> (DIC/DBC/DQL/Fatorial), <code>ExpDes.pt</code> (parcelas subdivididas).</div>
+      </details>
+
+      <details><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🟠 SAS (PROC GLM / PROC MIXED)</summary>
+        <div style="padding:.5rem .25rem;color:var(--text-muted)">Use o <strong>Script SAS</strong> gerado acima. Ele usa PROC IMPORT para ler o CSV e PROC GLM para a ANOVA.<br><br>Para split-plot, substitua PROC GLM por PROC MIXED com o statement RANDOM adequado.</div>
+      </details>
+
+      <details><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🟡 Python (pingouin / scipy)</summary>
+        <div style="padding:.5rem .25rem;color:var(--text-muted)">Use o <strong>Script Python</strong> gerado acima. Depende de: <code>pandas</code>, <code>pingouin</code>, <code>scipy</code>.<br>Instale com: <code>pip install pingouin</code></div>
+      </details>
+
+      <details><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🟢 ASSISTAT</summary>
+        <div style="padding:.5rem .25rem;color:var(--text-muted)">1. Exporte o CSV e abra no Excel (ou Calc)<br>2. Copie a tabela de dados (a partir da linha 6, sem cabeçalho)<br>3. No ASSISTAT: Arquivo → Colar dados<br>4. Defina o delineamento e as variáveis na interface</div>
+      </details>
+
+      <details><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🟢 Sisvar (UFLA)</summary>
+        <div style="padding:.5rem .25rem;color:var(--text-muted)">1. Exporte o CSV<br>2. No Sisvar: Arquivo → Importar → CSV<br>3. Indique que o cabeçalho começa na linha 6 (pula metadados)<br>4. Mapeie Bloco, Tratamento e variável(is) de resposta</div>
+      </details>
+
+      <details><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🟢 AgroEstat / Genes</summary>
+        <div style="padding:.5rem .25rem;color:var(--text-muted)">Abra o CSV no Excel, selecione apenas as colunas de interesse (sem as linhas de metadados) e cole diretamente na planilha de entrada do software. Separe tratamentos e blocos conforme solicitado pelo programa.</div>
+      </details>
+
+      <details><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🔵 Python pandas (importação manual)</summary>
+        <div style="padding:.5rem .25rem"><code style="display:block;background:var(--bg);padding:.4rem;border-radius:4px;font-size:.78rem;white-space:pre">import pandas as pd
+df = pd.read_csv("AgroDesign_dados.csv",
+                 skiprows=4, header=0, sep=",",
+                 decimal=".")   # ou "," conforme exportado</code></div>
+      </details>
+    </div>
   </div>
 </div>
 
@@ -2517,6 +2567,287 @@ function exportDataTXT() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/* ══ Fase 3 — Scripts para análise estatística ══ */
+
+function _scriptMeta(lang) {
+  const design = document.getElementById('selDesign').value;
+  const spec   = document.getElementById('txtSpecies').value.trim();
+  const dt     = new Date().toLocaleString('pt-BR');
+  return { design, spec, dt,
+           csvFile: `AgroDesign_dados_${design}.csv`,
+           numVars: projectVariables.filter(v => v.type === 'numeric') };
+}
+
+// Normaliza nome de variável para uso em código
+function _safeName(name) { return name.replace(/[^a-zA-Z0-9_]/g, '_').replace(/^(\d)/, '_$1'); }
+
+// ── Script R ──────────────────────────────────────────────────
+function exportScriptR() {
+  const { design, spec, dt, csvFile, numVars } = _scriptMeta();
+  const hasBloco  = design !== 'DIC' && design !== 'FAT_DIC' && design !== 'SPL_DIC';
+  const isSplit   = design.startsWith('SPL');
+  const isFat     = design.startsWith('FAT');
+  const isDQL     = design === 'DQL';
+  const varLines  = numVars.length ? numVars.map(v => `"${_safeName(v.name)}"`).join(', ')
+                                   : '"Variavel1  # substitua pelo nome real"';
+
+  let s = `# ═══════════════════════════════════════════════════════════\n`;
+  s += `# AgroDesign — Script R para análise estatística\n`;
+  s += `# Espécie/Sistema : ${spec || '—'}\n`;
+  s += `# Delineamento    : ${design}\n`;
+  s += `# Gerado em       : ${dt}\n`;
+  s += `# ═══════════════════════════════════════════════════════════\n\n`;
+
+  s += `# 1. Pacotes ────────────────────────────────────────────────\n`;
+  s += `if (!require(agricolae)) install.packages("agricolae")\n`;
+  if (isSplit) s += `if (!require(ExpDes.pt)) install.packages("ExpDes.pt")\n`;
+  s += `library(agricolae)\n`;
+  if (isSplit) s += `library(ExpDes.pt)\n`;
+  s += `\n`;
+
+  s += `# 2. Importar dados ─────────────────────────────────────────\n`;
+  s += `# Exporte na aba Coleta (botão CSV) e ajuste o caminho:\n`;
+  s += `dados <- read.csv("${csvFile}",\n`;
+  s += `                  skip = 4,          # pula linhas de metadados\n`;
+  s += `                  header = TRUE,\n`;
+  s += `                  sep   = ",",\n`;
+  s += `                  dec   = "${decimalSep}")\n`;
+  s += `str(dados)\n\n`;
+
+  s += `# 3. Fatores ────────────────────────────────────────────────\n`;
+  if (hasBloco)    s += `dados$Bloco      <- factor(dados$Bloco)\n`;
+  s += `dados$Tratamento <- factor(dados$Tratamento)\n`;
+  if (isFat || isSplit) {
+    s += `dados$Fator_A    <- factor(dados$Fator.A)\n`;
+    s += `dados$Fator_B    <- factor(dados$Fator.B)\n`;
+  }
+  if (isDQL) {
+    s += `dados$Linha_DQL  <- factor(dados$Linha.DQL)\n`;
+    s += `dados$Coluna_DQL <- factor(dados$Coluna.DQL)\n`;
+  }
+  s += `\n`;
+
+  const respVars = numVars.length ? numVars : [{ name:'Variavel1', _template:true }];
+  respVars.forEach((v, i) => {
+    const vn = _safeName(v.name);
+    const csvCol = v._template ? 'Variavel1' : v.name.replace(/[^a-zA-Z0-9.]/g, '.');
+    s += `# ${4+i}. ANOVA — ${v.name} `;
+    s += v._template ? '(substitua pelo nome real)\n' : '\n';
+
+    let formula = '';
+    if (design === 'DIC')     formula = `${vn} ~ Tratamento`;
+    else if (design === 'DBC') formula = `${vn} ~ Tratamento + Bloco`;
+    else if (isDQL)            formula = `${vn} ~ Tratamento + Linha_DQL + Coluna_DQL`;
+    else if (design === 'FAT_DIC') formula = `${vn} ~ Fator_A * Fator_B`;
+    else if (design === 'FAT_DBC') formula = `${vn} ~ Fator_A * Fator_B + Bloco`;
+
+    if (!isSplit) {
+      if (v._template) s += `${vn} <- dados[["${csvCol}"]]  # ajuste o nome\n`;
+      else             s += `${vn} <- dados[["${csvCol}"]]\n`;
+      s += `\nmodelo_${i+1} <- aov(${formula}, data = dados)\n`;
+      s += `cat("\\n── ANOVA: ${v.name} ──\\n"); summary(modelo_${i+1})\n\n`;
+      s += `# Comparação de médias (Tukey)\n`;
+      s += `tukey_${i+1} <- HSD.test(modelo_${i+1}, "Tratamento", group = TRUE)\n`;
+      s += `print(tukey_${i+1}$groups)\n\n`;
+      s += `# Pressupostos\n`;
+      s += `shapiro.test(residuals(modelo_${i+1}))                      # normalidade\n`;
+      s += `bartlett.test(${vn} ~ Tratamento, data = dados)             # homogeneidade\n\n`;
+    } else {
+      // Split-plot via ExpDes.pt
+      s += `# Split-plot — usando ExpDes.pt\n`;
+      s += `# psdb(trat, bloco, subparcela, resp, mcomp="tukey",\n`;
+      s += `#      fac.names=c("FatorA","FatorB"))\n`;
+      if (!v._template) {
+        s += `psdb(dados$Fator_A, dados$Bloco, dados$Fator_B,\n`;
+        s += `     dados[["${csvCol}"]], mcomp="tukey",\n`;
+        s += `     fac.names=c("${_safeName(document.getElementById('splAName')?.value||'FatorA')}",\n`;
+        s += `                 "${_safeName(document.getElementById('splBName')?.value||'FatorB')}"))\n\n`;
+      }
+    }
+  });
+
+  s += `# ─── Fim do script ──────────────────────────────────────────\n`;
+  _downloadText(s, `AgroDesign_script_R_${design}.R`, 'text/plain');
+}
+
+// ── Script SAS ────────────────────────────────────────────────
+function exportScriptSAS() {
+  const { design, spec, dt, csvFile, numVars } = _scriptMeta();
+  const hasBloco = design !== 'DIC' && design !== 'FAT_DIC' && design !== 'SPL_DIC';
+  const isSplit  = design.startsWith('SPL');
+  const isFat    = design.startsWith('FAT') || isSplit;
+  const isDQL    = design === 'DQL';
+
+  let s = `/* ═══════════════════════════════════════════════════════════ */\n`;
+  s += `/* AgroDesign — Script SAS para análise estatística            */\n`;
+  s += `/* Espécie/Sistema : ${spec || '—'}                                      */\n`;
+  s += `/* Delineamento    : ${design}                                      */\n`;
+  s += `/* Gerado em       : ${dt}                           */\n`;
+  s += `/* ═══════════════════════════════════════════════════════════ */\n\n`;
+
+  s += `/* 1. Importar dados */\n`;
+  s += `PROC IMPORT DATAFILE = "${csvFile}"\n`;
+  s += `           OUT     = dados\n`;
+  s += `           DBMS    = CSV\n`;
+  s += `           REPLACE;\n`;
+  s += `    GETNAMES = YES;\n`;
+  s += `    DATAROW  = 6;    /* pula 4 linhas de metadados + linha em branco */\n`;
+  s += `RUN;\n\n`;
+
+  const respVars = numVars.length ? numVars : [{ name:'Variavel1', _template:true }];
+  respVars.forEach((v, i) => {
+    const vn  = _safeName(v.name);
+    s += `/* ${2+i}. ${design}${isSplit?' — split-plot':''} — ${v.name}${v._template?' (ajuste o nome)':''} */\n`;
+
+    let classVars, modelStr;
+    if (design === 'DIC')      { classVars='Tratamento'; modelStr=`${vn} = Tratamento`; }
+    else if (design === 'DBC') { classVars='Bloco Tratamento'; modelStr=`${vn} = Bloco Tratamento`; }
+    else if (isDQL)            { classVars='Linha_DQL Coluna_DQL Tratamento'; modelStr=`${vn} = Linha_DQL Coluna_DQL Tratamento`; }
+    else if (design === 'FAT_DIC') { classVars='Fator_A Fator_B'; modelStr=`${vn} = Fator_A Fator_B Fator_A*Fator_B`; }
+    else if (design === 'FAT_DBC') { classVars='Bloco Fator_A Fator_B'; modelStr=`${vn} = Bloco Fator_A Fator_B Fator_A*Fator_B`; }
+    else if (isSplit) {
+      classVars='Bloco Fator_A Fator_B';
+      modelStr=`${vn} = Bloco Fator_A Bloco*Fator_A Fator_B Fator_A*Fator_B`;
+    }
+
+    if (!isSplit) {
+      s += `PROC GLM DATA = dados;\n`;
+      s += `    CLASS ${classVars};\n`;
+      s += `    MODEL ${modelStr};\n`;
+      s += `    MEANS Tratamento / TUKEY CLDIFF ALPHA=0.05;\n`;
+      s += `    OUTPUT OUT=res_${i+1} R=residuo_${i+1};\n`;
+      s += `RUN;\n\n`;
+    } else {
+      s += `/* Split-plot: parcela principal=Fator_A, subparcela=Fator_B */\n`;
+      s += `PROC MIXED DATA = dados;\n`;
+      s += `    CLASS Bloco Fator_A Fator_B;\n`;
+      s += `    MODEL ${vn} = Fator_A Fator_B Fator_A*Fator_B / DDFM=KR;\n`;
+      s += `    RANDOM Bloco Bloco*Fator_A;\n`;
+      s += `    LSMEANS Fator_A*Fator_B / PDIFF ADJUST=TUKEY;\n`;
+      s += `RUN;\n\n`;
+    }
+    s += `/* Normalidade dos resíduos */\n`;
+    if (!isSplit) {
+      s += `PROC UNIVARIATE DATA=res_${i+1} NORMAL;\n`;
+      s += `    VAR residuo_${i+1};\n`;
+      s += `RUN;\n\n`;
+    }
+  });
+
+  s += `/* ─── Fim do script ─────────────────────────────────────── */\n`;
+  _downloadText(s, `AgroDesign_script_SAS_${design}.sas`, 'text/plain');
+}
+
+// ── Script Python ─────────────────────────────────────────────
+function exportScriptPy() {
+  const { design, spec, dt, csvFile, numVars } = _scriptMeta();
+  const hasBloco = design !== 'DIC' && design !== 'FAT_DIC' && design !== 'SPL_DIC';
+  const isSplit  = design.startsWith('SPL');
+  const isFat    = design.startsWith('FAT') || isSplit;
+  const isDQL    = design === 'DQL';
+
+  let s = `# ═══════════════════════════════════════════════════════════\n`;
+  s += `# AgroDesign — Script Python para análise estatística\n`;
+  s += `# Espécie/Sistema : ${spec || '—'}\n`;
+  s += `# Delineamento    : ${design}\n`;
+  s += `# Gerado em       : ${dt}\n`;
+  s += `# ═══════════════════════════════════════════════════════════\n\n`;
+
+  s += `# Instalar dependências (uma vez):\n`;
+  s += `# pip install pandas pingouin scipy statsmodels\n\n`;
+
+  s += `import pandas as pd\n`;
+  s += `import pingouin as pg\n`;
+  s += `from scipy import stats\n`;
+  if (isSplit) s += `import statsmodels.formula.api as smf\n`;
+  s += `\n`;
+
+  s += `# 1. Importar dados ─────────────────────────────────────────\n`;
+  s += `df = pd.read_csv("${csvFile}",\n`;
+  s += `                 skiprows=4,        # pula metadados\n`;
+  s += `                 sep=",",\n`;
+  s += `                 decimal="${decimalSep}")\n\n`;
+
+  s += `# 2. Tipos de dados ─────────────────────────────────────────\n`;
+  if (hasBloco)    s += `df["Bloco"]      = df["Bloco"].astype(str)\n`;
+  s += `df["Tratamento"] = df["Tratamento"].astype(str)\n`;
+  if (isFat) { s += `df["Fator A"]    = df["Fator A"].astype(str)\n`; s += `df["Fator B"]    = df["Fator B"].astype(str)\n`; }
+  s += `print(df.head())\n\n`;
+
+  const respVars = numVars.length ? numVars : [{ name:'Variavel1', _template:true }];
+  respVars.forEach((v, i) => {
+    const colName  = v._template ? 'Variavel1' : v.name;
+    const colQuote = `"${colName}"`;
+    s += `# ${3+i}. ${v.name}${v._template?' (substitua pelo nome real)':''} ──────────────────\n`;
+
+    if (!isSplit && !isFat) {
+      // DIC / DBC / DQL
+      let aov_bw = hasBloco ? `["Bloco", "Tratamento"]` : `["Tratamento"]`;
+      s += `anova_${i+1} = pg.anova(dv=${colQuote}, between="Tratamento",\n`;
+      if (hasBloco) {
+        s += `           # Para DBC use mixed_anova ou AnovaRM\n`;
+        s += `           data=df)\n`;
+      } else { s += `           data=df)\n`; }
+      if (hasBloco) {
+        s += `# DBC — ANOVA com blocos via pingouin.mixed_anova:\n`;
+        s += `anova_${i+1} = pg.mixed_anova(dv=${colQuote},\n`;
+        s += `                              within="Bloco",\n`;
+        s += `                              between="Tratamento",\n`;
+        s += `                              subject="Bloco",\n`;
+        s += `                              data=df)\n`;
+        s += `# Alternativa com statsmodels (OLS):\n`;
+        s += `import statsmodels.formula.api as smf\n`;
+        s += `modelo = smf.ols('Q("${colName}") ~ C(Tratamento) + C(Bloco)', data=df).fit()\n`;
+        s += `from statsmodels.stats.anova import anova_lm\n`;
+        s += `print(anova_lm(modelo, typ=2))\n\n`;
+        s += `# Tukey HSD\n`;
+        s += `tukey_${i+1} = pg.pairwise_tukey(dv=${colQuote},\n`;
+        s += `                                  between="Tratamento",\n`;
+        s += `                                  data=df)\n`;
+        s += `print(tukey_${i+1})\n\n`;
+      } else {
+        s += `print(anova_${i+1})\n\n`;
+        s += `tukey_${i+1} = pg.pairwise_tukey(dv=${colQuote},\n`;
+        s += `                                  between="Tratamento", data=df)\n`;
+        s += `print(tukey_${i+1})\n\n`;
+      }
+    } else if (isFat && !isSplit) {
+      s += `modelo = smf.ols('Q("${colName}") ~ C(Q("Fator A")) * C(Q("Fator B"))`
+         + (hasBloco ? ' + C(Bloco)' : '') + `', data=df).fit()\n`;
+      s += `print(anova_lm(modelo, typ=2))\n\n`;
+    } else {
+      // Split-plot
+      s += `# Split-plot — usando statsmodels mixedlm\n`;
+      s += `modelo = smf.mixedlm('Q("${colName}") ~ Q("Fator A") * Q("Fator B")',\n`;
+      s += `                      groups=df["Bloco"], data=df).fit()\n`;
+      s += `print(modelo.summary())\n\n`;
+    }
+
+    s += `# Pressupostos\n`;
+    s += `residuos = df.groupby("Tratamento")[${colQuote}].apply(list)\n`;
+    s += `stat, p_shapiro = stats.shapiro(df[${colQuote}].dropna())\n`;
+    s += `print(f"Shapiro-Wilk: W={stat:.4f}, p={p_shapiro:.4f}")\n`;
+    s += `stat_bart, p_bart = stats.bartlett(*residuos)\n`;
+    s += `print(f"Bartlett: estatística={stat_bart:.4f}, p={p_bart:.4f}")\n\n`;
+  });
+
+  s += `# ─── Fim do script ──────────────────────────────────────────\n`;
+  _downloadText(s, `AgroDesign_script_Py_${design}.py`, 'text/plain');
+}
+
+// ── Utilitário de download de texto ───────────────────────────
+function _downloadText(content, filename, mime) {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function openImportHelpModal()  { document.getElementById('importHelpModal').classList.remove('hidden'); }
+function closeImportHelpModal() { document.getElementById('importHelpModal').classList.add('hidden');    }
 
 /* ══ Projetos ══ */
 const PROJECTS_KEY = 'agrodesign_projects';
