@@ -1,5 +1,5 @@
 {
-  "name": "AgroDesign — Experimental Design para Ciências Agrárias",
+  "name": "AgroDesign",
   "short_name": "AgroDesign",
   "description": "Gerador de croquis e randomização para delineamentos experimentais em Agronomia, Zootecnia e Medicina Veterinária.",
   "start_url": "./AgroDesign.html",
