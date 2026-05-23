@@ -997,10 +997,10 @@ function buildFactorialTreatments() {
       if (hasC) {
         const cL = parseTreatments(document.getElementById('fatCLevels').value);
         for (const c of cL) {
-          treats.push({ label:`${a}${b}${c}`, factorA:a, factorB:b, factorC:c });
+          treats.push({ label:`${a} × ${b} × ${c}`, factorA:a, factorB:b, factorC:c });
         }
       } else {
-        treats.push({ label:`${a}${b}`, factorA:a, factorB:b, factorC:null });
+        treats.push({ label:`${a} × ${b}`, factorA:a, factorB:b, factorC:null });
       }
     }
   }
@@ -1047,7 +1047,7 @@ function generateSplitPlot(design) {
           block: design === 'SPL_DBC' ? rep + 1 : null,
           mainPlot: rep * na + ai + 1,
           mainPlotLabel: aShuffled[ai],
-          treatment: `${aShuffled[ai]}×${bShuffled[bi]}`,
+          treatment: `${aShuffled[ai]} × ${bShuffled[bi]}`,
           factorA: aShuffled[ai],
           factorB: bShuffled[bi],
           factorC: null
@@ -1299,16 +1299,17 @@ function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, smartCo
 }
 
 // Bloco de legenda SVG embutida — suporta tema colorido e publicação
-function buildSvgLegend(allT, colors, pos, theme, pubFillMap, isEng = false) {
+function buildSvgLegend(allT, colors, pos, theme, pubFillMap, isEng = false, labelMap = null) {
   if (pos === 'none' || !allT.length) return { svg: '', w: 0, h: 0 };
   const isPub = theme === 'pub';
   const SW = 13, IH = 17, GAP = 5, IPAD = 10, TITLE_H = 18;
   const isVert = pos === 'left' || pos === 'right';
   const cols   = isVert ? 1 : Math.min(4, Math.max(2, Math.ceil(allT.length / 4)));
   const rows   = Math.ceil(allT.length / cols);
-  const maxLen = Math.max(...allT.map(t => t.length));
-  const fs     = maxLen > 22 ? 7.5 : maxLen > 16 ? 8.5 : 10;
-  const textW  = Math.min(200, maxLen * fs * 0.62);
+  const displayLabels = allT.map(t => (labelMap?.[t] ? `${labelMap[t]} — ${t}` : t));
+  const maxLen = Math.max(...displayLabels.map(s => s.length));
+  const fs     = maxLen > 30 ? 7 : maxLen > 22 ? 7.5 : maxLen > 16 ? 8.5 : 10;
+  const textW  = Math.min(220, maxLen * fs * 0.62);
   const colW   = SW + GAP + textW + IPAD;
   const totalW = cols * colW + IPAD;
   const totalH = rows * IH + TITLE_H + IPAD * 2;
@@ -1328,7 +1329,7 @@ function buildSvgLegend(allT, colors, pos, theme, pubFillMap, isEng = false) {
     const sqStroke = isPub ? '#111' : 'rgba(0,0,0,.15)';
     const sqSW    = isPub ? '0.8' : '0.5';
     inner += `<rect x="${ix}" y="${iy}" width="${SW}" height="${SW}" fill="${esc(sqFill)}" ${sqRx} stroke="${sqStroke}" stroke-width="${sqSW}"/>`;
-    inner += `<text x="${ix + SW + GAP}" y="${iy + SW / 2 + 4}" font-size="${fs}" fill="${textColor}">${esc(t)}</text>`;
+    inner += `<text x="${ix + SW + GAP}" y="${iy + SW / 2 + 4}" font-size="${fs}" fill="${textColor}">${esc(displayLabels[i])}</text>`;
   });
   const bg = `<rect x="0" y="0" width="${totalW}" height="${totalH}" fill="${bgFill}" stroke="${bgStroke}" stroke-width="${isPub ? '0.8' : '1'}" ${bgRx}/>`;
   return { svg: bg + inner, w: totalW, h: totalH };
@@ -1407,16 +1408,23 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
       out += `<rect x="${ox}" y="${ry}" width="${dW}" height="${rowH.toFixed(1)}" fill="${cRow}" stroke="${isPub ? '#ccc' : '#cde0d3'}" stroke-width="0.4"/>`;
     }
 
-    // Pontos de planta (representativos)
-    const nP  = Math.min(8, Math.floor(pl / ps) + 1);
-    const nR  = Math.min(rpp, 4);
-    const dr  = Math.max(1.5, Math.min(2.8, rowH * 0.3));
+    // Pontos de planta (count real, sem caps)
+    const nP       = Math.floor(pl / ps) + 1;
+    const nR       = rpp;
+    const pSpacePx = nP > 1 ? dW / (nP - 1) : dW;
+    const dr       = Math.max(0.8, Math.min(2.8, Math.min(rowH * 0.32, pSpacePx / 2.5)));
+    const showDots = pSpacePx >= 2.5 && rowH >= 4;
     for (let r = 0; r < nR; r++) {
-      for (let p = 0; p < nP; p++) {
-        const px = ox + (nP > 1 ? p * (dW / (nP - 1)) : dW / 2);
-        const py = oy + (r + 0.5) * rowH;
-        if (px <= ox + dW + 1)
-          out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${dr}" fill="${cDot}" opacity="${isPub ? '0.75' : '0.65'}"/>`;
+      if (showDots) {
+        for (let p = 0; p < nP; p++) {
+          const px = ox + (nP > 1 ? p * (dW / (nP - 1)) : dW / 2);
+          const py = oy + (r + 0.5) * rowH;
+          if (px <= ox + dW + 1)
+            out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${dr}" fill="${cDot}" opacity="${isPub ? '0.75' : '0.65'}"/>`;
+        }
+      } else {
+        const cy = +(oy + (r + 0.5) * rowH).toFixed(1);
+        out += `<line x1="${ox}" y1="${cy}" x2="${ox + dW}" y2="${cy}" stroke="${cDot}" stroke-width="0.8" opacity="0.55"/>`;
       }
     }
 
@@ -1611,7 +1619,30 @@ function renderCroqui() {
   const PUB_FILLS = ['#ffffff','#d8d8d8','url(#ph45)','url(#phm45)','url(#phH)','url(#phV)','url(#phX)','#b8b8b8','url(#ph45d)','url(#phXd)'];
   const pubFillMap = Object.fromEntries(allT.map((t, i) => [t, PUB_FILLS[i % PUB_FILLS.length]]));
 
-  const { svg: legSvg, w: legW, h: legH } = buildSvgLegend(allT, treatmentColors, legendPos, theme, pubFillMap, isEng);
+  // Mapa código→tratamento para exibir prefixo de rótulo na legenda
+  const legendLabelMap = {};
+  if (labelMode === 'code' || labelMode === 'fact' || labelMode === 'smart') {
+    allT.forEach(t => {
+      const sample = units.find(x => x.treatment === t);
+      if (labelMode === 'code') {
+        legendLabelMap[t] = treatCodeMap[t];
+      } else if (labelMode === 'fact') {
+        let c = '';
+        if (sample?.factorA) c += `A${factAIdx[sample.factorA] || '?'}`;
+        if (sample?.factorB) c += `B${factBIdx[sample.factorB] || '?'}`;
+        if (sample?.factorC) c += `C${factCIdx[sample.factorC] || '?'}`;
+        legendLabelMap[t] = c || treatCodeMap[t];
+      } else if (labelMode === 'smart') {
+        const parts = [];
+        if (sample?.factorA) parts.push(smartAbbrev(sample.factorA));
+        if (sample?.factorB) parts.push(smartAbbrev(sample.factorB));
+        if (sample?.factorC) parts.push(smartAbbrev(sample.factorC));
+        legendLabelMap[t] = parts.length ? parts.join('-') : treatCodeMap[t];
+      }
+    });
+  }
+
+  const { svg: legSvg, w: legW, h: legH } = buildSvgLegend(allT, treatmentColors, legendPos, theme, pubFillMap, isEng, legendLabelMap);
 
   // ── Calcular dimensões totais do SVG — legenda centralizada na zona disponível ──
   const LZONE_SIDE = Math.max(legW + 48, legW * 1.5);  // zona lateral (dir/esq)
@@ -1766,9 +1797,9 @@ function renderCroqui() {
     })();
     const smartCode = (() => {
       const parts = [];
-      if (u.factorA) parts.push(factInitial(_fNameA) + smartAbbrev(u.factorA));
-      if (u.factorB) parts.push(factInitial(_fNameB) + smartAbbrev(u.factorB));
-      if (u.factorC) parts.push(factInitial(_fNameC) + smartAbbrev(u.factorC));
+      if (u.factorA) parts.push(smartAbbrev(u.factorA));
+      if (u.factorB) parts.push(smartAbbrev(u.factorB));
+      if (u.factorC) parts.push(smartAbbrev(u.factorC));
       return parts.length ? parts.join('-') : treatCode;
     })();
 
