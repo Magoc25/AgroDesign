@@ -543,10 +543,10 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
           <input type="checkbox" id="chkEnglish" onchange="rerenderCroqui()" style="width:auto"> English
         </label>
-        <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+        <label id="lblNorthArrow" style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
           <input type="checkbox" id="chkNorthArrow" onchange="rerenderCroqui()" style="width:auto"> Norte
         </label>
-        <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+        <label id="lblGradArrow" style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
           <input type="checkbox" id="chkGradArrow" onchange="rerenderCroqui()" style="width:auto"> Gradiente
         </label>
       </div>
@@ -1393,6 +1393,22 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
       }
     }
 
+    // Área útil (zona de coleta)
+    const bf  = params.borderFrac   || 0;
+    const lbf = params.latBorderFrac || 0;
+    if (bf > 0 || lbf > 0) {
+      const bh_px = bf  > 0 ? Math.max(3, Math.round(bf  * dH)) : 0;
+      const bw_px = lbf > 0 ? Math.max(3, Math.round(lbf * dW)) : 0;
+      const uw = dW - 2 * bw_px, uh = dH - 2 * bh_px;
+      if (uw > 4 && uh > 4) {
+        if (isPub) {
+          out += `<rect x="${ox + bw_px}" y="${oy + bh_px}" width="${uw}" height="${uh}" fill="none" stroke="#222" stroke-width="1.2" stroke-dasharray="4 2"/>`;
+        } else {
+          out += `<rect x="${ox + bw_px}" y="${oy + bh_px}" width="${uw}" height="${uh}" fill="rgba(52,183,100,0.28)" stroke="rgba(34,139,34,.5)" stroke-width="1.2" rx="2"/>`;
+        }
+      }
+    }
+
     // Cotas
     out += hDim(ox, ox + dW, oy - 12, `${pl.toFixed(1)} m`);
     out += vDim(ox - 14, oy, oy + dH, `${plotW.toFixed(2)} m`);
@@ -1701,19 +1717,6 @@ function renderCroqui() {
     svg += `<g transform="translate(${UW / 2},${UH / 2})">`;
     svg += cellLabel(raw, UW, UH, labelMode, u.id, treatCode, factCode, labelPos, cellStyle);
     svg += '</g>';
-    // Área útil (highlight da zona de coleta)
-    if ((hasBorders && borderFrac > 0) || (hasLateralBorder && latBorderFrac > 0)) {
-      const bh = hasBorders    ? Math.max(4, Math.round(UH * borderFrac))      : 0;
-      const bw = hasLateralBorder ? Math.max(3, Math.round(UW * latBorderFrac)) : 0;
-      const uw = UW - 2 * bw, uh = UH - 2 * bh;
-      if (uw > 4 && uh > 4) {
-        if (theme === 'pub') {
-          svg += `<rect x="${bw}" y="${bh}" width="${uw}" height="${uh}" fill="none" stroke="#333" stroke-width="1" stroke-dasharray="4 2" pointer-events="none"/>`;
-        } else {
-          svg += `<rect x="${bw}" y="${bh}" width="${uw}" height="${uh}" fill="rgba(52,183,100,0.22)" stroke="rgba(34,139,34,.45)" stroke-width="1" rx="2" pointer-events="none"/>`;
-        }
-      }
-    }
     svg += '</g>';
   });
 
@@ -1746,46 +1749,59 @@ function renderCroqui() {
       plantSpacing:   parseFloat(document.getElementById('plantSpacing').value) || 0.5,
       ueArea:         parseFloat(document.getElementById('ueArea').value)        || 12,
       animalsPerUnit: parseInt(document.getElementById('animalsPerUnit').value)  || 4,
+      borderFrac:     borderFrac,
+      latBorderFrac:  latBorderFrac,
     };
     const ueSvgContent = buildUeSchematic(ueParams, theme, UE_W, UE_H, isEng);
     svg += `<g transform="translate(${ux.toFixed(1)},${uy.toFixed(1)})">${ueSvgContent}</g>`;
   }
 
-  // ── Seta de Norte ──
+  // ── Seta de Norte (agulha de bússola clássica) ──
   if (showNorth) {
-    const nc = theme === 'pub' ? '#111' : '#2d6a4f';
-    // posicionada no canto superior direito do grid
-    const nx = gx + gridW - 17, ny = gy + PAD + 6;
+    const nc  = theme === 'pub' ? '#111' : '#1b4332';
+    const ncW = theme === 'pub' ? '#fff' : '#fff';
+    // canto superior direito do grid, no espaço do PAD
+    const nx = gx + gridW - 18, nTop = gy + PAD - 28;
+    const ncy = nTop + 22; // centro vertical da agulha
     svg += `<g>` +
-      `<polygon points="${nx},${ny} ${nx-5},${ny+13} ${nx+5},${ny+13}" fill="${nc}"/>` +
-      `<line x1="${nx}" y1="${ny+12}" x2="${nx}" y2="${ny+22}" stroke="${nc}" stroke-width="1.5"/>` +
-      `<text x="${nx}" y="${ny+33}" text-anchor="middle" font-size="9" font-weight="bold" fill="${nc}">N</text>` +
+      // "N" acima
+      `<text x="${nx}" y="${nTop + 4}" text-anchor="middle" font-size="10" font-weight="bold" fill="${nc}" font-family="serif">N</text>` +
+      // Metade superior (ponta, preta) — aponta para cima
+      `<polygon points="${nx},${nTop+8} ${nx-7},${ncy+4} ${nx+7},${ncy+4}" fill="${nc}"/>` +
+      // Metade inferior (branca com borda) — aponta para baixo
+      `<polygon points="${nx},${nTop+36} ${nx-7},${ncy+4} ${nx+7},${ncy+4}" fill="${ncW}" stroke="${nc}" stroke-width="1"/>` +
+      // Círculo central
+      `<circle cx="${nx}" cy="${ncy+4}" r="2.5" fill="${nc}"/>` +
       `</g>`;
   }
 
   // ── Seta de gradiente ──
   if (isGradVert) {
-    const gc = theme === 'pub' ? '#444' : '#2d6a4f';
-    const ax  = gradAX + GRAD_SIZE / 2;
-    const ay1 = gy + PAD + 2;
-    const ay2 = gy + gridH - PAD - 18;
+    const gc   = theme === 'pub' ? '#444' : '#2d6a4f';
+    // Divide a faixa: texto à esquerda, seta à direita
+    const tx   = gradAX + 13;                   // centro da coluna de texto
+    const ax   = gradAX + GRAD_SIZE - 12;        // centro da coluna da seta
+    const ay1  = gy + PAD + 2;
+    const ay2  = gy + gridH - PAD - 18;
     const aLen = ay2 - ay1;
     if (aLen > 30) {
       const aMid = (ay1 + ay2) / 2;
       svg += `<g>` +
+        // Rótulo rotacionado (coluna esquerda)
+        `<text x="${tx}" y="${aMid}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="${gc}" transform="rotate(-90,${tx},${aMid})">${isEng ? 'Gradient' : 'Gradiente'}</text>` +
+        // Linha da seta (coluna direita)
         `<line x1="${ax}" y1="${ay1+10}" x2="${ax}" y2="${ay2-10}" stroke="${gc}" stroke-width="1.5"/>` +
-        `<polygon points="${ax},${ay1} ${ax-5},${ay1+11} ${ax+5},${ay1+11}" fill="${gc}"/>` +
-        `<polygon points="${ax},${ay2} ${ax-5},${ay2-11} ${ax+5},${ay2-11}" fill="${gc}"/>` +
-        `<text x="${ax}" y="${aMid}" text-anchor="middle" dominant-baseline="middle" font-size="8" fill="${gc}" transform="rotate(-90,${ax},${aMid})">${isEng ? 'Gradient' : 'Gradiente'}</text>`;
+        `<polygon points="${ax},${ay1} ${ax-4},${ay1+11} ${ax+4},${ay1+11}" fill="${gc}"/>` +
+        `<polygon points="${ax},${ay2} ${ax-4},${ay2-11} ${ax+4},${ay2-11}" fill="${gc}"/>`;
       if (gradientVal === 'NS') {
         svg += `<text x="${ax}" y="${ay1-3}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="${gc}">N</text>`;
-        svg += `<text x="${ax}" y="${ay2+11}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="${gc}">S</text>`;
+        svg += `<text x="${ax}" y="${ay2+10}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="${gc}">S</text>`;
       }
       svg += `</g>`;
     }
   }
   if (isGradHoriz) {
-    const gc = theme === 'pub' ? '#444' : '#2d6a4f';
+    const gc  = theme === 'pub' ? '#444' : '#2d6a4f';
     const ay  = gradAY + GRAD_SIZE / 2;
     const ax1 = gx + PAD + 2;
     const ax2 = gx + gridW - PAD - 2;
@@ -1793,10 +1809,10 @@ function renderCroqui() {
     if (aLen > 30) {
       const aMid = (ax1 + ax2) / 2;
       svg += `<g>` +
+        `<text x="${aMid}" y="${ay - 10}" text-anchor="middle" font-size="8" fill="${gc}">${isEng ? 'Gradient' : 'Gradiente'}</text>` +
         `<line x1="${ax1+10}" y1="${ay}" x2="${ax2-10}" y2="${ay}" stroke="${gc}" stroke-width="1.5"/>` +
-        `<polygon points="${ax1},${ay} ${ax1+11},${ay-5} ${ax1+11},${ay+5}" fill="${gc}"/>` +
-        `<polygon points="${ax2},${ay} ${ax2-11},${ay-5} ${ax2-11},${ay+5}" fill="${gc}"/>` +
-        `<text x="${aMid}" y="${ay-9}" text-anchor="middle" font-size="8" fill="${gc}">${isEng ? 'Gradient' : 'Gradiente'}</text>`;
+        `<polygon points="${ax1},${ay} ${ax1+11},${ay-4} ${ax1+11},${ay+4}" fill="${gc}"/>` +
+        `<polygon points="${ax2},${ay} ${ax2-11},${ay-4} ${ax2-11},${ay+4}" fill="${gc}"/>`;
       if (gradientVal === 'EW') {
         svg += `<text x="${ax1-3}" y="${ay+4}" text-anchor="end" font-size="7.5" font-weight="bold" fill="${gc}">${isEng ? 'E' : 'L'}</text>`;
         svg += `<text x="${ax2+3}" y="${ay+4}" text-anchor="start" font-size="7.5" font-weight="bold" fill="${gc}">${isEng ? 'W' : 'O'}</text>`;
@@ -2637,6 +2653,10 @@ function onUnitTypeChange() {
   const labels = { animal:'Área por animal (m²)', baia:'Área da baia (m²)', piquete:'Área do piquete (m²)', clinica:'Área da unidade clínica (m²)' };
   const el = document.getElementById('lblUeArea');
   if (el && labels[ut]) el.textContent = labels[ut];
+  // Norte e gradiente fazem sentido apenas em experimentos a campo
+  const showGeo = ut === 'parcela' || ut === 'piquete';
+  document.getElementById('lblNorthArrow').style.display = showGeo ? '' : 'none';
+  document.getElementById('lblGradArrow').style.display  = showGeo ? '' : 'none';
 }
 
 function toggleBorders() {
