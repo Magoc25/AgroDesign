@@ -498,7 +498,8 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
           <select id="selLabelMode" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
             <option value="desc">Descrição</option>
             <option value="code">T1, T2, T3…</option>
-            <option value="fact">A1B2 (fatorial)</option>
+            <option value="smart">Sigla dos Fatores</option>
+            <option value="fact">A1B2 (índice numérico)</option>
             <option value="id">ID apenas</option>
             <option value="id+desc">ID + Descrição</option>
           </select>
@@ -1193,6 +1194,25 @@ function renderSummary() {
 /* ── Helpers de renderização de células ── */
 
 // Fundo da célula — 4 estilos coloridos + pub (P&B)
+// ── Helpers para rótulo "Sigla dos Fatores" ──
+function factInitial(name) {
+  const s = String(name || '').trim();
+  if (!s) return '';
+  return s.split(/\s+/).map(w => w[0].toUpperCase()).join('').substring(0, 2);
+}
+function smartAbbrev(level, maxLen) {
+  maxLen = maxLen || 5;
+  const s = String(level || '').trim();
+  if (!s) return '';
+  const numMatch = s.match(/^[-\d.,]+/);           // nível começa com número → usa o número
+  if (numMatch) return numMatch[0].replace(',', '.').substring(0, maxLen);
+  const clean = s.replace(/\s+/g, '');
+  if (clean.length <= maxLen) return clean;          // já curto → usa direto
+  const words = s.split(/\s+/);
+  if (words.length > 1) return words.map(w => w[0].toUpperCase()).join('').substring(0, maxLen); // sigla das palavras
+  return s.substring(0, maxLen);                     // primeira n letras
+}
+
 function cellBg(uw, uh, color, style) {
   if (style === 'pub') {
     return `<rect x="0" y="0" width="${uw}" height="${uh}" fill="${esc(color)}" stroke="#111" stroke-width="0.6"/>`;
@@ -1218,7 +1238,7 @@ function cellBg(uw, uh, color, style) {
 
 // Texto da célula — suporta 5 modos de rótulo, 3 posições e integração com estilo Ponto
 // Coordenadas relativas ao centro da célula (0,0) via transform externo
-function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, labelPos, cellStyle) {
+function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, smartCode, labelPos, cellStyle) {
   const maxW = uw - 8;
   const fc = '#1b2a1e', sc = '#4b7a5e';
 
@@ -1235,14 +1255,15 @@ function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, labelPo
   // Resolve o texto a exibir conforme o modo
   let display;
   switch (labelMode) {
-    case 'id':   display = String(unitId); break;
-    case 'code': display = treatCode; break;
-    case 'fact': display = factCode; break;
-    default:     display = text; break; // 'desc'
+    case 'id':    display = String(unitId); break;
+    case 'code':  display = treatCode; break;
+    case 'fact':  display = factCode; break;
+    case 'smart': display = smartCode; break;
+    default:      display = text; break; // 'desc'
   }
 
   // Ponto + rótulo curto: texto branco dentro do círculo (já desenhado por cellBg)
-  const shortMode = labelMode === 'code' || labelMode === 'id' || labelMode === 'fact';
+  const shortMode = labelMode === 'code' || labelMode === 'id' || labelMode === 'fact' || labelMode === 'smart';
   if (cellStyle === 'dot' && shortMode) {
     const r  = Math.min(10, Math.floor(uw / 7));
     const dx = -(uw / 2) + r + 3;
@@ -1711,6 +1732,12 @@ function renderCroqui() {
     });
   }
 
+  // Nomes dos fatores para modo 'smart' (fatorial e parcela subdividida)
+  const _isSpl  = design.startsWith('SPL');
+  const _fNameA = _isSpl ? (document.getElementById('splAName')?.value || 'A') : (document.getElementById('fatAName')?.value || 'A');
+  const _fNameB = _isSpl ? (document.getElementById('splBName')?.value || 'B') : (document.getElementById('fatBName')?.value || 'B');
+  const _fNameC = document.getElementById('fatCName')?.value || 'C';
+
   // Unidades experimentais
   units.forEach(u => {
     const x     = getX(u.col), y = getY(u.row);
@@ -1724,7 +1751,7 @@ function renderCroqui() {
       row: u.row, col: u.col
     }));
 
-    // Código de tratamento para modos 'code', 'fact'
+    // Código de tratamento para modos 'code', 'fact', 'smart'
     const treatCode = treatCodeMap[raw] || '?';
     const factCode  = (() => {
       let c = '';
@@ -1733,12 +1760,19 @@ function renderCroqui() {
       if (u.factorC) c += `C${factCIdx[u.factorC] || '?'}`;
       return c || treatCode;
     })();
+    const smartCode = (() => {
+      const parts = [];
+      if (u.factorA) parts.push(factInitial(_fNameA) + smartAbbrev(u.factorA));
+      if (u.factorB) parts.push(factInitial(_fNameB) + smartAbbrev(u.factorB));
+      if (u.factorC) parts.push(factInitial(_fNameC) + smartAbbrev(u.factorC));
+      return parts.length ? parts.join('-') : treatCode;
+    })();
 
     // Grupo posicionado na célula
     svg += `<g transform="translate(${x},${y})" style="cursor:pointer" onclick="openUnitModal('${td}')">`;
     svg += cellBg(UW, UH, cellFill, cellStyle);
     svg += `<g transform="translate(${UW / 2},${UH / 2})">`;
-    svg += cellLabel(raw, UW, UH, labelMode, u.id, treatCode, factCode, labelPos, cellStyle);
+    svg += cellLabel(raw, UW, UH, labelMode, u.id, treatCode, factCode, smartCode, labelPos, cellStyle);
     svg += '</g>';
     svg += '</g>';
   });
