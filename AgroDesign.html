@@ -538,6 +538,9 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
           <input type="checkbox" id="chkShowUe" onchange="rerenderCroqui()" style="width:auto"> Parcela
         </label>
+        <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+          <input type="checkbox" id="chkEnglish" onchange="rerenderCroqui()" style="width:auto"> English
+        </label>
       </div>
       <div class="svg-scroll" id="svgScroll">
         <div class="svg-inner" id="svgInner"></div>
@@ -613,7 +616,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 <footer>
   <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
   <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
-  <span id="appVersion">© MGC · v1.1.5</span>
+  <span id="appVersion">© MGC · v1.1.6</span>
 </footer>
 
 <!-- ═══ UNIT TOOLTIP ═══ -->
@@ -847,7 +850,7 @@ df = pd.read_csv("AgroDesign_dados.csv",
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 /* ── Constantes ── */
-const APP_VERSION  = '1.0.5';
+const APP_VERSION  = '1.0.6';
 const APP_NAME     = 'AgroDesign';
 const PROJECT_ID   = 'agrodesign';
 const PIX_KEY      = '4c6086a2-4bb8-474b-a4cf-ced8c8d82189';
@@ -1245,7 +1248,7 @@ function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, labelPo
 }
 
 // Bloco de legenda SVG embutida — suporta tema colorido e publicação
-function buildSvgLegend(allT, colors, pos, theme, pubFillMap) {
+function buildSvgLegend(allT, colors, pos, theme, pubFillMap, isEng = false) {
   if (pos === 'none' || !allT.length) return { svg: '', w: 0, h: 0 };
   const isPub = theme === 'pub';
   const SW = 13, IH = 17, GAP = 5, IPAD = 10, TITLE_H = 18;
@@ -1265,7 +1268,7 @@ function buildSvgLegend(allT, colors, pos, theme, pubFillMap) {
   const bgStroke   = isPub ? '#111' : '#cde0d3';
   const bgRx       = isPub ? '' : 'rx="5"';
 
-  let inner = `<text x="${IPAD}" y="${IPAD + 12}" font-size="10" fill="${titleColor}" font-weight="700">Legenda</text>`;
+  let inner = `<text x="${IPAD}" y="${IPAD + 12}" font-size="10" fill="${titleColor}" font-weight="700">${isEng ? 'Legend' : 'Legenda'}</text>`;
   allT.forEach((t, i) => {
     const c = i % cols, r = Math.floor(i / cols);
     const ix = IPAD + c * colW, iy = IPAD + TITLE_H + r * IH;
@@ -1281,7 +1284,7 @@ function buildSvgLegend(allT, colors, pos, theme, pubFillMap) {
 }
 
 /* ── Schematic da Unidade Experimental (embutido no croqui) ── */
-function buildUeSchematic(params, theme, W, H) {
+function buildUeSchematic(params, theme, W, H, isEng = false) {
   const isPub = theme === 'pub';
   const { unitType, plotLength, rowSpacing, rowsPerPlot, plantSpacing, ueArea, animalsPerUnit } = params;
 
@@ -1315,7 +1318,7 @@ function buildUeSchematic(params, theme, W, H) {
 
   const TITLE_H = 17, INFO_H = 20;
   let out = `<rect x="0" y="0" width="${W}" height="${H}" fill="${cBg}" stroke="${cBorder}" stroke-width="${isPub ? '0.7' : '1'}"${isPub ? '' : ' rx="5"'}/>`;
-  out += `<text x="${W / 2}" y="${TITLE_H - 3}" text-anchor="middle" font-size="9" fill="${cFg}" font-weight="700">Unidade Experimental</text>`;
+  out += `<text x="${W / 2}" y="${TITLE_H - 3}" text-anchor="middle" font-size="9" fill="${cFg}" font-weight="700">${isEng ? 'Experimental Unit' : 'Unidade Experimental'}</text>`;
   out += `<line x1="4" y1="${TITLE_H}" x2="${W - 4}" y2="${TITLE_H}" stroke="${cSep}" stroke-width="0.6"/>`;
 
   const drawY0 = TITLE_H + 2;
@@ -1372,7 +1375,9 @@ function buildUeSchematic(params, theme, W, H) {
     const ua   = ueArea || 12;
     const apu  = animalsPerUnit || 4;
     const dimV = Math.sqrt(ua);
-    const typeNames = { animal: 'Animal Individual', baia: 'Baia / Lote', piquete: 'Piquete', clinica: 'Unidade Clínica' };
+    const typeNames = isEng
+      ? { animal: 'Individual Animal', baia: 'Pen / Group', piquete: 'Paddock', clinica: 'Clinical Unit' }
+      : { animal: 'Animal Individual', baia: 'Baia / Lote', piquete: 'Piquete', clinica: 'Unidade Clínica' };
     const tname = typeNames[unitType] || 'Unidade';
 
     const ANNOT_S = 24, PAD_S = 8;
@@ -1403,7 +1408,7 @@ function buildUeSchematic(params, theme, W, H) {
     }
     if (apu > 16) {
       out += `<text x="${(ox + side / 2).toFixed(1)}" y="${(oy + side / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="18" fill="${isPub ? '#444' : '#2d6a4f'}" font-weight="700">${apu}</text>`;
-      out += `<text x="${(ox + side / 2).toFixed(1)}" y="${(oy + side / 2 + 18).toFixed(1)}" text-anchor="middle" font-size="10" fill="${cMuted}">animais</text>`;
+      out += `<text x="${(ox + side / 2).toFixed(1)}" y="${(oy + side / 2 + 18).toFixed(1)}" text-anchor="middle" font-size="10" fill="${cMuted}">${isEng ? 'animals' : 'animais'}</text>`;
     }
 
     // Cotas
@@ -1431,6 +1436,7 @@ function renderCroqui() {
   const cellStyle = theme === 'pub' ? 'pub' : document.getElementById('selCellStyle').value;
   const legendPos = document.getElementById('selLegendPos').value;
   const showUe    = document.getElementById('chkShowUe').checked;
+  const isEng     = document.getElementById('chkEnglish').checked;
 
   // Dimensões do schematic de UE (usadas no posicionamento abaixo)
   const UE_W = 220, UE_H = 185, UE_GAP = 14;
@@ -1498,7 +1504,7 @@ function renderCroqui() {
   const PUB_FILLS = ['#ffffff','#d8d8d8','url(#ph45)','url(#phm45)','url(#phH)','url(#phV)','url(#phX)','#b8b8b8','url(#ph45d)','url(#phXd)'];
   const pubFillMap = Object.fromEntries(allT.map((t, i) => [t, PUB_FILLS[i % PUB_FILLS.length]]));
 
-  const { svg: legSvg, w: legW, h: legH } = buildSvgLegend(allT, treatmentColors, legendPos, theme, pubFillMap);
+  const { svg: legSvg, w: legW, h: legH } = buildSvgLegend(allT, treatmentColors, legendPos, theme, pubFillMap, isEng);
 
   // ── Calcular dimensões totais do SVG — legenda centralizada na zona disponível ──
   const LZONE_SIDE = Math.max(legW + 48, legW * 1.5);  // zona lateral (dir/esq)
@@ -1587,11 +1593,11 @@ function renderCroqui() {
         const ay = getY(maxRow) + UH, aw = (maxCol + 1) * UW;
         if (theme === 'pub') {
           svg += `<rect x="${PAD}" y="${ay}" width="${aw}" height="${ALLEY_H}" fill="#f0f0f0" stroke="#999" stroke-width="0.6" stroke-dasharray="4 3"/>`;
-          svg += `<text x="${PAD + aw / 2}" y="${ay + ALLEY_H / 2 + 4}" text-anchor="middle" font-size="10" fill="#444" font-weight="600">Corredor — ${alleyM} m</text>`;
+          svg += `<text x="${PAD + aw / 2}" y="${ay + ALLEY_H / 2 + 4}" text-anchor="middle" font-size="10" fill="#444" font-weight="600">${isEng ? `Alley — ${alleyM} m` : `Corredor — ${alleyM} m`}</text>`;
         } else {
           svg += `<rect x="${PAD}" y="${ay}" width="${aw}" height="${ALLEY_H}" fill="#d8f3dc" rx="3"/>`;
           svg += `<rect x="${PAD}" y="${ay}" width="${aw}" height="${ALLEY_H}" fill="none" stroke="#52b788" stroke-width="0.8" stroke-dasharray="5 3" rx="3"/>`;
-          svg += `<text x="${PAD + aw / 2}" y="${ay + ALLEY_H / 2 + 4}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">↕ Rua / Corredor — ${alleyM} m</text>`;
+          svg += `<text x="${PAD + aw / 2}" y="${ay + ALLEY_H / 2 + 4}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">${isEng ? `↕ Alley — ${alleyM} m` : `↕ Rua / Corredor — ${alleyM} m`}</text>`;
         }
       }
     });
@@ -1672,10 +1678,10 @@ function renderCroqui() {
     const _pl  = parseFloat(document.getElementById('plotLength').value) || 5;
     const _rs  = parseFloat(document.getElementById('rowSpacing').value) || 0.5;
     const _rpp = parseInt(document.getElementById('rowsPerPlot').value)  || 4;
-    svg += `<text x="${PAD}" y="${gridH - 3}" font-size="9" fill="${scaleColor}">Escala: 1 UE = ${_pl.toFixed(1)} m × ${(_rs * _rpp).toFixed(2)} m</text>`;
+    svg += `<text x="${PAD}" y="${gridH - 3}" font-size="9" fill="${scaleColor}">${isEng ? 'Scale' : 'Escala'}: 1 ${isEng ? 'EU' : 'UE'} = ${_pl.toFixed(1)} m × ${(_rs * _rpp).toFixed(2)} m</text>`;
   } else {
     const _ua = parseFloat(document.getElementById('ueArea').value) || 12;
-    svg += `<text x="${PAD}" y="${gridH - 3}" font-size="9" fill="${scaleColor}">Escala: 1 UE = ${_ua.toFixed(1)} m²</text>`;
+    svg += `<text x="${PAD}" y="${gridH - 3}" font-size="9" fill="${scaleColor}">${isEng ? 'Scale' : 'Escala'}: 1 ${isEng ? 'EU' : 'UE'} = ${_ua.toFixed(1)} m²</text>`;
   }
 
   svg += '</g>'; // fim do grupo do grid
@@ -1696,7 +1702,7 @@ function renderCroqui() {
       ueArea:         parseFloat(document.getElementById('ueArea').value)        || 12,
       animalsPerUnit: parseInt(document.getElementById('animalsPerUnit').value)  || 4,
     };
-    const ueSvgContent = buildUeSchematic(ueParams, theme, UE_W, UE_H);
+    const ueSvgContent = buildUeSchematic(ueParams, theme, UE_W, UE_H, isEng);
     svg += `<g transform="translate(${ux.toFixed(1)},${uy.toFixed(1)})">${ueSvgContent}</g>`;
   }
 
@@ -2502,6 +2508,7 @@ function captureCurrentConfig() {
     labelPos:  document.getElementById('selLabelPos').value,
     theme:     document.getElementById('selTheme').value,
     showUe:    document.getElementById('chkShowUe').checked,
+    isEng:     document.getElementById('chkEnglish').checked,
   };
 }
 
@@ -2529,6 +2536,7 @@ function applyConfig(c) {
   set('selLabelPos',  c.labelPos);
   set('selTheme',     c.theme);
   if (c.showUe !== undefined) document.getElementById('chkShowUe').checked = c.showUe;
+  if (c.isEng  !== undefined) document.getElementById('chkEnglish').checked = c.isEng;
   onDesignChange(); onUnitTypeChange();
 }
 
