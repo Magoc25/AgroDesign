@@ -408,7 +408,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
   <!-- Layout -->
   <div class="form-section">
     <div class="form-section-title">Layout da Área / Instalação</div>
-    <div class="check-row" style="margin-bottom:.5rem">
+    <div class="check-row" style="margin-bottom:.5rem" id="rowAlley">
       <input type="checkbox" id="chkAlley" onchange="toggleAlley()">
       <label for="chkAlley" style="flex-direction:row;align-items:center;margin:0"><span>Ruas/corredores entre blocos</span></label>
     </div>
@@ -417,7 +417,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <input type="number" id="alleyWidth" value="1.5" min="0.1" step="0.1" style="width:120px" onchange="rerenderCroqui()">
       </label>
     </div>
-    <label style="margin-top:.25rem"><span>Orientação do gradiente principal</span>
+    <label style="margin-top:.25rem" id="rowGradient"><span>Orientação do gradiente principal</span>
       <select id="selGradient" onchange="rerenderCroqui()">
         <option value="NS">Norte–Sul (declive, fertilidade)</option>
         <option value="EW">Leste–Oeste</option>
@@ -1422,18 +1422,21 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
     // Info inferior
     out += `<text x="${W / 2}" y="${H - INFO_H + 12}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${pl.toFixed(1)} m × ${plotW.toFixed(2)} m · ${(pl * plotW).toFixed(2)} m²</text>`;
 
-    // Legenda área útil + planta (quando bordaduras ativas)
+    // Legenda área útil + planta (centralizada, quando bordaduras ativas)
     if (hasUsefulArea) {
-      const ly = H - 8;
+      const ly   = H - 8;
       const dotC = isPub ? '#444' : '#2d6a4f';
       const boxC = isPub ? 'none' : 'rgba(52,183,100,0.28)';
       const boxS = isPub ? '#222' : 'rgba(34,139,34,.5)';
-      // Área útil
-      out += `<rect x="10" y="${ly - 6}" width="9" height="9" fill="${boxC}" stroke="${boxS}" stroke-width="${isPub ? '1' : '1'}" ${isPub ? 'stroke-dasharray="3 1.5"' : 'rx="1.5"'}/>`;
-      out += `<text x="22" y="${ly + 2}" font-size="7" fill="${cMuted}">${isEng ? 'Useful area' : 'Área útil'}</text>`;
-      // Planta
-      out += `<circle cx="${Math.round(W / 2) + 10}" cy="${ly - 1}" r="3" fill="${dotC}" opacity="0.7"/>`;
-      out += `<text x="${Math.round(W / 2) + 16}" y="${ly + 2}" font-size="7" fill="${cMuted}">${isEng ? 'Plant' : 'Planta'}</text>`;
+      const lab1 = isEng ? 'Useful area' : 'Área útil';
+      const lab2 = isEng ? 'Plant' : 'Planta';
+      // larguras estimadas: item1 = box(9)+gap(4)+texto(~38) = 51; espaço(14); item2 = circle(6)+gap(4)+texto(~27) = 37 → total ≈ 102
+      const lx0 = Math.round((W - 102) / 2);
+      const lx1 = lx0 + 51 + 12;
+      out += `<rect x="${lx0}" y="${ly - 6}" width="9" height="9" fill="${boxC}" stroke="${boxS}" stroke-width="1" ${isPub ? 'stroke-dasharray="3 1.5"' : 'rx="1.5"'}/>`;
+      out += `<text x="${lx0 + 13}" y="${ly + 2}" font-size="7" fill="${cMuted}">${esc(lab1)}</text>`;
+      out += `<circle cx="${lx1 + 3}" cy="${ly - 1}" r="3" fill="${dotC}" opacity="0.7"/>`;
+      out += `<text x="${lx1 + 9}" y="${ly + 2}" font-size="7" fill="${cMuted}">${esc(lab2)}</text>`;
     }
 
   } else {
@@ -2667,16 +2670,22 @@ function onDesignChange() {
 
 function onUnitTypeChange() {
   const ut = document.getElementById('selUnitType').value;
-  const isVeg = ut === 'parcela';
+  const isVeg   = ut === 'parcela';
+  const isField  = ut === 'parcela' || ut === 'piquete'; // experimentos a campo
   document.getElementById('secVegetal').classList.toggle('hidden', !isVeg);
   document.getElementById('secAnimal').classList.toggle('hidden', isVeg);
   const labels = { animal:'Área por animal (m²)', baia:'Área da baia (m²)', piquete:'Área do piquete (m²)', clinica:'Área da unidade clínica (m²)' };
   const el = document.getElementById('lblUeArea');
   if (el && labels[ut]) el.textContent = labels[ut];
-  // Norte e gradiente fazem sentido apenas em experimentos a campo
-  const showGeo = ut === 'parcela' || ut === 'piquete';
-  document.getElementById('lblNorthArrow').style.display = showGeo ? '' : 'none';
-  document.getElementById('lblGradArrow').style.display  = showGeo ? '' : 'none';
+  // Ruas, gradiente e setas geográficas: apenas para experimentos a campo
+  document.getElementById('rowAlley').style.display    = isField ? '' : 'none';
+  document.getElementById('rowGradient').style.display = isField ? '' : 'none';
+  if (!isField) {
+    document.getElementById('chkAlley').checked = false;
+    document.getElementById('secAlley').classList.add('hidden');
+  }
+  document.getElementById('lblNorthArrow').style.display = isField ? '' : 'none';
+  document.getElementById('lblGradArrow').style.display  = isField ? '' : 'none';
 }
 
 function toggleBorders() {
