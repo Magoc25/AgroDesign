@@ -1369,9 +1369,9 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
 
   const TITLE_H = 17;
   // INFO_H aumenta quando há legenda de área útil
-  const _bf  = params.borderFrac    || 0;
-  const _lbf = params.latBorderFrac || 0;
-  const hasUsefulArea = (unitType === 'parcela') && (_bf > 0 || _lbf > 0);
+  const _bf  = params.borderFrac     || 0;
+  const _lbp = params.latBorderPlants || 0;
+  const hasUsefulArea = (unitType === 'parcela') && (_bf > 0 || _lbp > 0);
   const INFO_H = hasUsefulArea ? 32 : 20;
 
   let out = `<rect x="0" y="0" width="${W}" height="${H}" fill="${cBg}" stroke="${cBorder}" stroke-width="${isPub ? '0.7' : '1'}"${isPub ? '' : ' rx="5"'}/>`;
@@ -1421,11 +1421,15 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
     }
 
     // Área útil (zona de coleta)
-    const bf  = params.borderFrac   || 0;
-    const lbf = params.latBorderFrac || 0;
-    if (bf > 0 || lbf > 0) {
-      const bh_px = bf  > 0 ? Math.max(3, Math.round(bf  * dH)) : 0;
-      const bw_px = lbf > 0 ? Math.max(3, Math.round(lbf * dW)) : 0;
+    const bf  = params.borderFrac    || 0;
+    const lbp = params.latBorderPlants || 0;
+    if (bf > 0 || lbp > 0) {
+      const bh_px = bf > 0 ? Math.max(3, Math.round(bf * dH)) : 0;
+      // bw_px: calculado sobre espaçamentos das plantas *exibidas*, não fração física
+      const nSpacing = Math.max(nP - 1, 1);
+      const bw_px    = lbp > 0
+        ? Math.min(Math.round((Math.min(lbp, nSpacing) / nSpacing) * dW), Math.round(dW / 2) - 2)
+        : 0;
       const uw = dW - 2 * bw_px, uh = dH - 2 * bh_px;
       if (uw > 4 && uh > 4) {
         if (isPub) {
@@ -1540,12 +1544,12 @@ function renderCroqui() {
   const borderFrac  = hasBorders ? Math.min(0.38, borderNRows / rowsPerPlot) : 0;
 
   const hasLateralBorder = document.getElementById('chkLateralBorder').checked && unitType === 'parcela';
+  const latBorderPlants  = hasLateralBorder ? (parseInt(document.getElementById('lateralBorderPlants').value) || 1) : 0;
   const latBorderFrac = (() => {
-    if (!hasLateralBorder) return 0;
-    const lbp = parseInt(document.getElementById('lateralBorderPlants').value) || 1;
-    const ps  = parseFloat(document.getElementById('plantSpacing').value) || 0.2;
-    const pl  = parseFloat(document.getElementById('plotLength').value)   || 5;
-    return Math.min(0.35, (lbp * ps) / pl);
+    if (!hasLateralBorder || latBorderPlants <= 0) return 0;
+    const ps = parseFloat(document.getElementById('plantSpacing').value) || 0.2;
+    const pl = parseFloat(document.getElementById('plotLength').value)   || 5;
+    return Math.min(0.35, (latBorderPlants * ps) / pl);
   })();
 
   const showNorth    = document.getElementById('chkNorthArrow').checked;
@@ -1806,8 +1810,9 @@ function renderCroqui() {
       plantSpacing:   parseFloat(document.getElementById('plantSpacing').value) || 0.5,
       ueArea:         parseFloat(document.getElementById('ueArea').value)        || 12,
       animalsPerUnit: parseInt(document.getElementById('animalsPerUnit').value)  || 4,
-      borderFrac:     borderFrac,
-      latBorderFrac:  latBorderFrac,
+      borderFrac:      borderFrac,
+      latBorderFrac:   latBorderFrac,
+      latBorderPlants: latBorderPlants,
     };
     const ueSvgContent = buildUeSchematic(ueParams, theme, UE_W, UE_H, isEng);
     svg += `<g transform="translate(${ux.toFixed(1)},${uy.toFixed(1)})">${ueSvgContent}</g>`;
