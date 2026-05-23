@@ -1108,7 +1108,7 @@ function cellLabel(text, uw, uh, showIds, unitId) {
   const maxW = uw - 8;
   if (showIds) {
     const idStr = String(unitId);
-    const idFs  = idStr.length <= 2 ? 14 : idStr.length <= 3 ? 12 : 10;
+    const idFs  = idStr.length <= 2 ? 11 : idStr.length <= 3 ? 10 : 9;
     const abbr  = text.length > 14 ? text.slice(0, 13) + '…' : text;
     const abbrFs = Math.min(8, Math.max(5.5, maxW / (abbr.length * 0.6)));
     return `<text y="${-uh * 0.12}" text-anchor="middle" font-size="${idFs}" fill="#1b2a1e" font-weight="700">${esc(idStr)}</text>` +
@@ -1219,15 +1219,34 @@ function renderCroqui() {
   const allT = [...new Set(units.map(u => u.treatment))].sort();
   const { svg: legSvg, w: legW, h: legH } = buildSvgLegend(allT, treatmentColors, legendPos);
 
-  // ── Calcular dimensões totais do SVG ──
-  const LGAP = 26;
+  // ── Calcular dimensões totais do SVG — legenda centralizada na zona disponível ──
+  const LZONE_SIDE = Math.max(legW + 48, legW * 1.5);  // zona lateral (dir/esq)
+  const LZONE_TB   = Math.max(legH + 40, legH * 1.4);  // zona topo/baixo
   let totalW = gridW, totalH = gridH;
-  let gx = 0, gy = 0, lx = 0, ly = 0; // grid offset, legend offset
+  let gx = 0, gy = 0, lx = 0, ly = 0;
 
-  if (legendPos === 'right')  { totalW = gridW + LGAP + legW; lx = gridW + LGAP; ly = PAD; }
-  if (legendPos === 'left')   { totalW = gridW + LGAP + legW; gx = legW + LGAP; lx = 0; ly = PAD; }
-  if (legendPos === 'bottom') { totalH = gridH + LGAP + legH; lx = PAD; ly = gridH + LGAP; }
-  if (legendPos === 'top')    { totalH = gridH + LGAP + legH; gy = legH + LGAP; lx = PAD; ly = 0; }
+  if (legendPos === 'right') {
+    totalW = gridW + LZONE_SIDE;
+    lx = gridW + (LZONE_SIDE - legW) / 2;            // centralizado na zona
+    ly = Math.max(PAD, (gridH - legH) / 2);           // centralizado verticalmente
+  }
+  if (legendPos === 'left') {
+    totalW = gridW + LZONE_SIDE;
+    gx = LZONE_SIDE;
+    lx = (LZONE_SIDE - legW) / 2;
+    ly = Math.max(PAD, (gridH - legH) / 2);
+  }
+  if (legendPos === 'bottom') {
+    totalH = gridH + LZONE_TB;
+    lx = Math.max(PAD, (gridW - legW) / 2);           // centralizado horizontalmente
+    ly = gridH + (LZONE_TB - legH) / 2;
+  }
+  if (legendPos === 'top') {
+    totalH = gridH + LZONE_TB;
+    gy = LZONE_TB;
+    lx = Math.max(PAD, (gridW - legW) / 2);
+    ly = (LZONE_TB - legH) / 2;
+  }
 
   // ── Montar SVG ──
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" id="croquiSvg" viewBox="0 0 ${totalW} ${totalH}" style="display:block">`;
@@ -1714,19 +1733,27 @@ function renderUnidade() {
     /* ── Anotação: largura total (lateral esq. exterior) ── */
     const wax = ox - 58;   // mais distante para não colidir com o strip anterior
     svgStr += annLine(wax, oy, wax, +(oy+dH).toFixed(1));
-    // linhas de extensão horizontal ligando a seta ao bordo da parcela
-    svgStr += dimLine(wax+1, oy,       ox, oy);
-    svgStr += dimLine(wax+1, +(oy+dH).toFixed(1), ox, +(oy+dH).toFixed(1));
-    svgStr += `<text x="${wax-5}" y="${+(oy+dH/2+4).toFixed(1)}" text-anchor="end" font-size="11" fill="#374151" font-weight="700">${plotW.toFixed(2)} m</text>`;
-    svgStr += `<text x="${wax-5}" y="${+(oy+dH/2+17).toFixed(1)}" text-anchor="end" font-size="8" fill="#6b7c6e">largura</text>`;
+    svgStr += dimLine(wax+1, oy,                    ox, oy);
+    svgStr += dimLine(wax+1, +(oy+dH).toFixed(1),   ox, +(oy+dH).toFixed(1));
 
-    /* ── Anotação: comprimento (topo — mais alto para não sobrepor título) ── */
+    // Valor da largura: rotacionado 90° (de baixo para cima), lado esquerdo da seta
+    {
+      const cy = +(oy + dH/2).toFixed(1);
+      const vx = wax - 14;
+      svgStr += `<text transform="rotate(-90,${vx},${cy})" x="${vx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#374151" font-weight="700">${plotW.toFixed(2)} m</text>`;
+      // "largura": lado direito da seta, também rotacionado
+      const lx2 = wax + 12;
+      svgStr += `<text transform="rotate(-90,${lx2},${cy})" x="${lx2}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="8" fill="#6b7c6e">largura</text>`;
+    }
+
+    /* ── Anotação: comprimento (topo) ── */
     const lay = oy - 34;
     svgStr += annLine(ox, lay, ox+dW, lay);
-    svgStr += dimLine(ox, lay+1, ox, oy);
+    svgStr += dimLine(ox,    lay+1, ox,    oy);
     svgStr += dimLine(ox+dW, lay+1, ox+dW, oy);
-    svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay-6}" text-anchor="middle" font-size="11" fill="#374151" font-weight="700">${plotL.toFixed(2)} m</text>`;
-    svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay-17}" text-anchor="middle" font-size="8" fill="#6b7c6e">comprimento</text>`;
+    // Valor acima da seta, "comprimento" abaixo da seta
+    svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay-6}"  text-anchor="middle" font-size="11" fill="#374151" font-weight="700">${plotL.toFixed(2)} m</text>`;
+    svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay+14}" text-anchor="middle" font-size="8"  fill="#6b7c6e">comprimento</text>`;
 
     /* ── Anotação: espaçamento entre plantas (topo — só se houver espaço suficiente) ── */
     if (plantStp >= 20 && dW > 60 && rowH > 14) {
