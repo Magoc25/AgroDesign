@@ -147,7 +147,7 @@ textarea { resize: vertical; min-height: 70px; }
 .summary-section:first-child { margin-top: 0; }
 
 /* Croqui */
-.croqui-toolbar { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; flex-shrink: 0; }
+.croqui-toolbar { display: flex; flex-direction: column; gap: .35rem; flex-shrink: 0; }
 .zoom-wrap { display: flex; align-items: center; gap: .4rem; font-size: .82rem; color: var(--text-muted); }
 .zoom-wrap input[type=range] { width: 110px; }
 #croquiContent { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .5rem; }
@@ -549,89 +549,95 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     </div>
     <div id="croquiContent" class="hidden">
       <div class="croqui-toolbar">
-        <div class="zoom-wrap">
-          <span>Zoom</span>
-          <input type="range" id="zoomSlider" min="25" max="400" value="100" oninput="setZoom(this.value)">
-          <span id="zoomLabel">100%</span>
+        <!-- Linha 1: ações + seletores -->
+        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+          <div class="zoom-wrap">
+            <span>Zoom</span>
+            <input type="range" id="zoomSlider" min="25" max="400" value="100" oninput="setZoom(this.value)">
+            <span id="zoomLabel">100%</span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="exportPNG()">🖼 PNG</button>
+          <button class="btn btn-secondary btn-sm" onclick="exportSVG()">⬇ SVG</button>
+          <button class="btn btn-ghost btn-sm" onclick="openPubTextModal()">📄 Texto</button>
+          <button class="btn btn-ghost btn-sm" onclick="printCroqui()">🖨 Imprimir</button>
+          <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+            Rótulo:
+            <select id="selLabelMode" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+              <option value="desc">Descrição</option>
+              <option value="code">T1, T2, T3…</option>
+              <option value="smart">Sigla dos Fatores</option>
+              <option value="fact">A1B2 (índice numérico)</option>
+              <option value="id">ID apenas</option>
+              <option value="id+desc">ID + Descrição</option>
+            </select>
+          </label>
+          <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+            Pos.:
+            <select id="selLabelPos" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+              <option value="center">Centro</option>
+              <option value="top">Superior</option>
+              <option value="corner">Canto</option>
+            </select>
+          </label>
+          <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+            Célula:
+            <select id="selCellStyle" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+              <option value="fill">Preenchimento</option>
+              <option value="border">Borda colorida</option>
+              <option value="stripe">Faixa superior</option>
+              <option value="dot">Ponto</option>
+            </select>
+          </label>
+          <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+            Tema:
+            <select id="selTheme" onchange="applyPaletteOptions();rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+              <option value="color">Colorido</option>
+              <option value="pub">Publicação</option>
+            </select>
+          </label>
+          <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+            Paleta:
+            <select id="selPalette" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+              <option value="agrodesign">AgroDesign</option>
+              <option value="okabe">Okabe-Ito</option>
+              <option value="pastel">Pastel</option>
+              <option value="vivid">Vivo</option>
+            </select>
+          </label>
+          <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+            Fonte:
+            <select id="selFont" onchange="applyFontMode(this.value)" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+              <option value="arial">Arial</option>
+              <option value="helvetica">Calibri</option>
+              <option value="times">Times New Roman</option>
+            </select>
+          </label>
+          <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+            Legenda:
+            <select id="selLegendPos" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+              <option value="none">Na barra</option>
+              <option value="right">Direita</option>
+              <option value="bottom">Abaixo</option>
+              <option value="left">Esquerda</option>
+              <option value="top">Acima</option>
+            </select>
+          </label>
         </div>
-        <button class="btn btn-secondary btn-sm" onclick="exportPNG()">🖼 PNG</button>
-        <button class="btn btn-secondary btn-sm" onclick="exportSVG()">⬇ SVG</button>
-        <button class="btn btn-ghost btn-sm" onclick="openPubTextModal()">📄 Texto</button>
-        <button class="btn btn-ghost btn-sm" onclick="printCroqui()">🖨 Imprimir</button>
-        <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
-          Rótulo:
-          <select id="selLabelMode" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
-            <option value="desc">Descrição</option>
-            <option value="code">T1, T2, T3…</option>
-            <option value="smart">Sigla dos Fatores</option>
-            <option value="fact">A1B2 (índice numérico)</option>
-            <option value="id">ID apenas</option>
-            <option value="id+desc">ID + Descrição</option>
-          </select>
-        </label>
-        <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
-          Pos.:
-          <select id="selLabelPos" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
-            <option value="center">Centro</option>
-            <option value="top">Superior</option>
-            <option value="corner">Canto</option>
-          </select>
-        </label>
-        <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
-          Célula:
-          <select id="selCellStyle" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
-            <option value="fill">Preenchimento</option>
-            <option value="border">Borda colorida</option>
-            <option value="stripe">Faixa superior</option>
-            <option value="dot">Ponto</option>
-          </select>
-        </label>
-        <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
-          Tema:
-          <select id="selTheme" onchange="applyPaletteOptions();rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
-            <option value="color">Colorido</option>
-            <option value="pub">Publicação</option>
-          </select>
-        </label>
-        <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
-          Paleta:
-          <select id="selPalette" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
-            <option value="agrodesign">AgroDesign</option>
-            <option value="okabe">Okabe-Ito</option>
-            <option value="pastel">Pastel</option>
-            <option value="vivid">Vivo</option>
-          </select>
-        </label>
-        <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
-          Fonte:
-          <select id="selFont" onchange="applyFontMode(this.value)" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
-            <option value="arial">Arial</option>
-            <option value="helvetica">Calibri</option>
-            <option value="times">Times New Roman</option>
-          </select>
-        </label>
-        <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
-          Legenda:
-          <select id="selLegendPos" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
-            <option value="none">Na barra</option>
-            <option value="right">Direita</option>
-            <option value="bottom">Abaixo</option>
-            <option value="left">Esquerda</option>
-            <option value="top">Acima</option>
-          </select>
-        </label>
-        <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
-          <input type="checkbox" id="chkShowUe" onchange="rerenderCroqui()" style="width:auto"> Parcela
-        </label>
-        <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
-          <input type="checkbox" id="chkEnglish" onchange="rerenderCroqui()" style="width:auto"> English
-        </label>
-        <label id="lblNorthArrow" style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
-          <input type="checkbox" id="chkNorthArrow" onchange="rerenderCroqui()" style="width:auto"> Norte
-        </label>
-        <label id="lblGradArrow" style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
-          <input type="checkbox" id="chkGradArrow" onchange="rerenderCroqui()" style="width:auto"> Gradiente
-        </label>
+        <!-- Linha 2: checkboxes -->
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+          <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+            <input type="checkbox" id="chkShowUe" onchange="rerenderCroqui()" style="width:auto"> Parcela
+          </label>
+          <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+            <input type="checkbox" id="chkEnglish" onchange="rerenderCroqui()" style="width:auto"> English
+          </label>
+          <label id="lblNorthArrow" style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+            <input type="checkbox" id="chkNorthArrow" onchange="rerenderCroqui()" style="width:auto"> Norte
+          </label>
+          <label id="lblGradArrow" style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+            <input type="checkbox" id="chkGradArrow" onchange="rerenderCroqui()" style="width:auto"> Gradiente
+          </label>
+        </div>
       </div>
       <div class="svg-scroll" id="svgScroll">
         <div class="svg-inner" id="svgInner"></div>
