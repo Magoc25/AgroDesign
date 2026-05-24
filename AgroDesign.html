@@ -1730,6 +1730,8 @@ function applyFontMode(mode) {
 function renderCroqui() {
   if (!units.length) return;
 
+  if (document.getElementById('selTheme').value !== 'pub') assignColors();
+
   const design    = document.getElementById('selDesign').value;
   const labelMode = document.getElementById('selLabelMode').value;
   const labelPos  = document.getElementById('selLabelPos').value;
