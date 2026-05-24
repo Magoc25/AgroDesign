@@ -1702,7 +1702,7 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
 }
 
 /* ── Croqui SVG ── */
-function rerenderCroqui() { renderCroqui(); }
+function rerenderCroqui() { renderCroqui(); renderUnidade(); }
 
 function applyPaletteOptions() {
   const theme = document.getElementById('selTheme').value;
