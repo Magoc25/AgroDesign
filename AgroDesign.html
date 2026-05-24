@@ -1866,14 +1866,16 @@ function renderCroqui() {
       const u = units.find(x => x.col === c);
       svg += `<text x="${getX(c) + UW / 2}" y="${PAD - 6}" text-anchor="middle" font-size="11" fill="${dqlFc}" font-weight="600">${esc(u.colLabel || '')}</text>`;
     });
-    // Nome do fator-linha (vertical, mais à esquerda)
-    const rfnX = PAD - 48;
+    // Distância padronizada entre nome do fator e rótulos: média de (12 e 34) = 23 px
+    const DQL_AXIS_GAP = 23;
+    // Nome do fator-linha (vertical) — a DQL_AXIS_GAP px dos rótulos de linha
+    const rfnX = rlx - DQL_AXIS_GAP;
     const rfnY = PAD + (gridH - PAD - 14) / 2;
     svg += `<text x="${rfnX}" y="${rfnY}" text-anchor="middle" dominant-baseline="central" font-size="9" fill="${dqlFc}" font-style="italic" transform="rotate(-90,${rfnX},${rfnY})">${esc(dqlRowFactorName)}</text>`;
-    // Nome do fator-coluna (horizontal, acima dos rótulos de coluna)
+    // Nome do fator-coluna (horizontal) — a DQL_AXIS_GAP px dos rótulos de coluna
     const maxDqlCol = Math.max(...units.map(u => u.col));
     const cfnX = PAD + (maxDqlCol + 1) * UW / 2;
-    svg += `<text x="${cfnX}" y="${PAD - 18}" text-anchor="middle" font-size="9" fill="${dqlFc}" font-style="italic">${esc(dqlColFactorName)}</text>`;
+    svg += `<text x="${cfnX}" y="${PAD - 6 - DQL_AXIS_GAP}" text-anchor="middle" font-size="9" fill="${dqlFc}" font-style="italic">${esc(dqlColFactorName)}</text>`;
   }
 
   // Bordas de parcela principal (split-plot)
