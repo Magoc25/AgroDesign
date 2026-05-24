@@ -1242,14 +1242,32 @@ function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, smartCo
   const maxW = uw - 8;
   const fc = '#1b2a1e', sc = '#4b7a5e';
 
-  // Modo ID + Descrição (antigo showIds): sempre centralizado
+  // Modo ID + Descrição: badge pequeno no canto, descrição centralizada com quebra
   if (labelMode === 'id+desc') {
-    const idStr  = String(unitId);
-    const idFs   = idStr.length <= 2 ? 11 : idStr.length <= 3 ? 10 : 9;
-    const abbr   = text.length > 14 ? text.slice(0, 13) + '…' : text;
-    const abbrFs = Math.min(8, Math.max(5.5, maxW / (abbr.length * 0.6)));
-    return `<text y="${-uh * 0.12}" text-anchor="middle" font-size="${idFs}" fill="${fc}" font-weight="700">${esc(idStr)}</text>` +
-           `<text y="${uh * 0.16}" text-anchor="middle" font-size="${abbrFs}" fill="${sc}">${esc(abbr)}</text>`;
+    const idStr = String(unitId);
+    const badge = `<text x="${-uw / 2 + 3}" y="${-uh / 2 + 8}" text-anchor="start" font-size="7" fill="${sc}" font-weight="600">${esc(idStr)}</text>`;
+    const yBase = 3;
+    const words = text.split(/\s+/).filter(Boolean);
+    let descSvg;
+    // Tenta 1 linha
+    let done = false;
+    for (const fs of [9.5, 8, 7, 6.5, 6, 5.5]) {
+      if (text.length * fs * 0.58 <= maxW) {
+        descSvg = `<text y="${yBase}" text-anchor="middle" font-size="${fs}" fill="${fc}" font-weight="700">${esc(text)}</text>`;
+        done = true; break;
+      }
+    }
+    if (!done) {
+      // 2 linhas
+      const mid = Math.ceil(words.length / 2);
+      const l1  = words.slice(0, mid).join(' ');
+      const l2  = words.slice(mid).join(' ');
+      const fs  = Math.min(8, Math.max(5.5, maxW / (Math.max(l1.length, l2.length) * 0.58)));
+      const dy  = fs * 1.3;
+      descSvg = `<text y="${yBase - dy / 2}" text-anchor="middle" font-size="${fs}" fill="${fc}" font-weight="700">${esc(l1)}</text>` +
+                `<text y="${yBase + dy / 2}" text-anchor="middle" font-size="${fs}" fill="${fc}" font-weight="700">${esc(l2)}</text>`;
+    }
+    return badge + descSvg;
   }
 
   // Resolve o texto a exibir conforme o modo
