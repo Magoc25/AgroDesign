@@ -664,6 +664,8 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     </div>
     <div id="unidadeContent" class="hidden">
       <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0;font-size:.78rem;color:var(--text-muted);padding-bottom:.25rem">
+        <button class="btn btn-secondary btn-sm" onclick="exportUnidadePNG()">&#x1F5BC; PNG</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportUnidadeSVG()">&#x2B07; SVG</button>
         <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0">
           <input type="checkbox" id="chkUnitPB" onchange="renderUnidade()" style="width:auto"> P&amp;B
         </label>
@@ -2444,6 +2446,41 @@ function exportSVG() {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `AgroDesign_croqui_${document.getElementById('selDesign').value}.svg`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+function exportUnidadePNG() {
+  const svg = document.querySelector('#svgUnidade svg');
+  if (!svg) { alert('Gere o croqui primeiro.'); return; }
+  const vb = svg.getAttribute('viewBox').split(' ').map(Number);
+  const scale = 2;
+  const clone = svg.cloneNode(true);
+  clone.setAttribute('width',  vb[2] * scale);
+  clone.setAttribute('height', vb[3] * scale);
+  const svgStr = new XMLSerializer().serializeToString(clone);
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = vb[2] * scale; canvas.height = vb[3] * scale;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'AgroDesign_unidade.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+}
+
+function exportUnidadeSVG() {
+  const svg = document.querySelector('#svgUnidade svg');
+  if (!svg) { alert('Gere o croqui primeiro.'); return; }
+  const svgStr = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `AgroDesign_unidade_${document.getElementById('selUnitType').value}.svg`;
   document.body.appendChild(a); a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
