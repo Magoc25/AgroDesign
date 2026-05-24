@@ -1309,17 +1309,9 @@ function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, smartCo
   const maxW = uw - 8;
   const fc = '#1b2a1e', sc = '#4b7a5e';
 
-  // Modo ID + Descrição: no estilo Ponto, ID vai dentro do círculo (igual aos outros modos curtos)
+  // Modo ID + Descrição: ID como badge (ou dentro do círculo no estilo Ponto) + descrição centrada
   if (labelMode === 'id+desc') {
     const idStr = String(unitId);
-    if (cellStyle === 'dot') {
-      const r  = Math.min(10, Math.floor(uw / 7));
-      const dx = -(uw / 2) + r + 3;
-      const dy = -(uh / 2) + r + 3;
-      const fs = Math.min(9, Math.max(5.5, (r * 1.6) / Math.max(idStr.length, 1)));
-      return `<text x="${dx}" y="${dy}" text-anchor="middle" dominant-baseline="central" font-size="${fs}" fill="#fff" font-weight="700">${esc(idStr)}</text>`;
-    }
-    const badge = `<text x="${-uw / 2 + 3}" y="${-uh / 2 + 10}" text-anchor="start" font-size="9" fill="${sc}" font-weight="700">${esc(idStr)}</text>`;
     const yBase = 3;
     const words = text.split(/\s+/).filter(Boolean);
     // Usa font fixo (calculado sobre o tratamento mais longo) ou calcula localmente
@@ -1340,7 +1332,17 @@ function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, smartCo
       descSvg = `<text y="${yBase - dy / 2}" text-anchor="middle" font-size="${fs}" fill="${fc}" font-weight="700">${esc(l1)}</text>` +
                 `<text y="${yBase + dy / 2}" text-anchor="middle" font-size="${fs}" fill="${fc}" font-weight="700">${esc(l2)}</text>`;
     }
-    return badge + descSvg;
+    let idMark;
+    if (cellStyle === 'dot') {
+      const r   = Math.min(10, Math.floor(uw / 7));
+      const dotX = -(uw / 2) + r + 3;
+      const dotY = -(uh / 2) + r + 3;
+      const dotFs = Math.min(9, Math.max(5.5, (r * 1.6) / Math.max(idStr.length, 1)));
+      idMark = `<text x="${dotX}" y="${dotY}" text-anchor="middle" dominant-baseline="central" font-size="${dotFs}" fill="#fff" font-weight="700">${esc(idStr)}</text>`;
+    } else {
+      idMark = `<text x="${-uw / 2 + 3}" y="${-uh / 2 + 10}" text-anchor="start" font-size="9" fill="${sc}" font-weight="700">${esc(idStr)}</text>`;
+    }
+    return idMark + descSvg;
   }
 
   // Resolve o texto a exibir conforme o modo
