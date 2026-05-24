@@ -1238,31 +1238,30 @@ function cellBg(uw, uh, color, style) {
 
 // Texto da célula — suporta 5 modos de rótulo, 3 posições e integração com estilo Ponto
 // Coordenadas relativas ao centro da célula (0,0) via transform externo
-function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, smartCode, labelPos, cellStyle) {
+function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, smartCode, labelPos, cellStyle, fixedDescFs = null) {
   const maxW = uw - 8;
   const fc = '#1b2a1e', sc = '#4b7a5e';
 
-  // Modo ID + Descrição: badge pequeno no canto, descrição centralizada com quebra
+  // Modo ID + Descrição: badge no canto (maior, negrito) + descrição com font fixo
   if (labelMode === 'id+desc') {
     const idStr = String(unitId);
-    const badge = `<text x="${-uw / 2 + 3}" y="${-uh / 2 + 8}" text-anchor="start" font-size="7" fill="${sc}" font-weight="600">${esc(idStr)}</text>`;
+    const badge = `<text x="${-uw / 2 + 3}" y="${-uh / 2 + 10}" text-anchor="start" font-size="9" fill="${sc}" font-weight="700">${esc(idStr)}</text>`;
     const yBase = 3;
     const words = text.split(/\s+/).filter(Boolean);
-    let descSvg;
-    // Tenta 1 linha
-    let done = false;
-    for (const fs of [9.5, 8, 7, 6.5, 6, 5.5]) {
-      if (text.length * fs * 0.58 <= maxW) {
-        descSvg = `<text y="${yBase}" text-anchor="middle" font-size="${fs}" fill="${fc}" font-weight="700">${esc(text)}</text>`;
-        done = true; break;
+    // Usa font fixo (calculado sobre o tratamento mais longo) ou calcula localmente
+    const fs = fixedDescFs || (() => {
+      for (const s of [9.5, 8, 7, 6.5, 6, 5.5]) {
+        if (text.length * s * 0.58 <= maxW) return s;
       }
-    }
-    if (!done) {
-      // 2 linhas
+      return 5.5;
+    })();
+    let descSvg;
+    if (text.length * fs * 0.58 <= maxW) {
+      descSvg = `<text y="${yBase}" text-anchor="middle" font-size="${fs}" fill="${fc}" font-weight="700">${esc(text)}</text>`;
+    } else {
       const mid = Math.ceil(words.length / 2);
       const l1  = words.slice(0, mid).join(' ');
       const l2  = words.slice(mid).join(' ');
-      const fs  = Math.min(8, Math.max(5.5, maxW / (Math.max(l1.length, l2.length) * 0.58)));
       const dy  = fs * 1.3;
       descSvg = `<text y="${yBase - dy / 2}" text-anchor="middle" font-size="${fs}" fill="${fc}" font-weight="700">${esc(l1)}</text>` +
                 `<text y="${yBase + dy / 2}" text-anchor="middle" font-size="${fs}" fill="${fc}" font-weight="700">${esc(l2)}</text>`;
@@ -1791,6 +1790,26 @@ function renderCroqui() {
   const _fNameB = _isSpl ? (document.getElementById('splBName')?.value || 'B') : (document.getElementById('fatBName')?.value || 'B');
   const _fNameC = document.getElementById('fatCName')?.value || 'C';
 
+  // Font fixo para modo id+desc: calculado sobre o tratamento mais longo
+  let idDescFixedFs = null;
+  if (labelMode === 'id+desc' && allT.length) {
+    const descMaxW = UW - 8;
+    const longestT = allT.reduce((a, b) => a.length > b.length ? a : b, '');
+    let found = null;
+    for (const fs of [9.5, 8, 7, 6.5, 6, 5.5]) {
+      if (longestT.length * fs * 0.58 <= descMaxW) { found = fs; break; }
+    }
+    if (found !== null) {
+      idDescFixedFs = found;
+    } else {
+      const ww  = longestT.split(/\s+/).filter(Boolean);
+      const mid = Math.ceil(ww.length / 2);
+      const l1  = ww.slice(0, mid).join(' ');
+      const l2  = ww.slice(mid).join(' ');
+      idDescFixedFs = Math.min(8, Math.max(5.5, descMaxW / (Math.max(l1.length, l2.length) * 0.58)));
+    }
+  }
+
   // Unidades experimentais
   units.forEach(u => {
     const x     = getX(u.col), y = getY(u.row);
@@ -1825,7 +1844,7 @@ function renderCroqui() {
     svg += `<g transform="translate(${x},${y})" style="cursor:pointer" onclick="openUnitModal('${td}')">`;
     svg += cellBg(UW, UH, cellFill, cellStyle);
     svg += `<g transform="translate(${UW / 2},${UH / 2})">`;
-    svg += cellLabel(raw, UW, UH, labelMode, u.id, treatCode, factCode, smartCode, labelPos, cellStyle);
+    svg += cellLabel(raw, UW, UH, labelMode, u.id, treatCode, factCode, smartCode, labelPos, cellStyle, idDescFixedFs);
     svg += '</g>';
     svg += '</g>';
   });
