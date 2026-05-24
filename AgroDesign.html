@@ -1785,13 +1785,22 @@ function renderCroqui() {
     }
   }
 
-  // DQL: margem extra à esquerda para rótulos de linha (previne corte)
-  if (design === 'DQL' && legendPos !== 'left') {
-    const DQL_LEFT = 70;
-    gx += DQL_LEFT;
-    totalW += DQL_LEFT;
-    if (legendPos !== 'none') lx += DQL_LEFT;
-    if (showUe) ux += DQL_LEFT;
+  // DQL: margens extras (esquerda e topo) para rótulos e nomes dos fatores
+  if (design === 'DQL') {
+    if (legendPos !== 'left') {
+      const DQL_LEFT = 70;
+      gx += DQL_LEFT;
+      totalW += DQL_LEFT;
+      if (legendPos !== 'none') lx += DQL_LEFT;
+      if (showUe) ux += DQL_LEFT;
+    }
+    if (legendPos !== 'top') {
+      const DQL_TOP = 50;
+      gy += DQL_TOP;
+      totalH += DQL_TOP;
+      if (legendPos !== 'none') ly += DQL_TOP;
+      if (showUe) uy += DQL_TOP;
+    }
   }
 
   // ── Seta de gradiente — reservar espaço adicional ──
