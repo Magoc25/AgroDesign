@@ -586,9 +586,18 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         </label>
         <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
           Tema:
-          <select id="selTheme" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+          <select id="selTheme" onchange="applyPaletteOptions();rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
             <option value="color">Colorido</option>
             <option value="pub">Publicação</option>
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+          Paleta:
+          <select id="selPalette" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+            <option value="agrodesign">AgroDesign</option>
+            <option value="okabe">Okabe-Ito</option>
+            <option value="pastel">Pastel</option>
+            <option value="vivid">Vivo</option>
           </select>
         </label>
         <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
@@ -964,12 +973,38 @@ const REV_SB_KEY   = 'sb_publishable_0Saq2ZYXgGEApcbvWAahtw_VQ9b9iTq';
 const UNIT_LABELS = { parcela:'Parcela vegetal', animal:'Animal individual', baia:'Baia/Lote', piquete:'Piquete', clinica:'Unidade clínica' };
 const GRAD_LABELS = { NS:'Norte–Sul', EW:'Leste–Oeste', horiz:'Horizontal', vert:'Vertical', none:'Sem gradiente definido' };
 
-const TREAT_COLORS = [
-  '#a8e6cf','#ffd3b6','#a2d2ff','#cdb4db','#ffc8dd',
-  '#b5ead7','#ffdac1','#d4e09b','#f6c5c5','#c5d8f6',
-  '#faedcd','#e2cfc4','#dcedc1','#ffaaa5','#bde0fe',
-  '#f6ecc5','#c5f6dc','#d8b4fe','#fed7aa','#a5f3fc'
-];
+const COLOR_PALETTES = {
+  agrodesign: [
+    '#a8e6cf','#ffd3b6','#a2d2ff','#cdb4db','#ffc8dd',
+    '#b5ead7','#ffdac1','#d4e09b','#f6c5c5','#c5d8f6',
+    '#faedcd','#e2cfc4','#dcedc1','#ffaaa5','#bde0fe',
+    '#f6ecc5','#c5f6dc','#d8b4fe','#fed7aa','#a5f3fc'
+  ],
+  okabe: [
+    '#f3cf80','#aad9f4','#80cebc','#f7f09e','#80b9d9',
+    '#eaaf80','#e3bcd3','#c8c8c8','#d9b35f','#7ec8e3',
+    '#5bbfa5','#ece88e','#5a9ec0','#e09060','#d49fc0',
+    '#b0b0b0','#f9dfb0','#c5e8fa','#a5dec0','#f9f4b0'
+  ],
+  pastel: [
+    '#ffb3ba','#ffdfba','#ffffba','#baffc9','#bae1ff',
+    '#e8baff','#ffd9ba','#baffd9','#ffe4ba','#d9baff',
+    '#ffeeba','#baffee','#ffd9e8','#baeeff','#e8ffd9',
+    '#ffddb3','#d9ffba','#ffb3d9','#bad9ff','#ffbaf0'
+  ],
+  vivid: [
+    '#ff6b6b','#4ecdc4','#45b7d1','#96ceb4','#ffeaa7',
+    '#dda0dd','#98d8c8','#f7dc6f','#82e0aa','#f1948a',
+    '#85c1e9','#d7bde2','#a9dfbf','#fad7a0','#aed6f1',
+    '#a8d8ea','#ffcc5c','#96ceb4','#88d8b0','#ff6f69'
+  ]
+};
+
+const PUB_PALETTES = {
+  classico:  ['#ffffff','#d8d8d8','url(#ph45)','url(#phm45)','url(#phH)','url(#phV)','url(#phX)','#b8b8b8','url(#ph45d)','url(#phXd)'],
+  contraste: ['#ffffff','#000000','#808080','#cccccc','#404040','#b0b0b0','#202020','#e0e0e0','#606060','#d0d0d0'],
+  hachuras:  ['url(#ph45)','url(#phm45)','url(#phH)','url(#phV)','url(#phX)','url(#ph45d)','url(#phXd)','url(#phBord)','url(#ph45)','url(#phm45)']
+};
 
 /* ── State ── */
 let units = [];
@@ -1247,7 +1282,11 @@ function applySerpentine(arr) {
 function assignColors() {
   const allT = [...new Set(units.map(u => u.treatment))].sort();
   treatmentColors = {};
-  allT.forEach((t, i) => { treatmentColors[t] = TREAT_COLORS[i % TREAT_COLORS.length]; });
+  const palKey  = document.getElementById('selPalette')?.value || 'agrodesign';
+  const palette = (document.getElementById('selTheme')?.value === 'pub')
+    ? COLOR_PALETTES.agrodesign
+    : (COLOR_PALETTES[palKey] || COLOR_PALETTES.agrodesign);
+  allT.forEach((t, i) => { treatmentColors[t] = palette[i % palette.length]; });
 }
 
 /* ── Summary ── */
@@ -1660,6 +1699,25 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
 /* ── Croqui SVG ── */
 function rerenderCroqui() { renderCroqui(); }
 
+function applyPaletteOptions() {
+  const theme = document.getElementById('selTheme').value;
+  const sel   = document.getElementById('selPalette');
+  const cur   = sel.value;
+  if (theme === 'color') {
+    sel.innerHTML =
+      '<option value="agrodesign">AgroDesign</option>' +
+      '<option value="okabe">Okabe-Ito</option>' +
+      '<option value="pastel">Pastel</option>' +
+      '<option value="vivid">Vivo</option>';
+  } else {
+    sel.innerHTML =
+      '<option value="classico">Clássico</option>' +
+      '<option value="contraste">Alto contraste</option>' +
+      '<option value="hachuras">Hachuras</option>';
+  }
+  if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+
 function applyFontMode(mode) {
   const map = {
     arial:     '"Agro Sans", Arial, sans-serif',
@@ -1759,7 +1817,8 @@ function renderCroqui() {
   const factCIdx = Object.fromEntries(allFactC.map((v, i) => [v, i + 1]));
 
   // Preenchimentos P&B para modo Publicação
-  const PUB_FILLS = ['#ffffff','#d8d8d8','url(#ph45)','url(#phm45)','url(#phH)','url(#phV)','url(#phX)','#b8b8b8','url(#ph45d)','url(#phXd)'];
+  const palKey   = document.getElementById('selPalette')?.value || 'classico';
+  const PUB_FILLS = PUB_PALETTES[palKey] || PUB_PALETTES.classico;
   const pubFillMap = Object.fromEntries(allT.map((t, i) => [t, PUB_FILLS[i % PUB_FILLS.length]]));
 
   // Mapa código→tratamento para exibir prefixo de rótulo na legenda
@@ -3158,6 +3217,7 @@ function captureCurrentConfig() {
     labelMode: document.getElementById('selLabelMode').value,
     labelPos:  document.getElementById('selLabelPos').value,
     theme:     document.getElementById('selTheme').value,
+    palette:   document.getElementById('selPalette').value,
     font:      document.getElementById('selFont').value,
     showUe:    document.getElementById('chkShowUe').checked,
     isEng:     document.getElementById('chkEnglish').checked,
@@ -3190,6 +3250,8 @@ function applyConfig(c) {
   set('selLabelMode', c.labelMode);
   set('selLabelPos',  c.labelPos);
   set('selTheme',     c.theme);
+  applyPaletteOptions();
+  set('selPalette',   c.palette);
   set('selFont',      c.font);
   if (c.font) applyFontMode(c.font);
   if (c.showUe !== undefined) document.getElementById('chkShowUe').checked = c.showUe;
@@ -4235,6 +4297,7 @@ loadNotes();
 (function() { const btn = document.getElementById('btnDecimalSep'); if (btn) btn.textContent = `🔢 Dec: ${decimalSep}`; })();
 onDesignChange();
 onUnitTypeChange();
+applyPaletteOptions();
 applyFontMode(document.getElementById('selFont').value);
 // Restaura a última configuração usada
 (function() {
