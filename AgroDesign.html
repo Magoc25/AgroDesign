@@ -2787,6 +2787,7 @@ function renderUnidade() {
   const el       = document.getElementById('svgUnidade');
   const statsEl  = document.getElementById('unidadeStats');
   const isPb     = document.getElementById('chkUnitPB')?.checked;
+  const isEng    = document.getElementById('chkEnglish')?.checked;
 
 
   /* ── Marcadores de seta reutilizáveis ── */
@@ -2837,7 +2838,7 @@ function renderUnidade() {
     svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" >
       <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
       ${defs}
-      <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">Parcela Vegetal — Vista Superior (escala proporcional)</text>`;
+      <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${isEng ? "Plant Plot — Top View (proportional scale)" : "Parcela Vegetal — Vista Superior (escala proporcional)"}</text>`;
 
     /* fundo da parcela */
     svgStr += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="#fff" stroke="#2d6a4f" stroke-width="1.8"/>`;
@@ -2872,8 +2873,8 @@ function renderUnidade() {
       svgStr += `<rect x="${ox}" y="${oy}" width="${dW}" height="${bh}" fill="rgba(0,0,0,0.07)" pointer-events="none"/>`;
       svgStr += `<rect x="${ox}" y="${+(oy+dH-bh).toFixed(1)}" width="${dW}" height="${bh}" fill="rgba(0,0,0,0.07)" pointer-events="none"/>`;
       if (bh > 13) {
-        svgStr += `<text x="${ox+dW/2}" y="${+(oy+bh/2+4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#555" font-style="italic">bordadura</text>`;
-        svgStr += `<text x="${ox+dW/2}" y="${+(oy+dH-bh/2+4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#555" font-style="italic">bordadura</text>`;
+        svgStr += `<text x="${ox+dW/2}" y="${+(oy+bh/2+4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#555" font-style="italic">${isEng ? "border" : "bordadura"}</text>`;
+        svgStr += `<text x="${ox+dW/2}" y="${+(oy+dH-bh/2+4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#555" font-style="italic">${isEng ? "border" : "bordadura"}</text>`;
       }
     }
 
@@ -2892,7 +2893,7 @@ function renderUnidade() {
       const ux2      = +(ox + dW - latBdW).toFixed(1);
       if (usefulL > 0 && ux2 > ux1) {
         svgStr += annLine(ux1, annoY, ux2, annoY);
-        svgStr += `<text x="${+((ux1+ux2)/2).toFixed(1)}" y="${+(annoY+11).toFixed(1)}" text-anchor="middle" font-size="8.5" fill="#374151" font-weight="600">${usefulL} m úteis</text>`;
+        svgStr += `<text x="${+((ux1+ux2)/2).toFixed(1)}" y="${+(annoY+11).toFixed(1)}" text-anchor="middle" font-size="8.5" fill="#374151" font-weight="600">${usefulL} ${isEng ? "m useful" : "m úteis"}</text>`;
       }
     }
 
@@ -2903,7 +2904,7 @@ function renderUnidade() {
       const uy2 = +(oy + dH - br * rowH).toFixed(1);
       const bx  = ox + dW + 12;
       svgStr += annLine(bx, uy1, bx, uy2);
-      svgStr += `<text x="${bx+7}" y="${+((uy1+uy2)/2+4).toFixed(1)}" font-size="9" fill="#2d6a4f" font-weight="700">Área útil</text>`;
+      svgStr += `<text x="${bx+7}" y="${+((uy1+uy2)/2+4).toFixed(1)}" font-size="9" fill="#2d6a4f" font-weight="700">${isEng ? "Useful area" : "Área útil"}</text>`;
     }
 
     /* ── Anotação: espaçamento entre linhas (lateral esq. — strip interior) ── */
@@ -2928,7 +2929,7 @@ function renderUnidade() {
       svgStr += `<text transform="rotate(-90,${vx},${cy})" x="${vx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#374151" font-weight="700">${plotW.toFixed(2)} m</text>`;
       // "largura": lado direito da seta, também rotacionado
       const lx2 = wax + 12;
-      svgStr += `<text transform="rotate(-90,${lx2},${cy})" x="${lx2}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="8" fill="#6b7c6e">largura</text>`;
+      svgStr += `<text transform="rotate(-90,${lx2},${cy})" x="${lx2}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="8" fill="#6b7c6e">${isEng ? "width" : "largura"}</text>`;
     }
 
     /* ── Anotação: comprimento (topo) ── */
@@ -2938,7 +2939,7 @@ function renderUnidade() {
     svgStr += dimLine(ox+dW, lay+1, ox+dW, oy);
     // Valor acima da seta, "comprimento" abaixo da seta
     svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay-6}"  text-anchor="middle" font-size="11" fill="#374151" font-weight="700">${plotL.toFixed(2)} m</text>`;
-    svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay+14}" text-anchor="middle" font-size="8"  fill="#6b7c6e">comprimento</text>`;
+    svgStr += `<text x="${+(ox+dW/2).toFixed(1)}" y="${lay+14}" text-anchor="middle" font-size="8"  fill="#6b7c6e">${isEng ? "length" : "comprimento"}</text>`;
 
     /* ── Anotação: espaçamento entre plantas (topo — só se houver espaço suficiente) ── */
     if (plantStp >= 20 && dW > 60 && rowH > 14) {
@@ -2957,28 +2958,30 @@ function renderUnidade() {
     let lx = ox;
 
     svgStr += `<rect x="${lx}" y="${legY}" width="13" height="13" fill="rgba(82,183,136,0.35)" stroke="#52b788" stroke-width="1"/>`;
-    svgStr += `<text x="${lx+17}" y="${legY+10}" font-size="9" fill="#374151">Área útil</text>`;
+    svgStr += `<text x="${lx+17}" y="${legY+10}" font-size="9" fill="#374151">${isEng ? "Useful area" : "Área útil"}</text>`;
     lx += 82;
 
     if (br > 0) {
       svgStr += `<rect x="${lx}" y="${legY}" width="13" height="13" fill="rgba(0,0,0,0.1)" stroke="#aaa" stroke-width="1"/>`;
-      svgStr += `<text x="${lx+17}" y="${legY+10}" font-size="9" fill="#374151">Bord. de linha</text>`;
+      svgStr += `<text x="${lx+17}" y="${legY+10}" font-size="9" fill="#374151">${isEng ? "Row border" : "Bord. de linha"}</text>`;
       lx += 108;
     }
     if (lbp > 0) {
       svgStr += `<rect x="${lx}" y="${legY}" width="13" height="13" fill="rgba(100,100,100,0.15)" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3 2"/>`;
-      svgStr += `<text x="${lx+17}" y="${legY+10}" font-size="9" fill="#374151">Bord. lateral</text>`;
+      svgStr += `<text x="${lx+17}" y="${legY+10}" font-size="9" fill="#374151">${isEng ? "Lat. border" : "Bord. lateral"}</text>`;
       lx += 100;
     }
     if (plantStp >= 5) {
       svgStr += `<circle cx="${lx+6}" cy="${legY+6}" r="4" fill="#2d6a4f" opacity=".8"/>`;
-      svgStr += `<text x="${lx+14}" y="${legY+10}" font-size="9" fill="#374151">Planta</text>`;
+      svgStr += `<text x="${lx+14}" y="${legY+10}" font-size="9" fill="#374151">${isEng ? "Plant" : "Planta"}</text>`;
     }
 
     const hasBdAny = br > 0 || lbp > 0;
     const subtitle = plantStp >= 5
-      ? `Cada ponto = 1 planta${hasBdAny ? ' · Cinza = bordadura (descartado) · Amarelo = bordadura lateral' : ''}`
-      : (hasBdAny ? 'Bordaduras destacadas com sombreamento' : '');
+      ? (isEng
+          ? `Each dot = 1 plant${hasBdAny ? ' · Gray = border (discarded) · Yellow = lateral border' : ''}`
+          : `Cada ponto = 1 planta${hasBdAny ? ' · Cinza = bordadura (descartado) · Amarelo = bordadura lateral' : ''}`)
+      : (hasBdAny ? (isEng ? 'Borders highlighted with shading' : 'Bordaduras destacadas com sombreamento') : '');
     if (subtitle) {
       svgStr += `<text x="${svgW/2}" y="${legY+26}" text-anchor="middle" font-size="7.5" fill="#6b7c6e" font-style="italic">${subtitle}</text>`;
     }
@@ -2992,19 +2995,19 @@ function renderUnidade() {
     const plantsRow       = Math.floor(pl / ps) + 1;
     const usefulPlantsRow = Math.max(0, plantsRow - 2 * lbp);
     const statsArr = [
-      { label:'Largura da parcela',  value: plotW.toFixed(2),          unit:'m' },
-      { label:'Comprimento',         value: plotL.toFixed(2),          unit:'m' },
-      { label:'Área bruta',          value: String(areaTotal),         unit:'m²' },
-      { label:'Linhas totais',       value: String(rpp),               unit:'' },
-      ...(br > 0 ? [{ label:'Linhas bordadura',  value: String(br*2), unit:'' }] : []),
-      { label:'Linhas úteis',        value: String(usefulRows),        unit:'' },
+      { label: isEng ? 'Plot width'          : 'Largura da parcela', value: plotW.toFixed(2),          unit:'m' },
+      { label: isEng ? 'Length'             : 'Comprimento',        value: plotL.toFixed(2),          unit:'m' },
+      { label: isEng ? 'Gross area'         : 'Área bruta',         value: String(areaTotal),         unit:'m²' },
+      { label: isEng ? 'Total rows'         : 'Linhas totais',      value: String(rpp),               unit:'' },
+      ...(br > 0 ? [{ label: isEng ? 'Border rows' : 'Linhas bordadura', value: String(br*2), unit:'' }] : []),
+      { label: isEng ? 'Useful rows'        : 'Linhas úteis',       value: String(usefulRows),        unit:'' },
       ...(lbp > 0 ? [
-        { label:'Bord. lateral',     value: `${lbp}×2 plantas`,        unit:'' },
-        { label:'Compr. útil/linha', value: String(comprUtil),         unit:'m' },
+        { label: isEng ? 'Lat. border'      : 'Bord. lateral',      value: `${lbp}×2 ${isEng ? 'plants' : 'plantas'}`, unit:'' },
+        { label: isEng ? 'Useful length/row': 'Compr. útil/linha', value: String(comprUtil),         unit:'m' },
       ] : []),
-      { label:'Área útil',           value: String(areaUtil),          unit:'m²' },
-      { label:'Plantas totais',      value: String(rpp * plantsRow),   unit:'' },
-      { label:'Plantas úteis',       value: String(usefulRows * usefulPlantsRow), unit:'' },
+      { label: isEng ? 'Useful area'        : 'Área útil',          value: String(areaUtil),          unit:'m²' },
+      { label: isEng ? 'Total plants'       : 'Plantas totais',     value: String(rpp * plantsRow),   unit:'' },
+      { label: isEng ? 'Useful plants'      : 'Plantas úteis',      value: String(usefulRows * usefulPlantsRow), unit:'' },
     ];
     statsHtml = statsArr.map(s =>
       `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`
@@ -3015,7 +3018,9 @@ function renderUnidade() {
     const ueA = parseFloat(document.getElementById('ueArea').value) || 12;
     const apu = parseInt(document.getElementById('animalsPerUnit').value) || 1;
     const dim = Math.sqrt(ueA);
-    const titles = { animal:'Animal Individual', baia:'Baia / Lote', piquete:'Piquete', clinica:'Unidade Clínica' };
+    const titles = isEng
+      ? { animal:'Individual Animal', baia:'Pen / Group', piquete:'Paddock', clinica:'Clinical Unit' }
+      : { animal:'Animal Individual', baia:'Baia / Lote', piquete:'Piquete', clinica:'Unidade Clínica' };
     const svgW = 420, svgH = 360;
     const side = 220;
     const ox = (svgW - side) / 2;
@@ -3024,7 +3029,7 @@ function renderUnidade() {
     svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" >
       <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
       ${defs}
-      <text x="${svgW/2}" y="24" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${esc(titles[unitType]||'Unidade Experimental')} — Planta Baixa</text>
+      <text x="${svgW/2}" y="24" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${esc(titles[unitType]||'Unidade Experimental')} — ${isEng ? 'Floor Plan' : 'Planta Baixa'}</text>
       <rect x="${ox}" y="${oy}" width="${side}" height="${side}" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="2" rx="4"/>`;
 
     /* animais */
@@ -3043,7 +3048,7 @@ function renderUnidade() {
       }
     } else {
       svgStr += `<text x="${ox+side/2}" y="${oy+side/2-6}" text-anchor="middle" font-size="22" fill="#2d6a4f" font-weight="700">${apu}</text>`;
-      svgStr += `<text x="${ox+side/2}" y="${oy+side/2+16}" text-anchor="middle" font-size="11" fill="#40916c">animais</text>`;
+      svgStr += `<text x="${ox+side/2}" y="${oy+side/2+16}" text-anchor="middle" font-size="11" fill="#40916c">${isEng ? 'animals' : 'animais'}</text>`;
     }
 
     /* anotações */
@@ -3053,14 +3058,14 @@ function renderUnidade() {
     svgStr += annLine(lx, oy, lx, oy+side);
     svgStr += `<text x="${lx-5}" y="${oy+side/2+4}" text-anchor="end" font-size="10" fill="#374151" font-weight="700">≈ ${dim.toFixed(1)} m</text>`;
     svgStr += `<text x="${ox+side/2}" y="${oy+side+20}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">${ueA.toFixed(1)} m²  ·  ${(ueA/apu).toFixed(1)} m²/animal</text>`;
-    svgStr += `<text x="${svgW/2}" y="${oy+side+36}" text-anchor="middle" font-size="9" fill="#6b7c6e">Representação esquemática (área proporcional)</text>`;
+    svgStr += `<text x="${svgW/2}" y="${oy+side+36}" text-anchor="middle" font-size="9" fill="#6b7c6e">${isEng ? 'Schematic representation (proportional area)' : 'Representação esquemática (área proporcional)'}</text>`;
     svgStr += '</svg>';
 
     const statsArr = [
-      { label:'Área da UE',    value: ueA.toFixed(1), unit:'m²' },
-      { label:'Dim. aprox.',   value: `${dim.toFixed(1)} × ${dim.toFixed(1)}`, unit:'m' },
-      { label:'Animais/UE',    value: String(apu), unit:'' },
-      { label:'Área/animal',   value: (ueA/apu).toFixed(1), unit:'m²' },
+      { label: isEng ? 'UE area'      : 'Área da UE',   value: ueA.toFixed(1), unit:'m²' },
+      { label: isEng ? 'Approx. dim.' : 'Dim. aprox.',  value: `${dim.toFixed(1)} × ${dim.toFixed(1)}`, unit:'m' },
+      { label: isEng ? 'Animals/UE'  : 'Animais/UE',   value: String(apu), unit:'' },
+      { label: isEng ? 'Area/animal' : 'Área/animal',  value: (ueA/apu).toFixed(1), unit:'m²' },
     ];
     statsHtml = statsArr.map(s =>
       `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`
