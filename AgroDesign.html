@@ -1420,8 +1420,9 @@ function renderSummary() {
   // ── Condições ──
   html += sec('Condições');
   const ULABELS = { parcela:'Parcela vegetal', animal:'Animal individual', baia:'Baia/Lote', piquete:'Piquete', clinica:'Unidade clínica' };
+  const isField = unitType === 'parcela' || unitType === 'piquete';
   html += card('Tipo de UE', ULABELS[unitType] || unitType);
-  html += card('Gradiente', esc(GRAD_LABELS[gradient] || gradient));
+  if (isField) html += card('Gradiente', esc(GRAD_LABELS[gradient] || gradient));
 
   document.getElementById('summaryGrid').innerHTML = html;
   document.getElementById('summaryGradient').style.display = 'none';
