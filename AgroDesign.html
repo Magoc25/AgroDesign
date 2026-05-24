@@ -663,6 +663,11 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <span class="hint">Configure e gere o croqui para visualizar a parcela/UE com dimensões.</span>
     </div>
     <div id="unidadeContent" class="hidden">
+      <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0;font-size:.78rem;color:var(--text-muted);padding-bottom:.25rem">
+        <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0">
+          <input type="checkbox" id="chkUnitPB" onchange="renderUnidade()" style="width:auto"> P&amp;B
+        </label>
+      </div>
       <div class="svg-scroll">
         <div id="svgUnidade" style="margin:auto;display:block;line-height:0"></div>
       </div>
@@ -2658,6 +2663,7 @@ function renderUnidade() {
   const unitType = document.getElementById('selUnitType').value;
   const el       = document.getElementById('svgUnidade');
   const statsEl  = document.getElementById('unidadeStats');
+  const isPb     = document.getElementById('chkUnitPB')?.checked;
 
 
   /* ── Marcadores de seta reutilizáveis ── */
@@ -2938,6 +2944,20 @@ function renderUnidade() {
     ).join('');
   }
 
+  if (isPb) {
+    svgStr = svgStr
+      .replace(/#2d6a4f/g, '#333')
+      .replace(/#40916c/g, '#666')
+      .replace(/#52b788/g, '#888')
+      .replace(/#f0f7ee/g, '#f5f5f5')
+      .replace(/#d8f3dc/g, '#e8e8e8')
+      .replace(/#cde0d3/g, '#ccc')
+      .replace(/rgba\(82,183,136,0\.09\)/g, 'rgba(0,0,0,0.04)')
+      .replace(/rgba\(82,183,136,0\.35\)/g, 'rgba(0,0,0,0.15)')
+      .replace(/#f59e0b/g, '#555')
+      .replace(/#6b7c6e/g, '#555')
+      .replace(/rgba\(100,100,100,0\.35\)/g, 'rgba(0,0,0,0.3)');
+  }
   el.innerHTML = svgStr;
   statsEl.innerHTML = statsHtml;
   document.getElementById('emptyUnidade').classList.add('hidden');
@@ -3220,6 +3240,7 @@ function captureCurrentConfig() {
     labelPos:  document.getElementById('selLabelPos').value,
     theme:     document.getElementById('selTheme').value,
     palette:   document.getElementById('selPalette').value,
+    unitPB:    document.getElementById('chkUnitPB').checked,
     font:      document.getElementById('selFont').value,
     showUe:    document.getElementById('chkShowUe').checked,
     isEng:     document.getElementById('chkEnglish').checked,
@@ -3257,6 +3278,7 @@ function applyConfig(c) {
   set('selFont',      c.font);
   if (c.font) applyFontMode(c.font);
   if (c.showUe !== undefined) document.getElementById('chkShowUe').checked = c.showUe;
+  if (c.unitPB  !== undefined) document.getElementById('chkUnitPB').checked  = c.unitPB;
   if (c.isEng  !== undefined) document.getElementById('chkEnglish').checked = c.isEng;
   onDesignChange(); onUnitTypeChange();
 }
