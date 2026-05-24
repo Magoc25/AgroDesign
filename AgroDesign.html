@@ -250,7 +250,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <input type="text" id="txtSpecies" placeholder="Ex: Milho, Frangos de corte, Bovinos leiteiros">
     </label>
 
-    <!-- DIC / DBC / DQL -->
+    <!-- DIC / DBC -->
     <div id="secSimple">
       <label><span>Tratamentos <span class="hint">(um por linha)</span></span>
         <textarea id="txtTreatments" rows="4" placeholder="T1&#10;T2&#10;T3&#10;T4"></textarea>
@@ -264,7 +264,38 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
           <input type="number" id="numSeed" value="42" min="0">
         </label>
       </div>
-      <div id="secDQLnote" class="info-box hidden">Para DQL: número de tratamentos = n×n (ex: 4 para 4×4).</div>
+    </div>
+
+    <!-- DQL -->
+    <div id="secDQL" class="hidden">
+      <label><span>Tratamentos <span class="hint">(um por linha)</span></span>
+        <textarea id="dqlTreatments" rows="4" placeholder="P. I&#10;P. II&#10;P. III&#10;P. IV" oninput="updateDqlInfo()">P. I&#10;P. II&#10;P. III&#10;P. IV</textarea>
+      </label>
+      <div class="form-section-title" style="font-size:.8rem;margin:.6rem 0 .2rem">Fator-linha <span class="hint">(1º controle local)</span></div>
+      <div class="row2">
+        <label><span>Nome</span>
+          <input type="text" id="dqlRowName" value="Linha" maxlength="20" placeholder="Ex: Animal, Estação">
+        </label>
+        <div></div>
+      </div>
+      <label><span>Níveis <span class="hint">(um por linha; vazio = L1, L2…)</span></span>
+        <textarea id="dqlRowLevels" rows="3" placeholder="Cão 1&#10;Cão 2&#10;Cão 3&#10;Cão 4"></textarea>
+      </label>
+      <div class="form-section-title" style="font-size:.8rem;margin:.6rem 0 .2rem">Fator-coluna <span class="hint">(2º controle local)</span></div>
+      <div class="row2">
+        <label><span>Nome</span>
+          <input type="text" id="dqlColName" value="Coluna" maxlength="20" placeholder="Ex: Período, Local">
+        </label>
+        <div></div>
+      </div>
+      <label><span>Níveis <span class="hint">(um por linha; vazio = C1, C2…)</span></span>
+        <textarea id="dqlColLevels" rows="3" placeholder="Período 1&#10;Período 2&#10;Período 3&#10;Período 4"></textarea>
+      </label>
+      <label style="margin-top:.4rem" title="Semente de randomização: qualquer inteiro.">
+        <span>Semente de rand. <span class="hint" style="font-size:.7rem">(?)</span></span>
+        <input type="number" id="dqlSeed" value="42" min="0">
+      </label>
+      <div id="dqlInfo" class="info-box" style="margin-top:.5rem"></div>
     </div>
 
     <!-- Fatorial -->
@@ -903,6 +934,8 @@ const TREAT_COLORS = [
 /* ── State ── */
 let units = [];
 let treatmentColors = {};
+let dqlRowFactorName = 'Linha';
+let dqlColFactorName = 'Coluna';
 
 /* ── PRNG (LCG) ── */
 function makeLCG(seed) {
@@ -930,6 +963,28 @@ function getSimpleConfig() {
   const reps   = parseInt(document.getElementById('numReps').value) || 3;
   const treats = parseTreatments(document.getElementById('txtTreatments').value);
   return { design, seed, reps, treats };
+}
+
+function getDQLConfig() {
+  const treats    = parseTreatments(document.getElementById('dqlTreatments').value);
+  const seed      = parseInt(document.getElementById('dqlSeed').value) || 42;
+  const rowName   = document.getElementById('dqlRowName').value.trim() || 'Linha';
+  const colName   = document.getElementById('dqlColName').value.trim() || 'Coluna';
+  const k         = treats.length;
+  const rawRows   = parseTreatments(document.getElementById('dqlRowLevels').value);
+  const rawCols   = parseTreatments(document.getElementById('dqlColLevels').value);
+  const rowLabels = rawRows.length === k ? rawRows : Array.from({length: k}, (_, i) => `${rowName[0].toUpperCase()}${i + 1}`);
+  const colLabels = rawCols.length === k ? rawCols : Array.from({length: k}, (_, i) => `${colName[0].toUpperCase()}${i + 1}`);
+  return { treats, seed, rowName, colName, rowLabels, colLabels, k };
+}
+
+function updateDqlInfo() {
+  const k = parseTreatments(document.getElementById('dqlTreatments').value).length;
+  const el = document.getElementById('dqlInfo');
+  if (!el) return;
+  el.textContent = k >= 2
+    ? `DQL ${k}×${k} — ${k} tratamentos × ${k} linhas × ${k} colunas · ${k*k} UEs`
+    : k === 1 ? 'Adicione pelo menos 2 tratamentos.' : 'Informe os tratamentos acima.';
 }
 
 /* ── Design Generators ── */
@@ -963,13 +1018,15 @@ function generateDBC(treats, blocks, seed) {
   return result;
 }
 
-function generateDQL(treats, seed) {
+function generateDQL(treats, seed, rowLabels, colLabels) {
   const n = treats.length;
   const rng = makeLCG(seed);
   const base = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => (i + j) % n));
   const rowPerm   = shuffle([...Array(n).keys()], rng);
   const colPerm   = shuffle([...Array(n).keys()], rng);
   const treatPerm = shuffle([...Array(n).keys()], rng);
+  const rl = rowLabels && rowLabels.length === n ? rowLabels : Array.from({length: n}, (_, i) => `L${i + 1}`);
+  const cl = colLabels && colLabels.length === n ? colLabels : Array.from({length: n}, (_, i) => `C${i + 1}`);
   const result = [];
   let id = 1;
   for (let i = 0; i < n; i++) {
@@ -978,7 +1035,7 @@ function generateDQL(treats, seed) {
         id: id++, row: i, col: j, block: null, mainPlot: null,
         treatment: treats[treatPerm[base[rowPerm[i]][colPerm[j]]]],
         factorA: null, factorB: null, factorC: null,
-        rowLabel: String.fromCharCode(65 + i), colLabel: String(j + 1)
+        rowLabel: rl[i], colLabel: cl[j]
       });
     }
   }
@@ -1060,13 +1117,18 @@ function generateSplitPlot(design) {
 
 /* ── Validate ── */
 function validate(design, treats, reps, blocks) {
-  if (design === 'DIC' || design === 'DBC' || design === 'DQL') {
+  if (design === 'DIC' || design === 'DBC') {
     if (treats.length < 2) return 'Informe pelo menos 2 tratamentos.';
     if (design === 'DIC' && reps < 1) return 'Número de repetições inválido.';
     if (design === 'DBC' && blocks < 2) return 'DBC requer pelo menos 2 blocos.';
-    if (design === 'DQL') {
-      if (treats.length < 2) return 'DQL requer pelo menos 2 tratamentos.';
-    }
+  }
+  if (design === 'DQL') {
+    const dqlCfg = getDQLConfig();
+    if (dqlCfg.treats.length < 2) return 'DQL requer pelo menos 2 tratamentos.';
+    const rawRows = parseTreatments(document.getElementById('dqlRowLevels').value);
+    const rawCols = parseTreatments(document.getElementById('dqlColLevels').value);
+    if (rawRows.length > 0 && rawRows.length !== dqlCfg.k) return `Fator-linha: informe ${dqlCfg.k} níveis (igual ao número de tratamentos) ou deixe vazio para geração automática.`;
+    if (rawCols.length > 0 && rawCols.length !== dqlCfg.k) return `Fator-coluna: informe ${dqlCfg.k} níveis (igual ao número de tratamentos) ou deixe vazio para geração automática.`;
   }
   if (design === 'FAT_DIC' || design === 'FAT_DBC') {
     const fatT = buildFactorialTreatments();
@@ -1097,7 +1159,12 @@ function generateCroqui() {
   try {
     if (design === 'DIC') units = generateDIC(treats, reps, seed);
     else if (design === 'DBC') units = generateDBC(treats, blocks, seed);
-    else if (design === 'DQL') units = generateDQL(treats, seed);
+    else if (design === 'DQL') {
+      const dqlCfg = getDQLConfig();
+      dqlRowFactorName = dqlCfg.rowName;
+      dqlColFactorName = dqlCfg.colName;
+      units = generateDQL(dqlCfg.treats, dqlCfg.seed, dqlCfg.rowLabels, dqlCfg.colLabels);
+    }
     else if (design === 'FAT_DIC' || design === 'FAT_DBC') units = generateFactorial(design);
     else if (design === 'SPL_DIC' || design === 'SPL_DBC') units = generateSplitPlot(design);
   } catch(e) {
@@ -1766,15 +1833,27 @@ function renderCroqui() {
     });
   }
 
-  // Eixos DQL
+  // Eixos DQL — rótulos das linhas/colunas e nomes dos fatores
   if (design === 'DQL') {
+    const dqlFc = theme === 'pub' ? '#444' : '#6b7c6e';
+    // Rótulos de linha (esquerda)
     [...new Set(units.map(u => u.row))].forEach(r => {
       const u = units.find(x => x.row === r);
-      svg += `<text x="${PAD - 7}" y="${getY(r) + UH / 2 + 5}" text-anchor="end" font-size="11" fill="#6b7c6e" font-weight="600">${esc(u.rowLabel || '')}</text>`;
+      svg += `<text x="${PAD - 7}" y="${getY(r) + UH / 2 + 5}" text-anchor="end" font-size="11" fill="${dqlFc}" font-weight="600">${esc(u.rowLabel || '')}</text>`;
     });
+    // Rótulos de coluna (topo)
     [...new Set(units.map(u => u.col))].forEach(c => {
-      svg += `<text x="${getX(c) + UW / 2}" y="${PAD - 6}" text-anchor="middle" font-size="11" fill="#6b7c6e" font-weight="600">${c + 1}</text>`;
+      const u = units.find(x => x.col === c);
+      svg += `<text x="${getX(c) + UW / 2}" y="${PAD - 6}" text-anchor="middle" font-size="11" fill="${dqlFc}" font-weight="600">${esc(u.colLabel || '')}</text>`;
     });
+    // Nome do fator-linha (vertical, à esquerda do grid)
+    const rfnX = Math.max(6, PAD - 26);
+    const rfnY = PAD + (gridH - PAD - 14) / 2;
+    svg += `<text x="${rfnX}" y="${rfnY}" text-anchor="middle" font-size="9" fill="${dqlFc}" font-style="italic" transform="rotate(-90,${rfnX},${rfnY})">${esc(dqlRowFactorName)}</text>`;
+    // Nome do fator-coluna (horizontal, acima dos rótulos de coluna)
+    const maxDqlCol = Math.max(...units.map(u => u.col));
+    const cfnX = PAD + (maxDqlCol + 1) * UW / 2;
+    svg += `<text x="${cfnX}" y="${Math.max(9, PAD - 18)}" text-anchor="middle" font-size="9" fill="${dqlFc}" font-style="italic">${esc(dqlColFactorName)}</text>`;
   }
 
   // Bordas de parcela principal (split-plot)
@@ -2072,7 +2151,7 @@ function renderFieldbook() {
   if (isFat || isSpl) cols.push('Fator A', 'Fator B');
   if (units.some(u => u.factorC)) cols.push('Fator C');
   if (isSpl) cols.push('Parcela Principal');
-  if (isDQL) cols.push('Linha DQL', 'Coluna DQL');
+  if (isDQL) cols.push(dqlRowFactorName || 'Linha DQL', dqlColFactorName || 'Coluna DQL');
 
   document.getElementById('fbHead').innerHTML = '<tr>' + cols.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
 
@@ -2112,7 +2191,7 @@ function exportCSV() {
   if (isFat || isSpl) { headers.push('fator_a','fator_b'); }
   if (units.some(u => u.factorC)) headers.push('fator_c');
   if (isSpl) headers.push('parcela_principal');
-  if (isDQL) { headers.push('linha_dql','coluna_dql'); }
+  if (isDQL) { headers.push(_safeName(dqlRowFactorName||'linha_dql'), _safeName(dqlColFactorName||'coluna_dql')); }
   headers.push('observacoes');
 
   const rows = units.map(u => {
@@ -2147,7 +2226,7 @@ function exportXLSX() {
   if (isFat || isSpl) { headers.push('Fator A','Fator B'); }
   if (units.some(u => u.factorC)) headers.push('Fator C');
   if (isSpl) headers.push('Parcela Principal');
-  if (isDQL) { headers.push('Linha DQL','Coluna DQL'); }
+  if (isDQL) { headers.push(dqlRowFactorName||'Linha DQL', dqlColFactorName||'Coluna DQL'); }
   headers.push('Observações');
 
   const dataRows = units.map(u => {
@@ -2379,10 +2458,14 @@ function buildPublicationText(lang) {
       ? `The experiment was conducted in a ${dname} with ${nTreat} ${pl_s(nTreat,'treatment','treatments')} and ${nBlock} ${pl_s(nBlock,'block','blocks')}, totaling ${units.length} experimental units. ${unitDimText}${alleyText}${gradText}`
       : `O experimento foi conduzido em ${dname} com ${nTreat} ${pl_s(nTreat,'tratamento','tratamentos')} e ${nBlock} ${pl_s(nBlock,'bloco','blocos')}, totalizando ${units.length} unidades experimentais. ${unitDimText}${alleyText}${gradText}`;
   } else if (design === 'DQL') {
-    const n = Math.round(Math.sqrt(nTreat));
+    const n    = nTreat;
+    const rowN = dqlRowFactorName || 'linhas';
+    const colN = dqlColFactorName || 'colunas';
+    const rowLabs = [...new Set(units.map(u => u.rowLabel))].join(', ');
+    const colLabs = [...new Set(units.map(u => u.colLabel))].join(', ');
     mm = isEng
-      ? `The experiment was conducted in a ${dname} with ${nTreat} treatments arranged in a ${n}×${n} matrix (${n} rows and ${n} columns), totaling ${units.length} experimental units. ${unitDimText}${gradText}`
-      : `O experimento foi conduzido em ${dname} com ${nTreat} tratamentos dispostos em matriz ${n}×${n} (${n} linhas e ${n} colunas), totalizando ${units.length} unidades experimentais. ${unitDimText}${gradText}`;
+      ? `The experiment was conducted in a ${dname} ${n}×${n}, with ${n} treatments, ${n} rows (${rowN}: ${rowLabs}) and ${n} columns (${colN}: ${colLabs}), totaling ${units.length} experimental units. ${unitDimText}${gradText}`
+      : `O experimento foi conduzido em ${dname} ${n}×${n}, com ${n} tratamentos, ${n} linhas (${rowN}: ${rowLabs}) e ${n} colunas (${colN}: ${colLabs}), totalizando ${units.length} unidades experimentais. ${unitDimText}${gradText}`;
   } else if (design === 'FAT_DIC' || design === 'FAT_DBC') {
     const aN = document.getElementById('fatAName').value || 'A';
     const bN = document.getElementById('fatBName').value || 'B';
@@ -2748,14 +2831,15 @@ function showTab(name) {
 
 function onDesignChange() {
   const d = document.getElementById('selDesign').value;
-  const isSimple = ['DIC','DBC','DQL'].includes(d);
+  const isSimple = d === 'DIC' || d === 'DBC';
+  const isDQL    = d === 'DQL';
   const isFat    = d.startsWith('FAT');
   const isSpl    = d.startsWith('SPL');
 
   document.getElementById('secSimple').classList.toggle('hidden', !isSimple);
+  document.getElementById('secDQL').classList.toggle('hidden', !isDQL);
   document.getElementById('secFatorial').classList.toggle('hidden', !isFat);
   document.getElementById('secSplitPlot').classList.toggle('hidden', !isSpl);
-  document.getElementById('secDQLnote').classList.toggle('hidden', d !== 'DQL');
 
   if (d === 'DIC') {
     document.getElementById('lblReps').textContent = 'Repetições';
@@ -2763,9 +2847,8 @@ function onDesignChange() {
   } else if (d === 'DBC') {
     document.getElementById('lblReps').textContent = 'Blocos';
     document.getElementById('secReps').classList.remove('hidden');
-  } else if (d === 'DQL') {
-    document.getElementById('secReps').classList.add('hidden');
   }
+  if (isDQL) updateDqlInfo();
 
   if (isFat) {
     document.getElementById('lblFatBlocks').textContent = d === 'FAT_DIC' ? 'Repetições' : 'Blocos';
@@ -2908,8 +2991,12 @@ const EXAMPLES = {
     document.getElementById('selDesign').value = 'DQL';
     document.getElementById('selArea').value = 'medvet';
     document.getElementById('selUnitType').value = 'animal';
-    document.getElementById('txtTreatments').value = 'Protocolo A\nProtocolo B\nProtocolo C\nProtocolo D';
-    document.getElementById('numSeed').value = '99';
+    document.getElementById('dqlTreatments').value = 'Protocolo I\nProtocolo II\nProtocolo III\nProtocolo IV';
+    document.getElementById('dqlRowName').value = 'Animal';
+    document.getElementById('dqlRowLevels').value = 'Cão 1\nCão 2\nCão 3\nCão 4';
+    document.getElementById('dqlColName').value = 'Período';
+    document.getElementById('dqlColLevels').value = 'Período 1\nPeríodo 2\nPeríodo 3\nPeríodo 4';
+    document.getElementById('dqlSeed').value = '99';
     document.getElementById('ueArea').value = '4';
     document.getElementById('animalsPerUnit').value = '1';
     document.getElementById('selGradient').value = 'none';
@@ -2975,6 +3062,12 @@ function captureCurrentConfig() {
     fatBLevels: document.getElementById('fatBLevels').value,
     fatBlocks: document.getElementById('numFatBlocks').value,
     fatSeed: document.getElementById('numFatSeed').value,
+    dqlTreatments: document.getElementById('dqlTreatments').value,
+    dqlRowName:    document.getElementById('dqlRowName').value,
+    dqlRowLevels:  document.getElementById('dqlRowLevels').value,
+    dqlColName:    document.getElementById('dqlColName').value,
+    dqlColLevels:  document.getElementById('dqlColLevels').value,
+    dqlSeed:       document.getElementById('dqlSeed').value,
     splALevels: document.getElementById('splALevels').value,
     splBLevels: document.getElementById('splBLevels').value,
     splBlocks: document.getElementById('numSplBlocks').value,
@@ -3005,6 +3098,9 @@ function applyConfig(c) {
   set('fatAName', c.fatAName); set('fatAn', c.fatAn); set('fatALevels', c.fatALevels);
   set('fatBName', c.fatBName); set('fatBn', c.fatBn); set('fatBLevels', c.fatBLevels);
   set('numFatBlocks', c.fatBlocks); set('numFatSeed', c.fatSeed);
+  set('dqlTreatments', c.dqlTreatments); set('dqlRowName', c.dqlRowName);
+  set('dqlRowLevels', c.dqlRowLevels); set('dqlColName', c.dqlColName);
+  set('dqlColLevels', c.dqlColLevels); set('dqlSeed', c.dqlSeed);
   set('splALevels', c.splALevels); set('splBLevels', c.splBLevels);
   set('numSplBlocks', c.splBlocks); set('numSplSeed', c.splSeed);
   set('selGradient', c.gradient);
@@ -3423,8 +3519,10 @@ function exportScriptR() {
     s += `dados$Fator_B    <- factor(dados$Fator.B)\n`;
   }
   if (isDQL) {
-    s += `dados$Linha_DQL  <- factor(dados$Linha.DQL)\n`;
-    s += `dados$Coluna_DQL <- factor(dados$Coluna.DQL)\n`;
+    const rVarR = _safeName(dqlRowFactorName || 'Linha_DQL');
+    const cVarR = _safeName(dqlColFactorName || 'Coluna_DQL');
+    s += `dados$${rVarR} <- factor(dados$${rVarR})\n`;
+    s += `dados$${cVarR} <- factor(dados$${cVarR})\n`;
   }
   s += `\n`;
 
@@ -3438,7 +3536,7 @@ function exportScriptR() {
     let formula = '';
     if (design === 'DIC')     formula = `${vn} ~ Tratamento`;
     else if (design === 'DBC') formula = `${vn} ~ Tratamento + Bloco`;
-    else if (isDQL)            formula = `${vn} ~ Tratamento + Linha_DQL + Coluna_DQL`;
+    else if (isDQL)            formula = `${vn} ~ Tratamento + ${_safeName(dqlRowFactorName||'Linha_DQL')} + ${_safeName(dqlColFactorName||'Coluna_DQL')}`;
     else if (design === 'FAT_DIC') formula = `${vn} ~ Fator_A * Fator_B`;
     else if (design === 'FAT_DBC') formula = `${vn} ~ Fator_A * Fator_B + Bloco`;
 
@@ -3503,7 +3601,7 @@ function exportScriptSAS() {
     let classVars, modelStr;
     if (design === 'DIC')      { classVars='Tratamento'; modelStr=`${vn} = Tratamento`; }
     else if (design === 'DBC') { classVars='Bloco Tratamento'; modelStr=`${vn} = Bloco Tratamento`; }
-    else if (isDQL)            { classVars='Linha_DQL Coluna_DQL Tratamento'; modelStr=`${vn} = Linha_DQL Coluna_DQL Tratamento`; }
+    else if (isDQL)            { const rV=_safeName(dqlRowFactorName||'Linha_DQL'), cV=_safeName(dqlColFactorName||'Coluna_DQL'); classVars=`${rV} ${cV} Tratamento`; modelStr=`${vn} = ${rV} ${cV} Tratamento`; }
     else if (design === 'FAT_DIC') { classVars='Fator_A Fator_B'; modelStr=`${vn} = Fator_A Fator_B Fator_A*Fator_B`; }
     else if (design === 'FAT_DBC') { classVars='Bloco Fator_A Fator_B'; modelStr=`${vn} = Bloco Fator_A Fator_B Fator_A*Fator_B`; }
     else if (isSplit) {
@@ -3583,34 +3681,47 @@ function exportScriptPy() {
 
     if (!isSplit && !isFat) {
       // DIC / DBC / DQL
-      let aov_bw = hasBloco ? `["Bloco", "Tratamento"]` : `["Tratamento"]`;
-      s += `anova_${i+1} = pg.anova(dv=${colQuote}, between="Tratamento",\n`;
-      if (hasBloco) {
-        s += `           # Para DBC use mixed_anova ou AnovaRM\n`;
-        s += `           data=df)\n`;
-      } else { s += `           data=df)\n`; }
-      if (hasBloco) {
-        s += `# DBC — ANOVA com blocos via pingouin.mixed_anova:\n`;
-        s += `anova_${i+1} = pg.mixed_anova(dv=${colQuote},\n`;
-        s += `                              within="Bloco",\n`;
-        s += `                              between="Tratamento",\n`;
-        s += `                              subject="Bloco",\n`;
-        s += `                              data=df)\n`;
-        s += `# Alternativa com statsmodels (OLS):\n`;
+      if (isDQL) {
+        const rPy = dqlRowFactorName || 'Linha_DQL';
+        const cPy = dqlColFactorName || 'Coluna_DQL';
         s += `import statsmodels.formula.api as smf\n`;
-        s += `modelo = smf.ols('Q("${colName}") ~ C(Tratamento) + C(Bloco)', data=df).fit()\n`;
         s += `from statsmodels.stats.anova import anova_lm\n`;
+        s += `modelo = smf.ols('Q("${colName}") ~ C(Tratamento) + C(Q("${rPy}")) + C(Q("${cPy}"))', data=df).fit()\n`;
         s += `print(anova_lm(modelo, typ=2))\n\n`;
-        s += `# Tukey HSD\n`;
-        s += `tukey_${i+1} = pg.pairwise_tukey(dv=${colQuote},\n`;
-        s += `                                  between="Tratamento",\n`;
-        s += `                                  data=df)\n`;
-        s += `print(tukey_${i+1})\n\n`;
-      } else {
-        s += `print(anova_${i+1})\n\n`;
+        s += `# Comparação de médias (Tukey)\n`;
         s += `tukey_${i+1} = pg.pairwise_tukey(dv=${colQuote},\n`;
         s += `                                  between="Tratamento", data=df)\n`;
         s += `print(tukey_${i+1})\n\n`;
+      } else {
+        let aov_bw = hasBloco ? `["Bloco", "Tratamento"]` : `["Tratamento"]`;
+        s += `anova_${i+1} = pg.anova(dv=${colQuote}, between="Tratamento",\n`;
+        if (hasBloco) {
+          s += `           # Para DBC use mixed_anova ou AnovaRM\n`;
+          s += `           data=df)\n`;
+        } else { s += `           data=df)\n`; }
+        if (hasBloco) {
+          s += `# DBC — ANOVA com blocos via pingouin.mixed_anova:\n`;
+          s += `anova_${i+1} = pg.mixed_anova(dv=${colQuote},\n`;
+          s += `                              within="Bloco",\n`;
+          s += `                              between="Tratamento",\n`;
+          s += `                              subject="Bloco",\n`;
+          s += `                              data=df)\n`;
+          s += `# Alternativa com statsmodels (OLS):\n`;
+          s += `import statsmodels.formula.api as smf\n`;
+          s += `modelo = smf.ols('Q("${colName}") ~ C(Tratamento) + C(Bloco)', data=df).fit()\n`;
+          s += `from statsmodels.stats.anova import anova_lm\n`;
+          s += `print(anova_lm(modelo, typ=2))\n\n`;
+          s += `# Tukey HSD\n`;
+          s += `tukey_${i+1} = pg.pairwise_tukey(dv=${colQuote},\n`;
+          s += `                                  between="Tratamento",\n`;
+          s += `                                  data=df)\n`;
+          s += `print(tukey_${i+1})\n\n`;
+        } else {
+          s += `print(anova_${i+1})\n\n`;
+          s += `tukey_${i+1} = pg.pairwise_tukey(dv=${colQuote},\n`;
+          s += `                                  between="Tratamento", data=df)\n`;
+          s += `print(tukey_${i+1})\n\n`;
+        }
       }
     } else if (isFat && !isSplit) {
       s += `modelo = smf.ols('Q("${colName}") ~ C(Q("Fator A")) * C(Q("Fator B"))`
