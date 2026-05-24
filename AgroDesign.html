@@ -1366,7 +1366,7 @@ function cellBg(uw, uh, color, style) {
   switch (style) {
     case 'border':
       return `<rect x="0" y="0" width="${uw}" height="${uh}" fill="#fff" stroke="#d1d5db" stroke-width="0.5" rx="2"/>` +
-             `<rect x="2.5" y="2.5" width="${uw-5}" height="${uh-5}" fill="none" stroke="${esc(color)}" stroke-width="2.5" rx="1.5"/>`;
+             `<rect x="2" y="2" width="${uw-4}" height="${uh-4}" fill="none" stroke="${esc(color)}" stroke-width="1.2" rx="1.5"/>`;
     case 'stripe': {
       const sh = Math.max(11, Math.round(uh * 0.3));
       return `<rect x="0" y="0" width="${uw}" height="${uh}" fill="#fff" stroke="#e5e7eb" stroke-width="0.8" rx="2"/>` +
