@@ -143,6 +143,8 @@ textarea { resize: vertical; min-height: 70px; }
 .summary-card .label { font-size: .72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
 .summary-card .value { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
 .summary-card .unit { font-size: .75rem; color: var(--text-muted); }
+.summary-section { grid-column: 1/-1; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--primary); border-bottom: 1px solid var(--primary-pale); padding-bottom: .25rem; margin-top: .5rem; }
+.summary-section:first-child { margin-top: 0; }
 
 /* Croqui */
 .croqui-toolbar { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; flex-shrink: 0; }
@@ -1298,52 +1300,135 @@ function assignColors() {
 
 /* ── Summary ── */
 function renderSummary() {
-  const design  = document.getElementById('selDesign').value;
-  const unitType= document.getElementById('selUnitType').value;
-  const gradient= document.getElementById('selGradient').value;
-  const treats  = [...new Set(units.map(u => u.treatment))];
-  const total   = units.length;
+  if (!units.length) return;
+  const design   = document.getElementById('selDesign').value;
+  const unitType = document.getElementById('selUnitType').value;
+  const gradient = document.getElementById('selGradient').value;
+  const treats   = [...new Set(units.map(u => u.treatment))];
+  const total    = units.length;
+  const spec     = document.getElementById('txtSpecies').value.trim();
 
-  const spec = document.getElementById('txtSpecies').value.trim();
-  const specCard = spec ? `<div class="summary-card" style="grid-column:1/-1"><div class="label">Espécie / Sistema</div><div class="value" style="font-size:.9rem">${esc(spec)}</div></div>` : '';
+  const card = (label, value, unit = '', wide = false) =>
+    `<div class="summary-card"${wide ? ' style="grid-column:1/-1"' : ''}>` +
+    `<div class="label">${label}</div>` +
+    `<div class="value"${wide ? ' style="font-size:.85rem;font-weight:600"' : ''}>${value}</div>` +
+    (unit ? `<div class="unit">${unit}</div>` : '') +
+    `</div>`;
+  const sec = title => `<div class="summary-section">${title}</div>`;
 
-  let areaPorUe = null, areaTotal = null;
+  let html = '';
+
+  if (spec) html += card('Espécie / Sistema', esc(spec), '', true);
+
+  // ── Delineamento ──
+  html += sec('Delineamento');
+  const DNAMES = {
+    DIC: 'DIC — Inteiramente Casualizado', DBC: 'DBC — Blocos Casualizados',
+    DQL: 'DQL — Quadrado Latino',
+    FAT_DIC: 'Fatorial em DIC', FAT_DBC: 'Fatorial em DBC',
+    SPL_DIC: 'Parcelas Subdivididas em DIC', SPL_DBC: 'Parcelas Subdivididas em DBC'
+  };
+  html += card('Delineamento', esc(DNAMES[design] || design), '', true);
+
+  if (design === 'DIC') {
+    const reps = parseInt(document.getElementById('numReps').value) || 3;
+    html += card('Tratamentos', treats.length);
+    html += card('Repetições', reps);
+    html += card('UE totais', total);
+
+  } else if (design === 'DBC') {
+    const reps = parseInt(document.getElementById('numReps').value) || 3;
+    html += card('Tratamentos', treats.length);
+    html += card('Blocos', reps);
+    html += card('UE totais', total);
+
+  } else if (design === 'DQL') {
+    const n       = Math.round(Math.sqrt(total));
+    const rowName = document.getElementById('dqlRowName').value.trim() || 'Linha';
+    const colName = document.getElementById('dqlColName').value.trim() || 'Coluna';
+    html += card('Tamanho', `${n} × ${n}`);
+    html += card('Fator linha', esc(rowName));
+    html += card('Fator coluna', esc(colName));
+    html += card('Tratamentos', treats.length);
+
+  } else if (design === 'FAT_DIC' || design === 'FAT_DBC') {
+    const fatAName  = document.getElementById('fatAName').value.trim() || 'A';
+    const fatAn     = parseInt(document.getElementById('fatAn').value) || 2;
+    const fatBName  = document.getElementById('fatBName').value.trim() || 'B';
+    const fatBn     = parseInt(document.getElementById('fatBn').value) || 2;
+    const repBlocks = parseInt(document.getElementById('numFatBlocks').value) || 3;
+    html += card(`Fator A — ${esc(fatAName)}`, `${fatAn} níveis`);
+    html += card(`Fator B — ${esc(fatBName)}`, `${fatBn} níveis`);
+    html += card('Combinações', `${fatAn} × ${fatBn} = ${fatAn * fatBn}`);
+    html += card(design === 'FAT_DIC' ? 'Repetições' : 'Blocos', repBlocks);
+    html += card('UE totais', total);
+
+  } else if (design === 'SPL_DIC' || design === 'SPL_DBC') {
+    const splAName  = document.getElementById('splAName').value.trim() || 'Fator A';
+    const splAn     = parseInt(document.getElementById('splAn').value) || 3;
+    const splBName  = document.getElementById('splBName').value.trim() || 'Fator B';
+    const splBn     = parseInt(document.getElementById('splBn').value) || 4;
+    const repBlocks = parseInt(document.getElementById('numSplBlocks').value) || 3;
+    html += card(`Parcela principal — ${esc(splAName)}`, `${splAn} níveis`);
+    html += card(`Subparcela — ${esc(splBName)}`, `${splBn} níveis`);
+    html += card('Combinações', `${splAn} × ${splBn} = ${splAn * splBn}`);
+    html += card(design === 'SPL_DIC' ? 'Repetições' : 'Blocos', repBlocks);
+    html += card('UE totais', total);
+  }
+
+  // ── Dimensionamento ──
+  html += sec('Dimensionamento');
   if (unitType === 'parcela') {
-    const rs = parseFloat(document.getElementById('rowSpacing').value) || 0.5;
-    const ps = parseFloat(document.getElementById('plantSpacing').value) || 0.2;
-    const rpp= parseInt(document.getElementById('rowsPerPlot').value) || 4;
-    const pl = parseFloat(document.getElementById('plotLength').value) || 5;
-    areaPorUe = (rs * rpp) * pl;
-    const plants = (Math.floor(pl / ps) + 1) * rpp;  // +1: planta no início e no fim da linha
-    areaTotal = areaPorUe * total;
-    document.getElementById('summaryGrid').innerHTML = specCard + `
-      <div class="summary-card"><div class="label">Unidades</div><div class="value">${total}</div></div>
-      <div class="summary-card"><div class="label">Tratamentos</div><div class="value">${treats.length}</div></div>
-      <div class="summary-card"><div class="label">Área/parcela</div><div class="value">${areaPorUe.toFixed(1)}</div><div class="unit">m²</div></div>
-      <div class="summary-card"><div class="label">Área total</div><div class="value">${areaTotal.toFixed(0)}</div><div class="unit">m²</div></div>
-      <div class="summary-card"><div class="label">Plantas/parcela</div><div class="value">${plants}</div></div>
-      <div class="summary-card"><div class="label">Delineamento</div><div class="value" style="font-size:.85rem">${design}</div></div>`;
+    const rs  = parseFloat(document.getElementById('rowSpacing').value) || 0.5;
+    const ps  = parseFloat(document.getElementById('plantSpacing').value) || 0.2;
+    const rpp = parseInt(document.getElementById('rowsPerPlot').value) || 4;
+    const pl  = parseFloat(document.getElementById('plotLength').value) || 5;
+    const areaPorUe = +(rs * rpp * pl).toFixed(2);
+    const plantsPerP = (Math.floor(pl / ps) + 1) * rpp;
+    html += card('Área/parcela', areaPorUe, 'm²');
+    html += card('Área total exp.', +(areaPorUe * total).toFixed(0), 'm²');
+    html += card('Linhas/parcela', rpp);
+    html += card('Plantas/parcela', plantsPerP);
+    html += card('Plantas totais', plantsPerP * total);
+
+    const hasBd  = document.getElementById('chkBorders').checked;
+    const hasLat = document.getElementById('chkLateralBorder').checked;
+    if (hasBd || hasLat) {
+      html += sec('Bordaduras');
+      const br  = hasBd  ? (parseInt(document.getElementById('borderRows').value) || 1) : 0;
+      const lbp = hasLat ? (parseInt(document.getElementById('lateralBorderPlants').value) || 1) : 0;
+      const usefulRows = Math.max(0, rpp - 2 * br);
+      const usefulLen  = +(Math.max(0, pl - 2 * lbp * ps)).toFixed(2);
+      const areaUtil   = +(usefulRows * rs * usefulLen).toFixed(2);
+      const plantsUtil = usefulRows * Math.max(0, (Math.floor(pl / ps) + 1) - 2 * lbp);
+      if (hasBd)  html += card('Bord. de linha', `${br * 2} linhas`);
+      if (hasLat) html += card('Bord. lateral', `${lbp} pl./extremidade`);
+      html += card('Linhas úteis', usefulRows);
+      html += card('Área útil/parcela', areaUtil, 'm²');
+      html += card('Área útil total', +(areaUtil * total).toFixed(0), 'm²');
+      html += card('Plantas úteis/parcela', plantsUtil);
+    }
   } else {
     const ueA = parseFloat(document.getElementById('ueArea').value) || 12;
     const apu = parseInt(document.getElementById('animalsPerUnit').value) || 1;
-    areaTotal = ueA * total;
-    document.getElementById('summaryGrid').innerHTML = specCard + `
-      <div class="summary-card"><div class="label">Unidades</div><div class="value">${total}</div></div>
-      <div class="summary-card"><div class="label">Tratamentos</div><div class="value">${treats.length}</div></div>
-      <div class="summary-card"><div class="label">Área/UE</div><div class="value">${ueA.toFixed(1)}</div><div class="unit">m²</div></div>
-      <div class="summary-card"><div class="label">Área total</div><div class="value">${areaTotal.toFixed(0)}</div><div class="unit">m²</div></div>
-      <div class="summary-card"><div class="label">Animais/UE</div><div class="value">${apu}</div></div>
-      <div class="summary-card"><div class="label">Delineamento</div><div class="value" style="font-size:.85rem">${design}</div></div>`;
+    html += card('Área/UE', ueA.toFixed(1), 'm²');
+    html += card('Área total exp.', +(ueA * total).toFixed(0), 'm²');
+    html += card('Animais/UE', apu);
+    html += card('Animais totais', apu * total);
   }
 
-  document.getElementById('summaryGradient').textContent = `Orientação do gradiente: ${GRAD_LABELS[gradient]}`;
+  // ── Condições ──
+  html += sec('Condições');
+  const ULABELS = { parcela:'Parcela vegetal', animal:'Animal individual', baia:'Baia/Lote', piquete:'Piquete', clinica:'Unidade clínica' };
+  html += card('Tipo de UE', ULABELS[unitType] || unitType);
+  html += card('Gradiente', esc(GRAD_LABELS[gradient] || gradient));
+
+  document.getElementById('summaryGrid').innerHTML = html;
+  document.getElementById('summaryGradient').style.display = 'none';
   document.getElementById('emptyState').classList.add('hidden');
   document.getElementById('summaryContent').classList.remove('hidden');
-  document.getElementById('summaryContent').style.display = 'flex';
-  document.getElementById('summaryContent').style.flexDirection = 'column';
-  document.getElementById('summaryContent').style.gap = '.75rem';
+  document.getElementById('summaryContent').style.cssText = 'display:flex;flex-direction:column;gap:.75rem';
 }
-
 /* ── Helpers de renderização de células ── */
 
 // Fundo da célula — 4 estilos coloridos + pub (P&B)
@@ -1704,7 +1789,7 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
 }
 
 /* ── Croqui SVG ── */
-function rerenderCroqui() { renderCroqui(); renderUnidade(); }
+function rerenderCroqui() { renderCroqui(); renderUnidade(); renderSummary(); }
 
 function applyPaletteOptions() {
   const theme = document.getElementById('selTheme').value;
