@@ -1785,6 +1785,15 @@ function renderCroqui() {
     }
   }
 
+  // DQL: margem extra à esquerda para rótulos de linha (previne corte)
+  if (design === 'DQL' && legendPos !== 'left') {
+    const DQL_LEFT = 70;
+    gx += DQL_LEFT;
+    totalW += DQL_LEFT;
+    if (legendPos !== 'none') lx += DQL_LEFT;
+    if (showUe) ux += DQL_LEFT;
+  }
+
   // ── Seta de gradiente — reservar espaço adicional ──
   const GRAD_SIZE = 42;
   const isGradVert  = showGradArrow && (gradientVal === 'NS' || gradientVal === 'vert');
@@ -1836,24 +1845,26 @@ function renderCroqui() {
   // Eixos DQL — rótulos das linhas/colunas e nomes dos fatores
   if (design === 'DQL') {
     const dqlFc = theme === 'pub' ? '#444' : '#6b7c6e';
-    // Rótulos de linha (esquerda)
+    // Rótulos de linha: verticais (de baixo para cima), centralizados em cada linha
+    const rlx = PAD - 14;
     [...new Set(units.map(u => u.row))].forEach(r => {
       const u = units.find(x => x.row === r);
-      svg += `<text x="${PAD - 7}" y="${getY(r) + UH / 2 + 5}" text-anchor="end" font-size="11" fill="${dqlFc}" font-weight="600">${esc(u.rowLabel || '')}</text>`;
+      const rly = getY(r) + UH / 2;
+      svg += `<text x="${rlx}" y="${rly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="${dqlFc}" font-weight="600" transform="rotate(-90,${rlx},${rly})">${esc(u.rowLabel || '')}</text>`;
     });
-    // Rótulos de coluna (topo)
+    // Rótulos de coluna: horizontais, acima de cada coluna
     [...new Set(units.map(u => u.col))].forEach(c => {
       const u = units.find(x => x.col === c);
       svg += `<text x="${getX(c) + UW / 2}" y="${PAD - 6}" text-anchor="middle" font-size="11" fill="${dqlFc}" font-weight="600">${esc(u.colLabel || '')}</text>`;
     });
-    // Nome do fator-linha (vertical, à esquerda do grid)
-    const rfnX = Math.max(6, PAD - 26);
+    // Nome do fator-linha (vertical, mais à esquerda)
+    const rfnX = PAD - 48;
     const rfnY = PAD + (gridH - PAD - 14) / 2;
-    svg += `<text x="${rfnX}" y="${rfnY}" text-anchor="middle" font-size="9" fill="${dqlFc}" font-style="italic" transform="rotate(-90,${rfnX},${rfnY})">${esc(dqlRowFactorName)}</text>`;
+    svg += `<text x="${rfnX}" y="${rfnY}" text-anchor="middle" dominant-baseline="central" font-size="9" fill="${dqlFc}" font-style="italic" transform="rotate(-90,${rfnX},${rfnY})">${esc(dqlRowFactorName)}</text>`;
     // Nome do fator-coluna (horizontal, acima dos rótulos de coluna)
     const maxDqlCol = Math.max(...units.map(u => u.col));
     const cfnX = PAD + (maxDqlCol + 1) * UW / 2;
-    svg += `<text x="${cfnX}" y="${Math.max(9, PAD - 18)}" text-anchor="middle" font-size="9" fill="${dqlFc}" font-style="italic">${esc(dqlColFactorName)}</text>`;
+    svg += `<text x="${cfnX}" y="${PAD - 18}" text-anchor="middle" font-size="9" fill="${dqlFc}" font-style="italic">${esc(dqlColFactorName)}</text>`;
   }
 
   // Bordas de parcela principal (split-plot)
