@@ -560,6 +560,14 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
           </select>
         </label>
         <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
+          Fonte:
+          <select id="selFont" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+            <option value="arial">Arial</option>
+            <option value="helvetica">Helvetica</option>
+            <option value="times">Times New Roman</option>
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
           Legenda:
           <select id="selLegendPos" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
             <option value="none">Na barra</option>
@@ -1632,6 +1640,13 @@ function renderCroqui() {
   const legendPos = document.getElementById('selLegendPos').value;
   const showUe    = document.getElementById('chkShowUe').checked;
   const isEng     = document.getElementById('chkEnglish').checked;
+  const fontKey   = document.getElementById('selFont').value;
+  const fontFamilyMap = {
+    arial:     'Arial, Helvetica, sans-serif',
+    helvetica: 'Helvetica, Arial, sans-serif',
+    times:     '"Times New Roman", Times, serif'
+  };
+  const ff = fontFamilyMap[fontKey] || 'Arial, Helvetica, sans-serif';
 
   // Dimensões do schematic de UE (usadas no posicionamento abaixo)
   const UE_W = 220, UE_H = 185, UE_GAP = 14;
@@ -1821,7 +1836,7 @@ function renderCroqui() {
   if (isGradHoriz) { gradAY = totalH; totalH += GRAD_SIZE; }
 
   // ── Montar SVG ──
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" id="croquiSvg" viewBox="0 0 ${totalW} ${totalH}" style="display:block">`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" id="croquiSvg" viewBox="0 0 ${totalW} ${totalH}" style="display:block" font-family="${ff}">`;
   if (theme === 'pub') {
     svg += `<defs>` +
       `<pattern id="ph45"  patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45 0 0)"><rect width="8" height="8" fill="#fff"/><line x1="0" y1="0" x2="0" y2="8" stroke="#555" stroke-width="1.2"/></pattern>` +
@@ -2547,6 +2562,8 @@ function renderUnidade() {
   const unitType = document.getElementById('selUnitType').value;
   const el       = document.getElementById('svgUnidade');
   const statsEl  = document.getElementById('unidadeStats');
+  const _fontMap = { arial: 'Arial, Helvetica, sans-serif', helvetica: 'Helvetica, Arial, sans-serif', times: '"Times New Roman", Times, serif' };
+  const uff = _fontMap[document.getElementById('selFont').value] || 'Arial, Helvetica, sans-serif';
 
   /* ── Marcadores de seta reutilizáveis ── */
   const defs = `<defs>
@@ -2593,7 +2610,7 @@ function renderUnidade() {
     const rowH = +(rs * sc).toFixed(2);
     const plantStp = +(ps * sc).toFixed(2);
 
-    svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
+    svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" font-family="${uff}">
       <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
       ${defs}
       <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">Parcela Vegetal — Vista Superior (escala proporcional)</text>`;
@@ -2780,7 +2797,7 @@ function renderUnidade() {
     const ox = (svgW - side) / 2;
     const oy = 72;
 
-    svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
+    svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" font-family="${uff}">
       <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
       ${defs}
       <text x="${svgW/2}" y="24" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${esc(titles[unitType]||'Unidade Experimental')} — Planta Baixa</text>
@@ -3107,6 +3124,7 @@ function captureCurrentConfig() {
     labelMode: document.getElementById('selLabelMode').value,
     labelPos:  document.getElementById('selLabelPos').value,
     theme:     document.getElementById('selTheme').value,
+    font:      document.getElementById('selFont').value,
     showUe:    document.getElementById('chkShowUe').checked,
     isEng:     document.getElementById('chkEnglish').checked,
   };
@@ -3138,6 +3156,7 @@ function applyConfig(c) {
   set('selLabelMode', c.labelMode);
   set('selLabelPos',  c.labelPos);
   set('selTheme',     c.theme);
+  set('selFont',      c.font);
   if (c.showUe !== undefined) document.getElementById('chkShowUe').checked = c.showUe;
   if (c.isEng  !== undefined) document.getElementById('chkEnglish').checked = c.isEng;
   onDesignChange(); onUnitTypeChange();
