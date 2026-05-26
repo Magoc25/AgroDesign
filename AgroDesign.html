@@ -2162,7 +2162,7 @@ function renderCroqui() {
   const blocks  = [...new Set(units.map(u => u.block).filter(b => b !== null))].sort((a, b) => a - b);
   const hasAlley = document.getElementById('chkAlley').checked && blocks.length > 1;
   const alleyM  = hasAlley ? (parseFloat(document.getElementById('alleyWidth').value) || 1.5) : 0;
-  const ALLEY_H = hasAlley ? Math.max(40, Math.round(UH * 0.62)) : (isStrip ? 40 : 8);
+  const ALLEY_H = hasAlley ? Math.max(50, Math.round(UH * 0.62)) : (isStrip ? 50 : 8);
 
   // ── Mapa rowBlock e rowY ──
   const rowBlock = {};
@@ -2317,14 +2317,14 @@ function renderCroqui() {
   // STRIP: margens extras para rótulos de faixa e nomes dos fatores
   if (isStrip) {
     if (legendPos !== 'left') {
-      const STRIP_LEFT = 70;
+      const STRIP_LEFT = 90;
       gx += STRIP_LEFT;
       totalW += STRIP_LEFT;
       if (legendPos !== 'none') lx += STRIP_LEFT;
       if (showUe) ux += STRIP_LEFT;
     }
     if (legendPos !== 'top') {
-      const STRIP_TOP = 50;
+      const STRIP_TOP = 65;
       gy += STRIP_TOP;
       totalH += STRIP_TOP;
       if (legendPos !== 'none') ly += STRIP_TOP;
@@ -2365,7 +2365,7 @@ function renderCroqui() {
       const bU = units.filter(u => u.block === b);
       const minRow = Math.min(...bU.map(u => u.row));
       const maxRow = Math.max(...bU.map(u => u.row));
-      svg += `<text x="${PAD - 7}" y="${getY(minRow) + UH / 2 + 5}" text-anchor="end" font-size="11" fill="${theme === 'pub' ? '#111' : '#6b7c6e'}" font-weight="700">B${b}</text>`;
+      if (!isStrip) svg += `<text x="${PAD - 7}" y="${getY(minRow) + UH / 2 + 5}" text-anchor="end" font-size="11" fill="${theme === 'pub' ? '#111' : '#6b7c6e'}" font-weight="700">B${b}</text>`;
       if (hasAlley && idx < blocks.length - 1) {
         const ay = getY(maxRow) + UH, aw = (maxCol + 1) * UW;
         if (theme === 'pub') {
@@ -2407,51 +2407,109 @@ function renderCroqui() {
     svg += `<text x="${cfnX}" y="${PAD - 6 - DQL_AXIS_GAP}" text-anchor="middle" font-size="9" fill="${dqlFc}" font-style="italic">${esc(dqlColFactorName)}</text>`;
   }
 
-  // Eixos STRIP — rótulos de faixa e nomes dos fatores
+  // Eixos STRIP — rótulos de faixa e nomes dos fatores (com quebra de linha adaptativa)
   if (isStrip) {
     const stFc = theme === 'pub' ? '#444' : '#6b7c6e';
-    const STRIP_AXIS_GAP = 23;
-    // A labels (esquerda de cada linha): factorA da unidade nessa linha
-    const rlx = PAD - 14;
+    const maxColS = Math.max(...units.map(u => u.col));
+    const stripBlocks = [...new Set(units.map(u => u.block))].sort((a, b) => a - b);
+
+    // Quebra texto no espaço de palavra mais próximo ao meio; retorna [linha1, linha2|null]
+    const splitLbl = (txt, maxCh) => {
+      if (txt.length <= maxCh) return [txt, null];
+      const mid = Math.floor(txt.length / 2);
+      let sp = txt.lastIndexOf(' ', mid);
+      if (sp < 1) sp = txt.indexOf(' ', mid);
+      if (sp < 1) sp = mid;
+      return [txt.slice(0, sp).trim(), txt.slice(sp).trim()];
+    };
+
+    // ── Fator A — labels verticais, esquerda ──────────────────────────────
+    const A_FS = 9, A_LH = 11;
+    const aCharW = A_FS * 0.62;
+    const maxAChars = Math.floor(UH / aCharW);
+    const allALabels = [...new Set(units.map(u => u.factorA).filter(Boolean))];
+    const needsAWrap = allALabels.some(l => l.length > maxAChars);
+    const rlxC = PAD - 18;  // centro dos labels A no eixo X
+
     allRows.forEach(r => {
       const u = units.find(x => x.row === r);
+      const label = u?.factorA || '';
       const rly = getY(r) + UH / 2;
-      svg += `<text x="${rlx}" y="${rly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="${stFc}" font-weight="600" transform="rotate(-90,${rlx},${rly})">${esc(u?.factorA || '')}</text>`;
+      if (!needsAWrap) {
+        svg += `<text x="${rlxC}" y="${rly}" text-anchor="middle" dominant-baseline="central" font-size="${A_FS}" fill="${stFc}" font-weight="600" transform="rotate(-90,${rlxC},${rly})">${esc(label)}</text>`;
+      } else {
+        const [l1, l2] = splitLbl(label, maxAChars);
+        if (!l2) {
+          svg += `<text x="${rlxC}" y="${rly}" text-anchor="middle" dominant-baseline="central" font-size="${A_FS}" fill="${stFc}" font-weight="600" transform="rotate(-90,${rlxC},${rly})">${esc(l1)}</text>`;
+        } else {
+          const fs2 = A_FS - 1;
+          const x1 = rlxC - A_LH / 2, x2 = rlxC + A_LH / 2;
+          svg += `<text x="${x1}" y="${rly}" text-anchor="middle" dominant-baseline="central" font-size="${fs2}" fill="${stFc}" font-weight="600" transform="rotate(-90,${x1},${rly})">${esc(l1)}</text>`;
+          svg += `<text x="${x2}" y="${rly}" text-anchor="middle" dominant-baseline="central" font-size="${fs2}" fill="${stFc}" font-weight="600" transform="rotate(-90,${x2},${rly})">${esc(l2)}</text>`;
+        }
+      }
     });
-    // Nome do Fator A (vertical, esquerda)
-    const rfnX = rlx - STRIP_AXIS_GAP;
+
+    // Nome do Fator A (vertical, itálico — à esquerda dos labels)
+    const rfnX = rlxC - (needsAWrap ? A_LH / 2 : 0) - 20;
     const firstRowY = getY(allRows[0]);
     const lastRowY  = getY(allRows[allRows.length - 1]) + UH;
     const rfnY = (firstRowY + lastRowY) / 2;
-    svg += `<text x="${rfnX}" y="${rfnY}" text-anchor="middle" dominant-baseline="central" font-size="9" fill="${stFc}" font-style="italic" transform="rotate(-90,${rfnX},${rfnY})">${esc(stripAFactorName)}</text>`;
-    // B labels: acima de cada coluna, por bloco
-    const maxColS = Math.max(...units.map(u => u.col));
-    const stripBlocks = [...new Set(units.map(u => u.block))].sort((a, b) => a - b);
+    svg += `<text x="${rfnX}" y="${rfnY}" text-anchor="middle" dominant-baseline="central" font-size="8" fill="${stFc}" font-style="italic" transform="rotate(-90,${rfnX},${rfnY})">${esc(stripAFactorName)}</text>`;
+
+    // ── Fator B — labels acima de cada bloco ──────────────────────────────
+    const B_FS = 9, B_LH = 11;
+    const bCharW = B_FS * 0.62;
+    const maxBChars = Math.floor(UW / bCharW);
+    const allBLabels = [...new Set(units.map(u => u.factorB).filter(Boolean))];
+    const needsBWrap = allBLabels.some(l => l.length > maxBChars);
+
     stripBlocks.forEach((blk, blkIdx) => {
       const blkUnits = units.filter(u => u.block === blk);
       const blkCols  = [...new Set(blkUnits.map(u => u.col))].sort((a, b) => a - b);
-      let bLabelY;
+
+      // Y base (linha inferior dos labels B deste bloco)
+      let bBaseY;
       if (blkIdx === 0) {
-        bLabelY = PAD - 8;
+        bBaseY = PAD - 8;
       } else {
-        const prevBlkLastRow  = Math.max(...units.filter(u => u.block === stripBlocks[blkIdx - 1]).map(u => u.row));
-        const thisBlkFirstRow = Math.min(...blkUnits.map(u => u.row));
-        bLabelY = (getY(prevBlkLastRow) + UH + getY(thisBlkFirstRow)) / 2 + 4;
+        const prevLastRow    = Math.max(...units.filter(u => u.block === stripBlocks[blkIdx - 1]).map(u => u.row));
+        const thisFirstRow   = Math.min(...blkUnits.map(u => u.row));
+        // Posiciona no terço superior do alley (longe do texto "Corredor" que fica no centro)
+        bBaseY = getY(prevLastRow) + UH + Math.round(ALLEY_H * 0.38);
       }
+
       blkCols.forEach(c => {
         const u = blkUnits.find(x => x.col === c);
-        svg += `<text x="${getX(c) + UW / 2}" y="${bLabelY}" text-anchor="middle" font-size="10" fill="${stFc}" font-weight="600">${esc(u?.factorB || '')}</text>`;
+        const bLabel = u?.factorB || '';
+        const cx = getX(c) + UW / 2;
+        if (!needsBWrap) {
+          svg += `<text x="${cx}" y="${bBaseY}" text-anchor="middle" font-size="${B_FS}" fill="${stFc}" font-weight="600">${esc(bLabel)}</text>`;
+        } else {
+          const [l1, l2] = splitLbl(bLabel, maxBChars);
+          if (!l2) {
+            svg += `<text x="${cx}" y="${bBaseY}" text-anchor="middle" font-size="${B_FS}" fill="${stFc}" font-weight="600">${esc(l1)}</text>`;
+          } else {
+            const fs2 = B_FS - 1;
+            svg += `<text x="${cx}" y="${bBaseY - B_LH}" text-anchor="middle" font-size="${fs2}" fill="${stFc}" font-weight="600">${esc(l1)}</text>`;
+            svg += `<text x="${cx}" y="${bBaseY}" text-anchor="middle" font-size="${fs2}" fill="${stFc}" font-weight="600">${esc(l2)}</text>`;
+          }
+        }
       });
     });
-    // Nome do Fator B (horizontal, acima dos rótulos de coluna)
-    const cfnX = PAD + (maxColS + 1) * UW / 2;
-    const cfnY = PAD - 8 - STRIP_AXIS_GAP;
-    svg += `<text x="${cfnX}" y="${cfnY}" text-anchor="middle" font-size="9" fill="${stFc}" font-style="italic">${esc(stripBFactorName)}</text>`;
-    // Linhas de separação entre blocos (visual de faixas horizontais)
+
+    // Nome do Fator B (horizontal, itálico — acima dos labels B do bloco 1)
+    const firstBBaseY = PAD - 8;
+    const topBY = needsBWrap ? firstBBaseY - B_LH : firstBBaseY;
+    const cfnX  = PAD + (maxColS + 1) * UW / 2;
+    const cfnY  = topBY - 20;
+    svg += `<text x="${cfnX}" y="${cfnY}" text-anchor="middle" font-size="8" fill="${stFc}" font-style="italic">${esc(stripBFactorName)}</text>`;
+
+    // Linha de separação entre blocos (tracejado, logo acima do 1º row do bloco seguinte)
     stripBlocks.slice(1).forEach(blk => {
       const firstRow = Math.min(...units.filter(u => u.block === blk).map(u => u.row));
-      const sepY = getY(firstRow) - ALLEY_H / 2;
-      svg += `<line x1="${getX(0)}" y1="${sepY}" x2="${getX(maxColS) + UW}" y2="${sepY}" stroke="${stFc}" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>`;
+      const sepY = getY(firstRow) - 5;
+      svg += `<line x1="${getX(0)}" y1="${sepY}" x2="${getX(maxColS) + UW}" y2="${sepY}" stroke="${stFc}" stroke-width="0.8" stroke-dasharray="4 3" opacity="0.45"/>`;
     });
   }
 
