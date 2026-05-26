@@ -1814,29 +1814,31 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
       out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">Quadrat · ${ua.toFixed(2)} m² · ${nCols*nRows} ${isEng?'points':'pontos'}</text>`;
 
     } else {
-      // Parcela permanente — símbolos de árvore (copa + caule, igual ao renderUnidade)
-      const side    = Math.min(availW, availH);
-      const ox      = ANNOT_S + Math.round((availW - side) / 2);
-      const oy      = drawY0 + ANNOT_S + Math.round((availH - side) / 2);
-      out += `<rect x="${ox}" y="${oy}" width="${side}" height="${side}" fill="${cFill}" stroke="${cStk}" stroke-width="${isPub?'0.8':'1.5'}"${isPub?'':' rx="2"'}/>`;
+      // Parcela permanente — retângulo 2:1 + árvores com mesma lógica do renderUnidade
+      const scR  = Math.min((availW - 8) / 2, availH);
+      const dW3  = Math.round(scR * 2);
+      const dH3  = Math.round(scR);
+      const ox   = ANNOT_S + Math.round((availW - dW3) / 2);
+      const oy   = drawY0 + ANNOT_S + Math.round((availH - dH3) / 2);
+      out += `<rect x="${ox}" y="${oy}" width="${dW3}" height="${dH3}" fill="${cFill}" stroke="${cStk}" stroke-width="${isPub?'0.8':'1.5'}"${isPub?'':' rx="2"'}/>`;
       const treeDen = Math.min(9, Math.max(2, Math.round(ua / 400)));
-      const tCols   = Math.ceil(Math.sqrt(treeDen));
+      const tCols   = Math.ceil(Math.sqrt(treeDen * (dW3 / dH3)));  // razão de aspecto 2:1
       const tRows   = Math.ceil(treeDen / tCols);
-      const tcw     = side / (tCols + 1);
-      const tch     = side / (tRows + 1);
+      const tcw     = dW3 / (tCols + 1);
+      const tch     = dH3 / (tRows + 1);
       let cnt2 = 0;
       for (let r = 1; r <= tRows && cnt2 < treeDen; r++) {
         for (let c = 1; c <= tCols && cnt2 < treeDen; c++, cnt2++) {
           const px  = +(ox + c * tcw).toFixed(1);
           const py  = +(oy + r * tch).toFixed(1);
-          const dr2 = Math.min(tcw, tch) * 0.3;
+          const dr2 = Math.min(tcw, tch) * 0.22;  // mesmo multiplicador do renderUnidade
           out += `<circle cx="${px}" cy="${py}" r="${+dr2.toFixed(1)}" fill="${isPub?'#888':'#52b788'}" opacity="${isPub?'0.5':'0.55'}" stroke="${cStk}" stroke-width="0.8"/>`;
           out += `<circle cx="${px}" cy="${py}" r="1.3" fill="${isPub?'#333':'#1b4332'}"/>`;
         }
       }
-      const dimS = Math.sqrt(ua);
-      out += hDim(ox, ox + side, oy - 10, `${dimS.toFixed(0)} m`);
-      out += vDim(ox - 12, oy, oy + side, `${dimS.toFixed(0)} m`);
+      const pH3 = Math.sqrt(ua / 2), pW3 = ua / pH3;
+      out += hDim(ox, ox + dW3, oy - 10, `${pW3.toFixed(0)} m`);
+      out += vDim(ox - 12, oy, oy + dH3, `${pH3.toFixed(0)} m`);
       const typeLbl = isEng ? 'Perm. Plot' : 'Parc. Permanente';
       out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${typeLbl} · ${ua.toFixed(0)} m² · ${treeDen} ${isEng?'trees':'árvores'}</text>`;
     }
