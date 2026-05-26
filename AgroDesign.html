@@ -263,7 +263,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 
     <div class="row2">
       <label><span>Área de aplicação</span>
-        <select id="selArea">
+        <select id="selArea" onchange="rerenderCroqui()">
           <option value="agronomia">Agronomia</option>
           <option value="zootecnia">Zootecnia</option>
           <option value="medvet">Med. Veterinária</option>
@@ -281,21 +281,21 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     </div>
 
     <label><span>Espécie / Sistema de produção</span>
-      <input type="text" id="txtSpecies" placeholder="Ex: Milho, Frangos de corte, Bovinos leiteiros">
+      <input type="text" id="txtSpecies" placeholder="Ex: Milho, Frangos de corte, Bovinos leiteiros" oninput="rerenderCroqui()">
     </label>
 
     <!-- DIC / DBC -->
     <div id="secSimple">
       <label><span>Tratamentos <span class="hint">(um por linha)</span></span>
-        <textarea id="txtTreatments" rows="4" placeholder="T1&#10;T2&#10;T3&#10;T4"></textarea>
+        <textarea id="txtTreatments" rows="4" placeholder="T1&#10;T2&#10;T3&#10;T4" oninput="debounceGenerate()"></textarea>
       </label>
       <div id="secReps" class="row2">
         <label><span id="lblReps">Repetições</span>
-          <input type="number" id="numReps" value="3" min="1">
+          <input type="number" id="numReps" value="3" min="1" oninput="generateCroqui(true)">
         </label>
         <label title="Semente de randomização: qualquer inteiro. O mesmo número sempre gera o mesmo sorteio (reprodutibilidade).">
           <span>Semente de rand. <span class="hint" style="font-size:.7rem">(?)</span></span>
-          <input type="number" id="numSeed" value="42" min="0">
+          <input type="number" id="numSeed" value="42" min="0" oninput="generateCroqui(true)">
         </label>
       </div>
     </div>
@@ -303,31 +303,31 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     <!-- DQL -->
     <div id="secDQL" class="hidden">
       <label><span>Tratamentos <span class="hint">(um por linha)</span></span>
-        <textarea id="dqlTreatments" rows="4" placeholder="P. I&#10;P. II&#10;P. III&#10;P. IV" oninput="updateDqlInfo()">P. I&#10;P. II&#10;P. III&#10;P. IV</textarea>
+        <textarea id="dqlTreatments" rows="4" placeholder="P. I&#10;P. II&#10;P. III&#10;P. IV" oninput="updateDqlInfo(); debounceGenerate()">P. I&#10;P. II&#10;P. III&#10;P. IV</textarea>
       </label>
       <div class="form-section-title" style="font-size:.8rem;margin:.6rem 0 .2rem">Fator-linha <span class="hint">(1º controle local)</span></div>
       <div class="row2">
         <label><span>Nome</span>
-          <input type="text" id="dqlRowName" value="Linha" maxlength="20" placeholder="Ex: Animal, Estação">
+          <input type="text" id="dqlRowName" value="Linha" maxlength="20" placeholder="Ex: Animal, Estação" oninput="rerenderCroqui()">
         </label>
         <div></div>
       </div>
       <label><span>Níveis <span class="hint">(um por linha; vazio = L1, L2…)</span></span>
-        <textarea id="dqlRowLevels" rows="3" placeholder="Cão 1&#10;Cão 2&#10;Cão 3&#10;Cão 4"></textarea>
+        <textarea id="dqlRowLevels" rows="3" placeholder="Cão 1&#10;Cão 2&#10;Cão 3&#10;Cão 4" oninput="debounceGenerate()"></textarea>
       </label>
       <div class="form-section-title" style="font-size:.8rem;margin:.6rem 0 .2rem">Fator-coluna <span class="hint">(2º controle local)</span></div>
       <div class="row2">
         <label><span>Nome</span>
-          <input type="text" id="dqlColName" value="Coluna" maxlength="20" placeholder="Ex: Período, Local">
+          <input type="text" id="dqlColName" value="Coluna" maxlength="20" placeholder="Ex: Período, Local" oninput="rerenderCroqui()">
         </label>
         <div></div>
       </div>
       <label><span>Níveis <span class="hint">(um por linha; vazio = C1, C2…)</span></span>
-        <textarea id="dqlColLevels" rows="3" placeholder="Período 1&#10;Período 2&#10;Período 3&#10;Período 4"></textarea>
+        <textarea id="dqlColLevels" rows="3" placeholder="Período 1&#10;Período 2&#10;Período 3&#10;Período 4" oninput="debounceGenerate()"></textarea>
       </label>
       <label style="margin-top:.4rem" title="Semente de randomização: qualquer inteiro.">
         <span>Semente de rand. <span class="hint" style="font-size:.7rem">(?)</span></span>
-        <input type="number" id="dqlSeed" value="42" min="0">
+        <input type="number" id="dqlSeed" value="42" min="0" oninput="generateCroqui(true)">
       </label>
       <div id="dqlInfo" class="info-box" style="margin-top:.5rem"></div>
     </div>
@@ -336,25 +336,25 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     <div id="secFatorial" class="hidden">
       <div class="row2">
         <label><span>Fator A — nome</span>
-          <input type="text" id="fatAName" value="A" maxlength="10">
+          <input type="text" id="fatAName" value="A" maxlength="10" oninput="rerenderCroqui()">
         </label>
         <label><span>Nº de níveis</span>
           <input type="number" id="fatAn" value="3" min="2" max="10" onchange="autoLevels('A')">
         </label>
       </div>
       <label><span>Níveis de A <span class="hint">(um por linha)</span></span>
-        <textarea id="fatALevels" rows="3">a1&#10;a2&#10;a3</textarea>
+        <textarea id="fatALevels" rows="3" oninput="debounceGenerate()">a1&#10;a2&#10;a3</textarea>
       </label>
       <div class="row2">
         <label><span>Fator B — nome</span>
-          <input type="text" id="fatBName" value="B" maxlength="10">
+          <input type="text" id="fatBName" value="B" maxlength="10" oninput="rerenderCroqui()">
         </label>
         <label><span>Nº de níveis</span>
           <input type="number" id="fatBn" value="2" min="2" max="10" onchange="autoLevels('B')">
         </label>
       </div>
       <label><span>Níveis de B</span>
-        <textarea id="fatBLevels" rows="2">b1&#10;b2</textarea>
+        <textarea id="fatBLevels" rows="2" oninput="debounceGenerate()">b1&#10;b2</textarea>
       </label>
       <div class="check-row" style="margin-bottom:.5rem">
         <input type="checkbox" id="chkFactorC" onchange="onFactorCToggle()">
@@ -363,23 +363,23 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <div id="secFactorC" class="hidden">
         <div class="row2">
           <label><span>Fator C — nome</span>
-            <input type="text" id="fatCName" value="C" maxlength="10">
+            <input type="text" id="fatCName" value="C" maxlength="10" oninput="rerenderCroqui()">
           </label>
           <label><span>Nº de níveis</span>
             <input type="number" id="fatCn" value="2" min="2" max="6" onchange="autoLevels('C')">
           </label>
         </div>
         <label><span>Níveis de C</span>
-          <textarea id="fatCLevels" rows="2">c1&#10;c2</textarea>
+          <textarea id="fatCLevels" rows="2" oninput="debounceGenerate()">c1&#10;c2</textarea>
         </label>
       </div>
       <div class="row2">
         <label><span id="lblFatBlocks">Blocos</span>
-          <input type="number" id="numFatBlocks" value="3" min="1">
+          <input type="number" id="numFatBlocks" value="3" min="1" oninput="generateCroqui(true)">
         </label>
         <label title="Semente de randomização: qualquer inteiro. O mesmo número sempre gera o mesmo sorteio.">
           <span>Semente de rand.</span>
-          <input type="number" id="numFatSeed" value="42" min="0">
+          <input type="number" id="numFatSeed" value="42" min="0" oninput="generateCroqui(true)">
         </label>
       </div>
     </div>
@@ -389,33 +389,33 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <div class="info-box" style="margin-bottom:.75rem">Fator A = parcela principal · Fator B = subparcela</div>
       <div class="row2">
         <label><span>Fator A — nome</span>
-          <input type="text" id="splAName" value="Fator A" maxlength="12">
+          <input type="text" id="splAName" value="Fator A" maxlength="12" oninput="rerenderCroqui()">
         </label>
         <label><span>Nº de níveis</span>
           <input type="number" id="splAn" value="3" min="2" max="10" onchange="autoLevels('splA')">
         </label>
       </div>
       <label><span>Níveis de A (parcela principal)</span>
-        <textarea id="splALevels" rows="3">A1&#10;A2&#10;A3</textarea>
+        <textarea id="splALevels" rows="3" oninput="debounceGenerate()">A1&#10;A2&#10;A3</textarea>
       </label>
       <div class="row2">
         <label><span>Fator B — nome</span>
-          <input type="text" id="splBName" value="Fator B" maxlength="12">
+          <input type="text" id="splBName" value="Fator B" maxlength="12" oninput="rerenderCroqui()">
         </label>
         <label><span>Nº de níveis</span>
           <input type="number" id="splBn" value="4" min="2" max="10" onchange="autoLevels('splB')">
         </label>
       </div>
       <label><span>Níveis de B (subparcela)</span>
-        <textarea id="splBLevels" rows="4">B1&#10;B2&#10;B3&#10;B4</textarea>
+        <textarea id="splBLevels" rows="4" oninput="debounceGenerate()">B1&#10;B2&#10;B3&#10;B4</textarea>
       </label>
       <div class="row2">
         <label><span id="lblSplBlocks">Blocos</span>
-          <input type="number" id="numSplBlocks" value="3" min="2">
+          <input type="number" id="numSplBlocks" value="3" min="2" oninput="generateCroqui(true)">
         </label>
         <label title="Semente de randomização: qualquer inteiro. O mesmo número sempre gera o mesmo sorteio.">
           <span>Semente de rand.</span>
-          <input type="number" id="numSplSeed" value="42" min="0">
+          <input type="number" id="numSplSeed" value="42" min="0" oninput="generateCroqui(true)">
         </label>
       </div>
     </div>
@@ -492,7 +492,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       </select>
     </label>
     <label style="margin-top:.25rem"><span>Numeração das unidades</span>
-      <select id="selNumbering">
+      <select id="selNumbering" onchange="generateCroqui(true)">
         <option value="cartesian">Cartesiana (→ linha a linha)</option>
         <option value="serpentine">Serpentina (↔ ida e volta por linha)</option>
       </select>
@@ -1234,7 +1234,7 @@ function validate(design, treats, reps, blocks) {
 }
 
 /* ── Main generator ── */
-function generateCroqui() {
+function generateCroqui(autoUpdate = false) {
   const design = document.getElementById('selDesign').value;
   const errEl  = document.getElementById('errMsg');
   errEl.classList.add('hidden');
@@ -1277,7 +1277,7 @@ function generateCroqui() {
   renderFieldbook();
   renderUnidade();
   renderDataTab();
-  showTab('croqui');
+  if (!autoUpdate) showTab('croqui');
   if (currentProjectName) saveCurrentProject(true);
 }
 
@@ -3208,6 +3208,13 @@ function autoLevels(factor) {
   if (lines.length !== n) {
     txt.value = Array.from({length: n}, (_, i) => `${prefix}${i+1}`).join('\n');
   }
+  generateCroqui(true);
+}
+
+let _debounceTimer = null;
+function debounceGenerate() {
+  clearTimeout(_debounceTimer);
+  _debounceTimer = setTimeout(() => generateCroqui(true), 400);
 }
 
 function toggleExamples() {
