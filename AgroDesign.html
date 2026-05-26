@@ -3408,16 +3408,44 @@ function onGradArrowToggle() {
 }
 
 function onAreaChange() {
-  const area = document.getElementById('selArea').value;
-  const lbl  = document.getElementById('lblSpecies');
-  const inp  = document.getElementById('txtSpecies');
-  if (area === 'ecologia') {
+  const area  = document.getElementById('selArea').value;
+  const isEco = area === 'ecologia';
+  const lbl   = document.getElementById('lblSpecies');
+  const inp   = document.getElementById('txtSpecies');
+  const sel   = document.getElementById('selUnitType');
+
+  // Rótulo e placeholder do campo espécie
+  if (isEco) {
     if (lbl) lbl.textContent = 'Comunidade / Fitofisionomia';
     if (inp) inp.placeholder = 'Ex: Floresta de Araucária, Cerrado, Mata Atlântica';
   } else {
     if (lbl) lbl.textContent = 'Espécie / Sistema de produção';
     if (inp) inp.placeholder = 'Ex: Milho, Frangos de corte, Bovinos leiteiros';
   }
+
+  // Filtra tipos de UE conforme a área selecionada
+  const prev = sel.value;
+  if (isEco) {
+    sel.innerHTML =
+      '<optgroup label="Ecologia / Floresta">' +
+        '<option value="quadrat">Quadrat</option>' +
+        '<option value="transecto">Transecto</option>' +
+        '<option value="permanente">Parcela permanente</option>' +
+      '</optgroup>';
+    sel.value = ['quadrat','transecto','permanente'].includes(prev) ? prev : 'quadrat';
+  } else {
+    sel.innerHTML =
+      '<optgroup label="Agropecuária">' +
+        '<option value="parcela">Parcela vegetal</option>' +
+        '<option value="animal">Animal individual</option>' +
+        '<option value="baia">Baia / Lote</option>' +
+        '<option value="piquete">Piquete</option>' +
+        '<option value="clinica">Unidade clínica</option>' +
+      '</optgroup>';
+    sel.value = ['parcela','animal','baia','piquete','clinica'].includes(prev) ? prev : 'parcela';
+  }
+
+  onUnitTypeChange();
   rerenderCroqui();
 }
 
