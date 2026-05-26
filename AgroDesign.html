@@ -1773,7 +1773,7 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
     const availH  = drawH - ANNOT_S - PAD_S;
 
     if (unitType === 'transecto') {
-      // Retângulo fino horizontal
+      // Retângulo fino horizontal com estações de amostragem
       const tw = Math.min(availW, Math.round(availH * 4));
       const th = Math.max(8, Math.round(availH * 0.3));
       const ox = ANNOT_S + Math.round((availW - tw) / 2);
@@ -1784,31 +1784,61 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
       const nSt = Math.min(6, Math.max(2, Math.round(ua / 15)));
       for (let i = 0; i <= nSt; i++) {
         const px = +(ox + (i / nSt) * tw).toFixed(1);
-        out += `<circle cx="${px}" cy="${midY}" r="2.5" fill="${cDot}" opacity="0.75"/>`;
+        out += `<circle cx="${px}" cy="${midY}" r="3" fill="${cDot}" opacity="0.75"/>`;
+        out += `<circle cx="${px}" cy="${midY}" r="1.2" fill="${cFill}" opacity="0.9"/>`;
       }
       out += hDim(ox, ox + tw, oy - 10, `${ua.toFixed(0)} m`);
-      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${isEng ? 'Transect' : 'Transecto'} · ${ua.toFixed(0)} m</text>`;
-    } else {
-      // Quadrat ou Parcela permanente — quadrado
-      const side = Math.min(availW, availH);
-      const ox   = ANNOT_S + Math.round((availW - side) / 2);
-      const oy   = drawY0 + ANNOT_S + Math.round((availH - side) / 2);
+      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${isEng?'Transect':'Transecto'} · ${ua.toFixed(0)} m · ${nSt+1} ${isEng?'stations':'estações'}</text>`;
+
+    } else if (unitType === 'quadrat') {
+      // Quadrat — pontos de amostragem em grade (anel, igual ao renderUnidade)
+      const side  = Math.min(availW, availH);
+      const ox    = ANNOT_S + Math.round((availW - side) / 2);
+      const oy    = drawY0 + ANNOT_S + Math.round((availH - side) / 2);
       out += `<rect x="${ox}" y="${oy}" width="${side}" height="${side}" fill="${cFill}" stroke="${cStk}" stroke-width="${isPub?'0.8':'1.5'}"${isPub?'':' rx="2"'}/>`;
-      const nGrid = unitType === 'quadrat' ? 3 : 2;
-      const gw    = side / (nGrid + 1);
-      for (let r = 1; r <= nGrid; r++) {
-        for (let c = 1; c <= nGrid; c++) {
+      const nCols = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(ua) * 1.2)));
+      const nRows = nCols;
+      const gw    = side / (nCols + 1);
+      const gh    = side / (nRows + 1);
+      for (let r = 1; r <= nRows; r++) {
+        for (let c = 1; c <= nCols; c++) {
           const px = +(ox + c * gw).toFixed(1);
-          const py = +(oy + r * gw).toFixed(1);
-          const dr = unitType === 'permanente' ? 3.5 : 2.5;
-          out += `<circle cx="${px}" cy="${py}" r="${dr}" fill="${cDot}" opacity="${isPub?'0.7':'0.65'}"${unitType==='permanente'?' stroke="'+cFill+'" stroke-width="1"':''}/>`;
+          const py = +(oy + r * gh).toFixed(1);
+          out += `<circle cx="${px}" cy="${py}" r="2.8" fill="${cDot}" opacity="${isPub?'0.7':'0.65'}"/>`;
+          out += `<circle cx="${px}" cy="${py}" r="1.1" fill="${cFill}" opacity="0.9"/>`;
         }
       }
       const dimS = Math.sqrt(ua);
-      out += hDim(ox, ox + side, oy - 10, `${dimS.toFixed(1)} m`);
-      out += vDim(ox - 12, oy, oy + side, `${dimS.toFixed(1)} m`);
-      const typeLbl = unitType === 'permanente' ? (isEng ? 'Perm. Plot' : 'Parc. Permanente') : 'Quadrat';
-      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${typeLbl} · ${ua.toFixed(1)} m²</text>`;
+      out += hDim(ox, ox + side, oy - 10, `${dimS.toFixed(2)} m`);
+      out += vDim(ox - 12, oy, oy + side, `${dimS.toFixed(2)} m`);
+      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">Quadrat · ${ua.toFixed(2)} m² · ${nCols*nRows} ${isEng?'points':'pontos'}</text>`;
+
+    } else {
+      // Parcela permanente — símbolos de árvore (copa + caule, igual ao renderUnidade)
+      const side    = Math.min(availW, availH);
+      const ox      = ANNOT_S + Math.round((availW - side) / 2);
+      const oy      = drawY0 + ANNOT_S + Math.round((availH - side) / 2);
+      out += `<rect x="${ox}" y="${oy}" width="${side}" height="${side}" fill="${cFill}" stroke="${cStk}" stroke-width="${isPub?'0.8':'1.5'}"${isPub?'':' rx="2"'}/>`;
+      const treeDen = Math.min(9, Math.max(2, Math.round(ua / 400)));
+      const tCols   = Math.ceil(Math.sqrt(treeDen));
+      const tRows   = Math.ceil(treeDen / tCols);
+      const tcw     = side / (tCols + 1);
+      const tch     = side / (tRows + 1);
+      let cnt2 = 0;
+      for (let r = 1; r <= tRows && cnt2 < treeDen; r++) {
+        for (let c = 1; c <= tCols && cnt2 < treeDen; c++, cnt2++) {
+          const px  = +(ox + c * tcw).toFixed(1);
+          const py  = +(oy + r * tch).toFixed(1);
+          const dr2 = Math.min(tcw, tch) * 0.3;
+          out += `<circle cx="${px}" cy="${py}" r="${+dr2.toFixed(1)}" fill="${isPub?'#888':'#52b788'}" opacity="${isPub?'0.5':'0.55'}" stroke="${cStk}" stroke-width="0.8"/>`;
+          out += `<circle cx="${px}" cy="${py}" r="1.3" fill="${isPub?'#333':'#1b4332'}"/>`;
+        }
+      }
+      const dimS = Math.sqrt(ua);
+      out += hDim(ox, ox + side, oy - 10, `${dimS.toFixed(0)} m`);
+      out += vDim(ox - 12, oy, oy + side, `${dimS.toFixed(0)} m`);
+      const typeLbl = isEng ? 'Perm. Plot' : 'Parc. Permanente';
+      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${typeLbl} · ${ua.toFixed(0)} m² · ${treeDen} ${isEng?'trees':'árvores'}</text>`;
     }
 
   } else {
@@ -2766,11 +2796,40 @@ function buildPublicationText(lang) {
       unitDimText    = `Cada unidade experimental (parcela) mediu ${pl.toFixed(1)} m × ${plotW.toFixed(2)} m (${area.toFixed(1)} m²), com ${rpp} ${pl_s(rpp,'fileira','fileiras')} de plantio espaçadas ${rs.toFixed(2)} m entre si e plantas espaçadas ${ps.toFixed(2)} m na fileira.`;
       unitDimCaption = `Dimensão da parcela: ${pl.toFixed(1)} m × ${plotW.toFixed(2)} m (${area.toFixed(1)} m²).`;
     }
+  } else if (unitType === 'quadrat' || unitType === 'transecto' || unitType === 'permanente') {
+    const ueA   = parseFloat(document.getElementById('ueArea').value) || (unitType === 'transecto' ? 50 : 100);
+    const sideQ = Math.sqrt(ueA);
+    if (unitType === 'transecto') {
+      if (isEng) {
+        unitDimText    = `Each experimental unit (transect) was ${ueA.toFixed(1)} m long, with equidistant sampling stations distributed along the line.`;
+        unitDimCaption = `Transect length: ${ueA.toFixed(1)} m.`;
+      } else {
+        unitDimText    = `Cada unidade experimental (transecto) teve ${ueA.toFixed(1)} m de comprimento, com estações de amostragem distribuídas equidistantemente ao longo da linha.`;
+        unitDimCaption = `Comprimento do transecto: ${ueA.toFixed(1)} m.`;
+      }
+    } else if (unitType === 'quadrat') {
+      if (isEng) {
+        unitDimText    = `Each experimental unit (quadrat) measured ${sideQ.toFixed(2)} m × ${sideQ.toFixed(2)} m (${ueA.toFixed(2)} m²), used for floristic and vegetation sampling.`;
+        unitDimCaption = `Quadrat: ${sideQ.toFixed(2)} m × ${sideQ.toFixed(2)} m (${ueA.toFixed(2)} m²).`;
+      } else {
+        unitDimText    = `Cada unidade experimental (quadrat) mediu ${sideQ.toFixed(2)} m × ${sideQ.toFixed(2)} m (${ueA.toFixed(2)} m²), utilizada para amostragem fitossociológica.`;
+        unitDimCaption = `Quadrat: ${sideQ.toFixed(2)} m × ${sideQ.toFixed(2)} m (${ueA.toFixed(2)} m²).`;
+      }
+    } else {
+      const pH2 = Math.sqrt(ueA / 2), pW2 = ueA / pH2;
+      if (isEng) {
+        unitDimText    = `Each experimental unit (permanent plot) covered ${ueA.toFixed(0)} m² (approximately ${pW2.toFixed(1)} m × ${pH2.toFixed(1)} m, 2:1 aspect ratio), used for long-term floristic monitoring.`;
+        unitDimCaption = `Permanent plot: ${ueA.toFixed(0)} m² (${pW2.toFixed(1)} m × ${pH2.toFixed(1)} m).`;
+      } else {
+        unitDimText    = `Cada unidade experimental (parcela permanente) teve área de ${ueA.toFixed(0)} m² (aproximadamente ${pW2.toFixed(1)} m × ${pH2.toFixed(1)} m, proporção 2:1), destinada ao monitoramento florístico de longo prazo.`;
+        unitDimCaption = `Parcela permanente: ${ueA.toFixed(0)} m² (${pW2.toFixed(1)} m × ${pH2.toFixed(1)} m).`;
+      }
+    }
   } else {
     const ueA = parseFloat(document.getElementById('ueArea').value) || 12;
     const apu = parseInt(document.getElementById('animalsPerUnit').value) || 4;
-    const tEN = { animal:'individual pen', baia:'pen/group', piquete:'paddock', clinica:'clinical unit', quadrat:'quadrat', transecto:'transect', permanente:'permanent plot' };
-    const tPT = { animal:'animal individual', baia:'baia', piquete:'piquete', clinica:'unidade clínica', quadrat:'quadrat', transecto:'transecto', permanente:'parcela permanente' };
+    const tEN = { animal:'individual pen', baia:'pen/group', piquete:'paddock', clinica:'clinical unit' };
+    const tPT = { animal:'animal individual', baia:'baia', piquete:'piquete', clinica:'unidade clínica' };
     const tname = isEng ? (tEN[unitType]||'unit') : (tPT[unitType]||'unidade');
     if (isEng) {
       unitDimText    = `Each experimental unit (${tname}) had an area of ${ueA.toFixed(1)} m², accommodating ${apu} ${pl_s(apu,'animal','animals')} (${(ueA/apu).toFixed(1)} m²/animal).`;
