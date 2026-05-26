@@ -1822,8 +1822,9 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
       const oy   = drawY0 + ANNOT_S + Math.round((availH - dH3) / 2);
       out += `<rect x="${ox}" y="${oy}" width="${dW3}" height="${dH3}" fill="${cFill}" stroke="${cStk}" stroke-width="${isPub?'0.8':'1.5'}"${isPub?'':' rx="2"'}/>`;
       const treeDen = Math.min(9, Math.max(2, Math.round(ua / 400)));
-      const tCols   = Math.ceil(Math.sqrt(treeDen * (dW3 / dH3)));  // razão de aspecto 2:1
-      const tRows   = Math.ceil(treeDen / tCols);
+      let tCols = 1, tRows = treeDen;
+      { const asp = dW3 / dH3; let best = Infinity;
+        for (let c = 1; c <= treeDen; c++) { const r = Math.ceil(treeDen/c); const sc = (c*r - treeDen)*1000 + Math.abs(c/r - asp); if (sc < best) { best = sc; tCols = c; tRows = r; } } }
       const tcw     = dW3 / (tCols + 1);
       const tch     = dH3 / (tRows + 1);
       let cnt2 = 0;
@@ -3262,8 +3263,9 @@ function renderUnidade() {
     svgStr += `<rect x="${ox2}" y="${oy2}" width="${dW2}" height="${dH2}" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="2"/>`;
     // Símbolos de árvore
     const treeDen  = Math.max(1, Math.round(ueA / 400));
-    const tCols    = Math.ceil(Math.sqrt(treeDen * (dW2 / dH2)));
-    const tRows    = Math.ceil(treeDen / tCols);
+    let tCols = 1, tRows = treeDen;
+    { const asp = dW2 / dH2; let best = Infinity;
+      for (let c = 1; c <= treeDen; c++) { const r = Math.ceil(treeDen/c); const sc = (c*r - treeDen)*1000 + Math.abs(c/r - asp); if (sc < best) { best = sc; tCols = c; tRows = r; } } }
     const tcw2     = dW2 / (tCols + 1);
     const tch2     = dH2 / (tRows + 1);
     for (let r = 1; r <= tRows; r++) {
