@@ -263,24 +263,32 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 
     <div class="row2">
       <label><span>Área de aplicação</span>
-        <select id="selArea" onchange="rerenderCroqui()">
+        <select id="selArea" onchange="onAreaChange()">
           <option value="agronomia">Agronomia</option>
           <option value="zootecnia">Zootecnia</option>
           <option value="medvet">Med. Veterinária</option>
+          <option value="ecologia">Ecologia / Floresta</option>
         </select>
       </label>
       <label><span>Tipo de UE</span>
         <select id="selUnitType" onchange="onUnitTypeChange()">
-          <option value="parcela">Parcela vegetal</option>
-          <option value="animal">Animal individual</option>
-          <option value="baia">Baia / Lote</option>
-          <option value="piquete">Piquete</option>
-          <option value="clinica">Unidade clínica</option>
+          <optgroup label="Agropecuária">
+            <option value="parcela">Parcela vegetal</option>
+            <option value="animal">Animal individual</option>
+            <option value="baia">Baia / Lote</option>
+            <option value="piquete">Piquete</option>
+            <option value="clinica">Unidade clínica</option>
+          </optgroup>
+          <optgroup label="Ecologia / Floresta">
+            <option value="quadrat">Quadrat</option>
+            <option value="transecto">Transecto</option>
+            <option value="permanente">Parcela permanente</option>
+          </optgroup>
         </select>
       </label>
     </div>
 
-    <label><span>Espécie / Sistema de produção</span>
+    <label><span id="lblSpecies">Espécie / Sistema de produção</span>
       <input type="text" id="txtSpecies" placeholder="Ex: Milho, Frangos de corte, Bovinos leiteiros" oninput="rerenderCroqui()">
     </label>
 
@@ -463,7 +471,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <label><span id="lblUeArea">Área da UE (m²)</span>
           <input type="number" id="ueArea" value="12" min="0.1" step="0.5" onchange="rerenderCroqui()">
         </label>
-        <label><span>Animais por UE</span>
+        <label id="rowAnimalsPerUnit"><span>Animais por UE</span>
           <input type="number" id="animalsPerUnit" value="1" min="1" onchange="rerenderCroqui()">
         </label>
       </div>
@@ -995,7 +1003,7 @@ const PIX_CITY     = 'Sao Raimundo';
 const REV_SB_URL   = 'https://qvddbmlhucxndvbakvyd.supabase.co';
 const REV_SB_KEY   = 'sb_publishable_0Saq2ZYXgGEApcbvWAahtw_VQ9b9iTq';
 
-const UNIT_LABELS = { parcela:'Parcela vegetal', animal:'Animal individual', baia:'Baia/Lote', piquete:'Piquete', clinica:'Unidade clínica' };
+const UNIT_LABELS = { parcela:'Parcela vegetal', animal:'Animal individual', baia:'Baia/Lote', piquete:'Piquete', clinica:'Unidade clínica', quadrat:'Quadrat', transecto:'Transecto', permanente:'Parcela permanente' };
 const GRAD_LABELS = { NS:'Norte–Sul', EW:'Leste–Oeste', horiz:'Horizontal', vert:'Vertical', none:'Sem gradiente definido' };
 
 const COLOR_PALETTES = {
@@ -1435,8 +1443,8 @@ function renderSummary() {
 
   // ── Condições ──
   html += sec('Condições');
-  const ULABELS = { parcela:'Parcela vegetal', animal:'Animal individual', baia:'Baia/Lote', piquete:'Piquete', clinica:'Unidade clínica' };
-  const isField = unitType === 'parcela' || unitType === 'piquete';
+  const ULABELS = { parcela:'Parcela vegetal', animal:'Animal individual', baia:'Baia/Lote', piquete:'Piquete', clinica:'Unidade clínica', quadrat:'Quadrat', transecto:'Transecto', permanente:'Parcela permanente' };
+  const isField = unitType === 'parcela' || unitType === 'piquete' || unitType === 'quadrat' || unitType === 'transecto' || unitType === 'permanente';
   html += card('Tipo de UE', ULABELS[unitType] || unitType);
   if (isField) html += card('Gradiente', esc(GRAD_LABELS[gradient] || gradient));
 
@@ -1751,6 +1759,52 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
       out += `<text x="${lx0 + 13}" y="${ly + 2}" font-size="7" fill="${cMuted}">${esc(lab1)}</text>`;
       out += `<circle cx="${lx1 + 3}" cy="${ly - 1}" r="3" fill="${dotC}" opacity="0.7"/>`;
       out += `<text x="${lx1 + 9}" y="${ly + 2}" font-size="7" fill="${cMuted}">${esc(lab2)}</text>`;
+    }
+
+  } else if (unitType === 'quadrat' || unitType === 'transecto' || unitType === 'permanente') {
+    // UE ecológica — schematic compacto no croqui
+    const ua    = ueArea || (unitType === 'transecto' ? 50 : 100);
+    const ANNOT_S = 22, PAD_S = 6;
+    const availW  = W - ANNOT_S - PAD_S;
+    const availH  = drawH - ANNOT_S - PAD_S;
+
+    if (unitType === 'transecto') {
+      // Retângulo fino horizontal
+      const tw = Math.min(availW, Math.round(availH * 4));
+      const th = Math.max(8, Math.round(availH * 0.3));
+      const ox = ANNOT_S + Math.round((availW - tw) / 2);
+      const oy = drawY0 + ANNOT_S + Math.round((availH - th) / 2);
+      out += `<rect x="${ox}" y="${oy}" width="${tw}" height="${th}" fill="${cFill}" stroke="${cStk}" stroke-width="${isPub?'0.8':'1.5'}"${isPub?'':' rx="2"'}/>`;
+      const midY = +(oy + th / 2).toFixed(1);
+      out += `<line x1="${ox}" y1="${midY}" x2="${ox+tw}" y2="${midY}" stroke="${isPub?'#666':'#40916c'}" stroke-width="0.8" stroke-dasharray="4 2"/>`;
+      const nSt = Math.min(6, Math.max(2, Math.round(ua / 15)));
+      for (let i = 0; i <= nSt; i++) {
+        const px = +(ox + (i / nSt) * tw).toFixed(1);
+        out += `<circle cx="${px}" cy="${midY}" r="2.5" fill="${cDot}" opacity="0.75"/>`;
+      }
+      out += hDim(ox, ox + tw, oy - 10, `${ua.toFixed(0)} m`);
+      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${isEng ? 'Transect' : 'Transecto'} · ${ua.toFixed(0)} m</text>`;
+    } else {
+      // Quadrat ou Parcela permanente — quadrado
+      const side = Math.min(availW, availH);
+      const ox   = ANNOT_S + Math.round((availW - side) / 2);
+      const oy   = drawY0 + ANNOT_S + Math.round((availH - side) / 2);
+      out += `<rect x="${ox}" y="${oy}" width="${side}" height="${side}" fill="${cFill}" stroke="${cStk}" stroke-width="${isPub?'0.8':'1.5'}"${isPub?'':' rx="2"'}/>`;
+      const nGrid = unitType === 'quadrat' ? 3 : 2;
+      const gw    = side / (nGrid + 1);
+      for (let r = 1; r <= nGrid; r++) {
+        for (let c = 1; c <= nGrid; c++) {
+          const px = +(ox + c * gw).toFixed(1);
+          const py = +(oy + r * gw).toFixed(1);
+          const dr = unitType === 'permanente' ? 3.5 : 2.5;
+          out += `<circle cx="${px}" cy="${py}" r="${dr}" fill="${cDot}" opacity="${isPub?'0.7':'0.65'}"${unitType==='permanente'?' stroke="'+cFill+'" stroke-width="1"':''}/>`;
+        }
+      }
+      const dimS = Math.sqrt(ua);
+      out += hDim(ox, ox + side, oy - 10, `${dimS.toFixed(1)} m`);
+      out += vDim(ox - 12, oy, oy + side, `${dimS.toFixed(1)} m`);
+      const typeLbl = unitType === 'permanente' ? (isEng ? 'Perm. Plot' : 'Parc. Permanente') : 'Quadrat';
+      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${typeLbl} · ${ua.toFixed(1)} m²</text>`;
     }
 
   } else {
@@ -2711,8 +2765,8 @@ function buildPublicationText(lang) {
   } else {
     const ueA = parseFloat(document.getElementById('ueArea').value) || 12;
     const apu = parseInt(document.getElementById('animalsPerUnit').value) || 4;
-    const tEN = { animal:'individual pen', baia:'pen/group', piquete:'paddock', clinica:'clinical unit' };
-    const tPT = { animal:'animal individual', baia:'baia', piquete:'piquete', clinica:'unidade clínica' };
+    const tEN = { animal:'individual pen', baia:'pen/group', piquete:'paddock', clinica:'clinical unit', quadrat:'quadrat', transecto:'transect', permanente:'permanent plot' };
+    const tPT = { animal:'animal individual', baia:'baia', piquete:'piquete', clinica:'unidade clínica', quadrat:'quadrat', transecto:'transecto', permanente:'parcela permanente' };
     const tname = isEng ? (tEN[unitType]||'unit') : (tPT[unitType]||'unidade');
     if (isEng) {
       unitDimText    = `Each experimental unit (${tname}) had an area of ${ueA.toFixed(1)} m², accommodating ${apu} ${pl_s(apu,'animal','animals')} (${(ueA/apu).toFixed(1)} m²/animal).`;
@@ -3005,7 +3059,7 @@ function renderUnidade() {
       svgStr += `<text x="${svgW/2}" y="${legY+26}" text-anchor="middle" font-size="7.5" fill="#6b7c6e" font-style="italic">${subtitle}</text>`;
     }
 
-    svgStr += '</svg>';
+    svgStr += `</svg>`;
 
     /* ── Tabela de dimensões ── */
     const areaTotal       = +(plotW * plotL).toFixed(2);
@@ -3031,6 +3085,151 @@ function renderUnidade() {
     statsHtml = statsArr.map(s =>
       `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`
     ).join('');
+
+  } else if (unitType === 'quadrat') {
+    /* ─── Quadrat ─── */
+    const ueA  = parseFloat(document.getElementById('ueArea').value) || 1;
+    const side = Math.sqrt(ueA);
+    const svgW = 380, svgH = 320;
+    const maxS = 200;
+    const sc   = Math.min(maxS / side, 120);
+    const dS   = Math.min(maxS, Math.round(side * sc));
+    const ox   = (svgW - dS) / 2;
+    const oy   = 72;
+
+    svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
+      <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
+      ${defs}
+      <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${isEng ? 'Quadrat — Top View' : 'Quadrat — Vista Superior'}</text>`;
+    svgStr += `<rect x="${ox}" y="${oy}" width="${dS}" height="${dS}" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="2"/>`;
+    // Grade de pontos de amostragem
+    const nCols = Math.min(7, Math.max(2, Math.ceil(Math.sqrt(ueA) * 1.5)));
+    const nRows = nCols;
+    const cw    = dS / (nCols + 1);
+    const ch    = dS / (nRows + 1);
+    for (let r = 1; r <= nRows; r++) {
+      for (let c = 1; c <= nCols; c++) {
+        const px = +(ox + c * cw).toFixed(1);
+        const py = +(oy + r * ch).toFixed(1);
+        svgStr += `<circle cx="${px}" cy="${py}" r="3" fill="#2d6a4f" opacity=".7"/>`;
+        svgStr += `<circle cx="${px}" cy="${py}" r="1.2" fill="#fff"/>`;
+      }
+    }
+    // Cotas
+    const ty = oy - 22;
+    svgStr += annLine(ox, ty, ox + dS, ty);
+    svgStr += `<text x="${+(ox + dS/2).toFixed(1)}" y="${ty - 6}" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">${side.toFixed(2)} m</text>`;
+    svgStr += `<text x="${+(ox + dS/2).toFixed(1)}" y="${ty + 13}" text-anchor="middle" font-size="8" fill="#6b7c6e">${isEng ? 'side' : 'lado'}</text>`;
+    const lx2 = ox - 28;
+    svgStr += annLine(lx2, oy, lx2, oy + dS);
+    svgStr += `<text x="${lx2 - 5}" y="${+(oy + dS/2 + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="#374151" font-weight="700">${side.toFixed(2)} m</text>`;
+    svgStr += `<text x="${svgW/2}" y="${+(oy + dS + 22).toFixed(1)}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">${ueA.toFixed(2)} m²</text>`;
+    svgStr += `<text x="${svgW/2}" y="${+(oy + dS + 38).toFixed(1)}" text-anchor="middle" font-size="9" fill="#6b7c6e">${isEng ? '● sampling points (schematic grid)' : '● pontos de amostragem (grade esquemática)'}</text>`;
+    svgStr += `</svg>`;
+
+    const nPts = nCols * nRows;
+    statsHtml = [
+      { label: isEng ? 'Quadrat area'  : 'Área do quadrat', value: ueA.toFixed(2),  unit: 'm²' },
+      { label: isEng ? 'Side'          : 'Lado',            value: side.toFixed(2), unit: 'm'  },
+      { label: isEng ? 'Sample points' : 'Pontos de amos.', value: String(nPts),    unit: ''   },
+    ].map(s => `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`).join('');
+
+  } else if (unitType === 'transecto') {
+    /* ─── Transecto ─── */
+    const len  = parseFloat(document.getElementById('ueArea').value) || 50;
+    const svgW = 520, svgH = 240;
+    const PAD  = 70;
+    const dW   = svgW - 2 * PAD;
+    const dH   = 38;
+    const ox   = PAD;
+    const oy   = (svgH - dH) / 2;
+
+    svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
+      <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
+      ${defs}
+      <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${isEng ? 'Transect — Top View' : 'Transecto — Vista Superior'}</text>`;
+    svgStr += `<rect x="${ox}" y="${oy}" width="${dW}" height="${dH}" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="2"/>`;
+    // Linha central tracejada
+    const midY = +(oy + dH / 2).toFixed(1);
+    svgStr += `<line x1="${ox}" y1="${midY}" x2="${ox + dW}" y2="${midY}" stroke="#40916c" stroke-width="1" stroke-dasharray="6 3"/>`;
+    // Estações equidistantes
+    const nSt = Math.min(12, Math.max(3, Math.round(len / 10)));
+    for (let i = 0; i <= nSt; i++) {
+      const px  = +(ox + (i / nSt) * dW).toFixed(1);
+      const lbl = (i * len / nSt).toFixed(0);
+      svgStr += `<circle cx="${px}" cy="${midY}" r="4.5" fill="#2d6a4f" opacity=".8"/>`;
+      svgStr += `<text x="${px}" y="${+(oy + dH + 14).toFixed(1)}" text-anchor="middle" font-size="7.5" fill="${i===0||i===nSt?'#374151':'#6b7c6e'}" font-weight="${i===0||i===nSt?'700':'400'}">${lbl}</text>`;
+    }
+    // Cota de comprimento
+    const ty2 = oy - 20;
+    svgStr += annLine(ox, ty2, ox + dW, ty2);
+    svgStr += `<text x="${+(ox + dW/2).toFixed(1)}" y="${ty2 - 6}" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">${len.toFixed(1)} m</text>`;
+    svgStr += `<text x="${+(ox + dW/2).toFixed(1)}" y="${ty2 + 13}" text-anchor="middle" font-size="8" fill="#6b7c6e">${isEng ? 'transect length' : 'comprimento do transecto'}</text>`;
+    svgStr += `<text x="${svgW/2}" y="${svgH - 12}" text-anchor="middle" font-size="9" fill="#6b7c6e">${isEng ? '● sampling station (equidistant)' : '● estação de amostragem (equidistante)'}</text>`;
+    svgStr += `</svg>`;
+
+    const interval = len / nSt;
+    statsHtml = [
+      { label: isEng ? 'Transect length' : 'Comprimento',   value: len.toFixed(1),      unit: 'm' },
+      { label: isEng ? 'Stations'        : 'Estações',      value: String(nSt + 1),     unit: ''  },
+      { label: isEng ? 'Interval'        : 'Intervalo',     value: interval.toFixed(1), unit: 'm' },
+    ].map(s => `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`).join('');
+
+  } else if (unitType === 'permanente') {
+    /* ─── Parcela permanente ─── */
+    const ueA = parseFloat(document.getElementById('ueArea').value) || 1000;
+    // Proporção 2:1 (comprimento × largura)
+    const pH  = Math.sqrt(ueA / 2);
+    const pW  = ueA / pH;
+    const svgW = 480, svgH = 340;
+    const LPAD2 = 70, TPAD2 = 72;
+    const maxDW2 = 300, maxDH2 = 190;
+    const sc2 = Math.min(maxDW2 / pW, maxDH2 / pH);
+    const dW2 = Math.round(pW * sc2);
+    const dH2 = Math.round(pH * sc2);
+    const ox2 = LPAD2 + Math.round((maxDW2 - dW2) / 2);
+    const oy2 = TPAD2 + Math.round((maxDH2 - dH2) / 2);
+
+    svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
+      <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
+      ${defs}
+      <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${isEng ? 'Permanent Plot — Top View' : 'Parcela Permanente — Vista Superior'}</text>`;
+    svgStr += `<rect x="${ox2}" y="${oy2}" width="${dW2}" height="${dH2}" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="2"/>`;
+    // Símbolos de árvore
+    const treeDen  = Math.max(1, Math.round(ueA / 400));
+    const tCols    = Math.ceil(Math.sqrt(treeDen * (dW2 / dH2)));
+    const tRows    = Math.ceil(treeDen / tCols);
+    const tcw2     = dW2 / (tCols + 1);
+    const tch2     = dH2 / (tRows + 1);
+    for (let r = 1; r <= tRows; r++) {
+      for (let c = 1; c <= tCols; c++) {
+        if ((r - 1) * tCols + c > treeDen) break;
+        const tx2 = +(ox2 + c * tcw2).toFixed(1);
+        const ty3 = +(oy2 + r * tch2).toFixed(1);
+        const rad2 = Math.min(tcw2, tch2) * 0.22;
+        svgStr += `<circle cx="${tx2}" cy="${ty3}" r="${+rad2.toFixed(1)}" fill="#52b788" opacity=".55" stroke="#2d6a4f" stroke-width="0.8"/>`;
+        svgStr += `<circle cx="${tx2}" cy="${ty3}" r="1.5" fill="#1b4332"/>`;
+      }
+    }
+    // Cotas comprimento (topo)
+    const lay2 = oy2 - 22;
+    svgStr += annLine(ox2, lay2, ox2 + dW2, lay2);
+    svgStr += `<text x="${+(ox2 + dW2/2).toFixed(1)}" y="${lay2 - 6}" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">${pW.toFixed(1)} m</text>`;
+    svgStr += `<text x="${+(ox2 + dW2/2).toFixed(1)}" y="${lay2 + 13}" text-anchor="middle" font-size="8" fill="#6b7c6e">${isEng ? 'length' : 'comprimento'}</text>`;
+    // Cota largura (lateral esq.)
+    const lwx = ox2 - 26;
+    svgStr += annLine(lwx, oy2, lwx, oy2 + dH2);
+    const cly = +(oy2 + dH2/2).toFixed(1);
+    svgStr += `<text transform="rotate(-90,${lwx-14},${cly})" x="${lwx-14}" y="${cly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#374151" font-weight="700">${pH.toFixed(1)} m</text>`;
+    svgStr += `<text x="${svgW/2}" y="${+(oy2 + dH2 + 22).toFixed(1)}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">${ueA.toFixed(0)} m²</text>`;
+    svgStr += `<text x="${svgW/2}" y="${+(oy2 + dH2 + 38).toFixed(1)}" text-anchor="middle" font-size="9" fill="#6b7c6e">${isEng ? '⬤ tree (schematic — 2:1 aspect ratio)' : '⬤ árvore (esquemático — proporção 2:1)'}</text>`;
+    svgStr += `</svg>`;
+
+    statsHtml = [
+      { label: isEng ? 'Plot area'          : 'Área da parcela',   value: ueA.toFixed(0),                    unit: 'm²' },
+      { label: isEng ? 'Dimensions (2:1)'   : 'Dimensões (2:1)',   value: `${pW.toFixed(1)} × ${pH.toFixed(1)}`, unit: 'm' },
+      { label: isEng ? 'Trees (schematic)'  : 'Árvores (esq.)',    value: String(treeDen),                   unit: ''   },
+    ].map(s => `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`).join('');
 
   } else {
     /* ─── UE animal (baia, piquete, animal, clínica) ─── */
@@ -3171,12 +3370,19 @@ function onDesignChange() {
 function onUnitTypeChange() {
   const ut = document.getElementById('selUnitType').value;
   const isVeg   = ut === 'parcela';
-  const isField  = ut === 'parcela' || ut === 'piquete'; // experimentos a campo
+  const isEco   = ut === 'quadrat' || ut === 'transecto' || ut === 'permanente';
+  const isField = ut === 'parcela' || ut === 'piquete' || isEco;
   document.getElementById('secVegetal').classList.toggle('hidden', !isVeg);
   document.getElementById('secAnimal').classList.toggle('hidden', isVeg);
-  const labels = { animal:'Área por animal (m²)', baia:'Área da baia (m²)', piquete:'Área do piquete (m²)', clinica:'Área da unidade clínica (m²)' };
+  const labels = {
+    animal:'Área por animal (m²)', baia:'Área da baia (m²)', piquete:'Área do piquete (m²)', clinica:'Área da unidade clínica (m²)',
+    quadrat:'Área do quadrat (m²)', transecto:'Comprimento do transecto (m)', permanente:'Área da parcela permanente (m²)'
+  };
   const el = document.getElementById('lblUeArea');
   if (el && labels[ut]) el.textContent = labels[ut];
+  // Animais por UE: oculto para UEs ecológicas
+  const rowApu = document.getElementById('rowAnimalsPerUnit');
+  if (rowApu) rowApu.style.display = isEco ? 'none' : '';
   // Ruas, gradiente e setas geográficas: apenas para experimentos a campo
   document.getElementById('rowAlley').style.display    = isField ? '' : 'none';
   document.getElementById('rowGradient').style.display = isField ? '' : 'none';
@@ -3194,6 +3400,20 @@ function onGradArrowToggle() {
   const el = document.getElementById('rowGradLabel');
   el.style.display = checked ? 'block' : 'none';
   if (checked) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  rerenderCroqui();
+}
+
+function onAreaChange() {
+  const area = document.getElementById('selArea').value;
+  const lbl  = document.getElementById('lblSpecies');
+  const inp  = document.getElementById('txtSpecies');
+  if (area === 'ecologia') {
+    if (lbl) lbl.textContent = 'Comunidade / Fitofisionomia';
+    if (inp) inp.placeholder = 'Ex: Floresta de Araucária, Cerrado, Mata Atlântica';
+  } else {
+    if (lbl) lbl.textContent = 'Espécie / Sistema de produção';
+    if (inp) inp.placeholder = 'Ex: Milho, Frangos de corte, Bovinos leiteiros';
+  }
   rerenderCroqui();
 }
 
@@ -4490,6 +4710,7 @@ loadNotes();
 (function() { const btn = document.getElementById('btnDecimalSep'); if (btn) btn.textContent = `🔢 Dec: ${decimalSep}`; })();
 onDesignChange();
 onUnitTypeChange();
+onAreaChange();
 applyPaletteOptions();
 applyFontMode(document.getElementById('selFont').value);
 // Restaura a última configuração usada
