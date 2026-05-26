@@ -533,6 +533,10 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('vacas_fat')">🐄 Vacas — Fatorial 3×3 em DBC</button>
     <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('caes_dql')">🐕 Cães — DQL (4 protocolos)</button>
     <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('suinos_spl')">🐖 Suínos — Parcelas Subdivididas em DBC</button>
+    <div style="border-top:1px solid var(--border);margin:.15rem 0;opacity:.5"></div>
+    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('cerrado_quadrat')">🌿 Cerrado — Restauração em DBC (Quadrats)</button>
+    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('mata_transecto')">🌳 Mata Atlântica — Fitossanidade em DIC (Transectos)</button>
+    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('araucaria_permanente')">🌲 Araucária — Dinâmica Florestal em DBC (Parcelas Permanentes)</button>
   </div>
 </aside>
 
@@ -3563,12 +3567,49 @@ const EXAMPLES = {
     document.getElementById('ueArea').value = '15';
     document.getElementById('animalsPerUnit').value = '4';
     onDesignChange(); onUnitTypeChange();
+  },
+  cerrado_quadrat: () => {
+    document.getElementById('selDesign').value = 'DBC';
+    document.getElementById('selArea').value = 'ecologia';
+    document.getElementById('selUnitType').value = 'quadrat';
+    document.getElementById('txtTreatments').value = 'Controle (sem intervenção)\nSemeadura a lanço\nSemeadura + adubação NPK\nTransplante de mudas';
+    document.getElementById('numReps').value = '5';
+    document.getElementById('numSeed').value = '42';
+    document.getElementById('ueArea').value = '1';
+    document.getElementById('txtSpecies').value = 'Cerrado (campos experimentais de restauração)';
+    document.getElementById('selGradient').value = 'NS';
+    onDesignChange(); onUnitTypeChange(); onAreaChange();
+  },
+  mata_transecto: () => {
+    document.getElementById('selDesign').value = 'DIC';
+    document.getElementById('selArea').value = 'ecologia';
+    document.getElementById('selUnitType').value = 'transecto';
+    document.getElementById('txtTreatments').value = 'Floresta primária\nCapoeira antiga (>25 anos)\nCapoeira jovem (<10 anos)\nÁrea degradada';
+    document.getElementById('numReps').value = '4';
+    document.getElementById('numSeed').value = '17';
+    document.getElementById('ueArea').value = '50';
+    document.getElementById('txtSpecies').value = 'Mata Atlântica (levantamento fitossanitário)';
+    document.getElementById('selGradient').value = 'none';
+    onDesignChange(); onUnitTypeChange(); onAreaChange();
+  },
+  araucaria_permanente: () => {
+    document.getElementById('selDesign').value = 'DBC';
+    document.getElementById('selArea').value = 'ecologia';
+    document.getElementById('selUnitType').value = 'permanente';
+    document.getElementById('txtTreatments').value = 'Floresta sem manejo\nManejo seletivo leve\nManejo seletivo intenso';
+    document.getElementById('numReps').value = '4';
+    document.getElementById('numSeed').value = '33';
+    document.getElementById('ueArea').value = '2500';
+    document.getElementById('txtSpecies').value = 'Floresta Ombrófila Mista — Araucária';
+    document.getElementById('selGradient').value = 'EW';
+    onDesignChange(); onUnitTypeChange(); onAreaChange();
   }
 };
 
 function loadExample(key) {
   clearAll();
   EXAMPLES[key] && EXAMPLES[key]();
+  onAreaChange();
   document.getElementById('examplesMenu').classList.add('hidden');
   generateCroqui();
 }
