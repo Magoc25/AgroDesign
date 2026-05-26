@@ -476,6 +476,62 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         </label>
       </div>
     </div>
+    <div id="secQuadrat" class="hidden">
+      <div class="row2">
+        <label><span>Área do quadrat (m²)</span>
+          <input type="number" id="quadratArea" value="1" min="0.01" step="0.25" oninput="rerenderCroqui()">
+        </label>
+        <label><span>Método de amostragem</span>
+          <select id="quadratMethod" onchange="onQuadratMethodChange()">
+            <option value="censo">Censo total</option>
+            <option value="grade">Grade de pontos</option>
+          </select>
+        </label>
+      </div>
+      <div id="rowQuadratGrid" class="hidden">
+        <label><span>Grade N×N <span class="hint">(pontos por lado)</span></span>
+          <input type="number" id="quadratGridN" value="5" min="2" max="20" oninput="rerenderCroqui()">
+        </label>
+      </div>
+    </div>
+    <div id="secTransecto" class="hidden">
+      <div class="row2">
+        <label><span>Comprimento (m)</span>
+          <input type="number" id="transLength" value="50" min="1" step="5" oninput="rerenderCroqui()">
+        </label>
+        <label><span>Largura (m) <span class="hint">0 = linear</span></span>
+          <input type="number" id="transWidth" value="0" min="0" step="0.5" oninput="rerenderCroqui()">
+        </label>
+      </div>
+      <div class="row2">
+        <label><span>Intervalo (m)</span>
+          <input type="number" id="transInterval" value="10" min="0.5" step="0.5" oninput="onTransIntervalChange()">
+        </label>
+        <label><span>Nº de estações</span>
+          <input type="number" id="transStations" value="6" min="2" oninput="onTransStationsChange()">
+        </label>
+      </div>
+      <p class="hint" style="margin:.15rem 0 0;font-size:.72rem">⇅ Intervalo e estações derivam-se mutuamente</p>
+    </div>
+    <div id="secPermanente" class="hidden">
+      <div class="row2">
+        <label><span>Comprimento (m)</span>
+          <input type="number" id="permLength" value="50" min="1" step="5" oninput="onPermDimChange()">
+        </label>
+        <label><span>Largura (m)</span>
+          <input type="number" id="permWidth" value="25" min="1" step="5" oninput="onPermDimChange()">
+        </label>
+      </div>
+      <div class="row2">
+        <label><span>Nº de indivíduos</span>
+          <input type="number" id="permIndividuals" value="6" min="1" oninput="onPermIndivChange()">
+        </label>
+        <label><span>Densidade (ind./ha)</span>
+          <input type="number" id="permDensity" value="48" min="0.1" step="1" oninput="onPermDensityChange()">
+        </label>
+      </div>
+      <p class="hint" style="margin:.15rem 0 0;font-size:.72rem">⇅ Indivíduos e densidade derivam-se mutuamente</p>
+    </div>
   </div>
 
   <!-- Layout -->
@@ -1436,6 +1492,33 @@ function renderSummary() {
       html += card('Área útil total', +(areaUtil * total).toFixed(0), 'm²');
       html += card('Plantas úteis/parcela', plantsUtil);
     }
+  } else if (unitType === 'quadrat') {
+    const qA = parseFloat(document.getElementById('quadratArea').value) || 1;
+    const qM = document.getElementById('quadratMethod').value || 'censo';
+    const qN = parseInt(document.getElementById('quadratGridN').value)  || 5;
+    html += card('Área/quadrat', qA.toFixed(2), 'm²');
+    html += card('Área total exp.', +(qA * total).toFixed(2), 'm²');
+    html += card('Método', qM === 'grade' ? `Grade ${qN}×${qN}` : 'Censo total');
+    if (qM === 'grade') html += card('Pontos/quadrat', qN * qN);
+  } else if (unitType === 'transecto') {
+    const tLen = parseFloat(document.getElementById('transLength').value)   || 50;
+    const tWid = parseFloat(document.getElementById('transWidth').value)    || 0;
+    const tSt  = Math.max(2, parseInt(document.getElementById('transStations').value) || 6);
+    const tInt = tSt > 1 ? +(tLen / (tSt - 1)).toFixed(1) : 0;
+    html += card('Comprimento', tLen.toFixed(1), 'm');
+    if (tWid > 0) html += card('Largura (faixa)', tWid.toFixed(1), 'm');
+    html += card('Estações/transecto', tSt);
+    html += card('Intervalo', tInt, 'm');
+  } else if (unitType === 'permanente') {
+    const pL2 = parseFloat(document.getElementById('permLength').value)     || 50;
+    const pW2 = parseFloat(document.getElementById('permWidth').value)      || 25;
+    const pI2 = parseInt(document.getElementById('permIndividuals').value)  || 6;
+    const pD2 = parseFloat(document.getElementById('permDensity').value)    || 48;
+    html += card('Dimensões', `${pL2.toFixed(1)} × ${pW2.toFixed(1)}`, 'm');
+    html += card('Área/parcela', (pL2 * pW2).toFixed(0), 'm²');
+    html += card('Área total exp.', +((pL2 * pW2) * total).toFixed(0), 'm²');
+    html += card('Indivíduos marcados', pI2);
+    html += card('Densidade', pD2.toFixed(1), 'ind./ha');
   } else {
     const ueA = parseFloat(document.getElementById('ueArea').value) || 12;
     const apu = parseInt(document.getElementById('animalsPerUnit').value) || 1;
@@ -1631,7 +1714,10 @@ function buildSvgLegend(allT, colors, pos, theme, pubFillMap, isEng = false, lab
 /* ── Schematic da Unidade Experimental (embutido no croqui) ── */
 function buildUeSchematic(params, theme, W, H, isEng = false) {
   const isPub = theme === 'pub';
-  const { unitType, plotLength, rowSpacing, rowsPerPlot, plantSpacing, ueArea, animalsPerUnit } = params;
+  const { unitType, plotLength, rowSpacing, rowsPerPlot, plantSpacing, ueArea, animalsPerUnit,
+          quadratArea, quadratMethod, quadratGridN,
+          transLength, transWidth, transStations,
+          permLength, permWidth, permIndividuals } = params;
 
   const cFg     = isPub ? '#111'              : '#2d6a4f';
   const cMuted  = isPub ? '#555'              : '#6b7c6e';
@@ -1767,81 +1853,89 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
 
   } else if (unitType === 'quadrat' || unitType === 'transecto' || unitType === 'permanente') {
     // UE ecológica — schematic compacto no croqui
-    const ua    = ueArea || (unitType === 'transecto' ? 50 : 100);
     const ANNOT_S = 22, PAD_S = 6;
     const availW  = W - ANNOT_S - PAD_S;
     const availH  = drawH - ANNOT_S - PAD_S;
 
     if (unitType === 'transecto') {
-      // Retângulo fino horizontal com estações de amostragem
+      const tLen = transLength || 50;
+      const tSt  = Math.max(2, transStations || 6);
+      const tWid = transWidth || 0;
       const tw = Math.min(availW, Math.round(availH * 4));
-      const th = Math.max(8, Math.round(availH * 0.3));
+      const th = tWid > 0 ? Math.max(8, Math.round(availH * 0.3)) : Math.max(5, Math.round(availH * 0.15));
       const ox = ANNOT_S + Math.round((availW - tw) / 2);
       const oy = drawY0 + ANNOT_S + Math.round((availH - th) / 2);
       out += `<rect x="${ox}" y="${oy}" width="${tw}" height="${th}" fill="${cFill}" stroke="${cStk}" stroke-width="${isPub?'0.8':'1.5'}"${isPub?'':' rx="2"'}/>`;
       const midY = +(oy + th / 2).toFixed(1);
       out += `<line x1="${ox}" y1="${midY}" x2="${ox+tw}" y2="${midY}" stroke="${isPub?'#666':'#40916c'}" stroke-width="0.8" stroke-dasharray="4 2"/>`;
-      const nSt = Math.min(6, Math.max(2, Math.round(ua / 15)));
-      for (let i = 0; i <= nSt; i++) {
-        const px = +(ox + (i / nSt) * tw).toFixed(1);
+      for (let i = 0; i < tSt; i++) {
+        const px = +(ox + (i / (tSt - 1)) * tw).toFixed(1);
         out += `<circle cx="${px}" cy="${midY}" r="3" fill="${cDot}" opacity="0.75"/>`;
         out += `<circle cx="${px}" cy="${midY}" r="1.2" fill="${cFill}" opacity="0.9"/>`;
       }
-      out += hDim(ox, ox + tw, oy - 10, `${ua.toFixed(0)} m`);
-      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${isEng?'Transect':'Transecto'} · ${ua.toFixed(0)} m · ${nSt+1} ${isEng?'stations':'estações'}</text>`;
+      const intv2 = tSt > 1 ? (tLen / (tSt - 1)).toFixed(1) : '—';
+      out += hDim(ox, ox + tw, oy - 10, `${tLen.toFixed(0)} m`);
+      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${isEng?'Transect':'Transecto'} · ${tLen.toFixed(0)} m · ${tSt} ${isEng?'stations':'estações'} · ${intv2} m</text>`;
 
     } else if (unitType === 'quadrat') {
-      // Quadrat — pontos de amostragem em grade (anel, igual ao renderUnidade)
-      const side  = Math.min(availW, availH);
-      const ox    = ANNOT_S + Math.round((availW - side) / 2);
-      const oy    = drawY0 + ANNOT_S + Math.round((availH - side) / 2);
+      const qA   = quadratArea || 1;
+      const qM   = quadratMethod || 'censo';
+      const qN   = Math.min(8, Math.max(2, quadratGridN || 5));
+      const side = Math.min(availW, availH);
+      const ox   = ANNOT_S + Math.round((availW - side) / 2);
+      const oy   = drawY0 + ANNOT_S + Math.round((availH - side) / 2);
       out += `<rect x="${ox}" y="${oy}" width="${side}" height="${side}" fill="${cFill}" stroke="${cStk}" stroke-width="${isPub?'0.8':'1.5'}"${isPub?'':' rx="2"'}/>`;
-      const nCols = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(ua) * 1.2)));
-      const nRows = nCols;
-      const gw    = side / (nCols + 1);
-      const gh    = side / (nRows + 1);
-      for (let r = 1; r <= nRows; r++) {
-        for (let c = 1; c <= nCols; c++) {
-          const px = +(ox + c * gw).toFixed(1);
-          const py = +(oy + r * gh).toFixed(1);
-          out += `<circle cx="${px}" cy="${py}" r="2.8" fill="${cDot}" opacity="${isPub?'0.7':'0.65'}"/>`;
-          out += `<circle cx="${px}" cy="${py}" r="1.1" fill="${cFill}" opacity="0.9"/>`;
+      if (qM === 'grade') {
+        const gw = side / (qN + 1);
+        const gh = side / (qN + 1);
+        for (let r = 1; r <= qN; r++) {
+          for (let c = 1; c <= qN; c++) {
+            const px = +(ox + c * gw).toFixed(1);
+            const py = +(oy + r * gh).toFixed(1);
+            out += `<circle cx="${px}" cy="${py}" r="2.8" fill="${cDot}" opacity="${isPub?'0.7':'0.65'}"/>`;
+            out += `<circle cx="${px}" cy="${py}" r="1.1" fill="${cFill}" opacity="0.9"/>`;
+          }
         }
       }
-      const dimS = Math.sqrt(ua);
+      const dimS = Math.sqrt(qA);
       out += hDim(ox, ox + side, oy - 10, `${dimS.toFixed(2)} m`);
       out += vDim(ox - 12, oy, oy + side, `${dimS.toFixed(2)} m`);
-      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">Quadrat · ${ua.toFixed(2)} m² · ${nCols*nRows} ${isEng?'points':'pontos'}</text>`;
+      const mLbl = qM === 'grade'
+        ? (isEng ? `${qN}×${qN} grid` : `grade ${qN}×${qN}`)
+        : (isEng ? 'census' : 'censo');
+      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">Quadrat · ${qA.toFixed(2)} m² · ${mLbl}</text>`;
 
     } else {
-      // Parcela permanente — retângulo 2:1 + árvores com mesma lógica do renderUnidade
-      const scR  = Math.min((availW - 8) / 2, availH);
-      const dW3  = Math.round(scR * 2);
-      const dH3  = Math.round(scR);
-      const ox   = ANNOT_S + Math.round((availW - dW3) / 2);
-      const oy   = drawY0 + ANNOT_S + Math.round((availH - dH3) / 2);
+      // Parcela permanente — retângulo proporcional + árvores
+      const pL  = permLength || 50;
+      const pWp = permWidth  || 25;
+      const pI  = Math.max(1, permIndividuals || 6);
+      const asp2 = pL / pWp;
+      const scR = Math.min(availW / Math.max(1, asp2), availH - 4);
+      const dW3 = Math.max(8, Math.round(scR * asp2));
+      const dH3 = Math.max(6, Math.round(scR));
+      const ox  = ANNOT_S + Math.round((availW - dW3) / 2);
+      const oy  = drawY0 + ANNOT_S + Math.round((availH - dH3) / 2);
       out += `<rect x="${ox}" y="${oy}" width="${dW3}" height="${dH3}" fill="${cFill}" stroke="${cStk}" stroke-width="${isPub?'0.8':'1.5'}"${isPub?'':' rx="2"'}/>`;
-      const treeDen = Math.min(9, Math.max(2, Math.round(ua / 400)));
-      let tCols = 1, tRows = treeDen;
-      { const asp = dW3 / dH3; let best = Infinity;
-        for (let c = 1; c <= treeDen; c++) { const r = Math.ceil(treeDen/c); const sc = (c*r - treeDen)*1000 + Math.abs(c/r - asp); if (sc < best) { best = sc; tCols = c; tRows = r; } } }
-      const tcw     = dW3 / (tCols + 1);
-      const tch     = dH3 / (tRows + 1);
+      let tCols = 1, tRows = pI;
+      { const aspR = dW3 / Math.max(1, dH3); let best = Infinity;
+        for (let c = 1; c <= pI; c++) { const r = Math.ceil(pI/c); const sc = (c*r - pI)*1000 + Math.abs(c/r - aspR); if (sc < best) { best = sc; tCols = c; tRows = r; } } }
+      const tcw = dW3 / (tCols + 1);
+      const tch = dH3 / (tRows + 1);
       let cnt2 = 0;
-      for (let r = 1; r <= tRows && cnt2 < treeDen; r++) {
-        for (let c = 1; c <= tCols && cnt2 < treeDen; c++, cnt2++) {
+      for (let r = 1; r <= tRows && cnt2 < pI; r++) {
+        for (let c = 1; c <= tCols && cnt2 < pI; c++, cnt2++) {
           const px  = +(ox + c * tcw).toFixed(1);
           const py  = +(oy + r * tch).toFixed(1);
-          const dr2 = Math.min(tcw, tch) * 0.22;  // mesmo multiplicador do renderUnidade
+          const dr2 = Math.min(tcw, tch) * 0.22;
           out += `<circle cx="${px}" cy="${py}" r="${+dr2.toFixed(1)}" fill="${isPub?'#888':'#52b788'}" opacity="${isPub?'0.5':'0.55'}" stroke="${cStk}" stroke-width="0.8"/>`;
           out += `<circle cx="${px}" cy="${py}" r="1.3" fill="${isPub?'#333':'#1b4332'}"/>`;
         }
       }
-      const pH3 = Math.sqrt(ua / 2), pW3 = ua / pH3;
-      out += hDim(ox, ox + dW3, oy - 10, `${pW3.toFixed(0)} m`);
-      out += vDim(ox - 12, oy, oy + dH3, `${pH3.toFixed(0)} m`);
+      out += hDim(ox, ox + dW3, oy - 10, `${pL.toFixed(0)} m`);
+      out += vDim(ox - 12, oy, oy + dH3, `${pWp.toFixed(0)} m`);
       const typeLbl = isEng ? 'Perm. Plot' : 'Parc. Permanente';
-      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${typeLbl} · ${ua.toFixed(0)} m² · ${treeDen} ${isEng?'trees':'árvores'}</text>`;
+      out += `<text x="${W/2}" y="${H - INFO_H + 14}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${typeLbl} · ${(pL*pWp).toFixed(0)} m² · ${pI} ${isEng?'trees':'árvores'}</text>`;
     }
 
   } else {
@@ -2277,6 +2371,19 @@ function renderCroqui() {
     const _rs  = parseFloat(document.getElementById('rowSpacing').value) || 0.5;
     const _rpp = parseInt(document.getElementById('rowsPerPlot').value)  || 4;
     svg += `<text x="${PAD}" y="${gridH - 3}" font-size="9" fill="${scaleColor}">${isEng ? 'Scale' : 'Escala'}: 1 ${isEng ? 'EU' : 'UE'} = ${_pl.toFixed(1)} m × ${(_rs * _rpp).toFixed(2)} m</text>`;
+  } else if (unitType === 'quadrat') {
+    const _qa = parseFloat(document.getElementById('quadratArea').value) || 1;
+    const _side = Math.sqrt(_qa);
+    svg += `<text x="${PAD}" y="${gridH - 3}" font-size="9" fill="${scaleColor}">${isEng ? 'Scale' : 'Escala'}: 1 ${isEng ? 'EU' : 'UE'} = ${_side.toFixed(2)} m × ${_side.toFixed(2)} m (${_qa.toFixed(2)} m²)</text>`;
+  } else if (unitType === 'transecto') {
+    const _tl = parseFloat(document.getElementById('transLength').value) || 50;
+    const _tw = parseFloat(document.getElementById('transWidth').value)  || 0;
+    const _dim = _tw > 0 ? `${_tl.toFixed(0)} m × ${_tw.toFixed(1)} m` : `${_tl.toFixed(0)} m`;
+    svg += `<text x="${PAD}" y="${gridH - 3}" font-size="9" fill="${scaleColor}">${isEng ? 'Scale' : 'Escala'}: 1 ${isEng ? 'EU' : 'UE'} = ${_dim}</text>`;
+  } else if (unitType === 'permanente') {
+    const _pl2 = parseFloat(document.getElementById('permLength').value) || 50;
+    const _pw2 = parseFloat(document.getElementById('permWidth').value)  || 25;
+    svg += `<text x="${PAD}" y="${gridH - 3}" font-size="9" fill="${scaleColor}">${isEng ? 'Scale' : 'Escala'}: 1 ${isEng ? 'EU' : 'UE'} = ${_pl2.toFixed(0)} m × ${_pw2.toFixed(0)} m (${(_pl2*_pw2).toFixed(0)} m²)</text>`;
   } else {
     const _ua = parseFloat(document.getElementById('ueArea').value) || 12;
     svg += `<text x="${PAD}" y="${gridH - 3}" font-size="9" fill="${scaleColor}">${isEng ? 'Scale' : 'Escala'}: 1 ${isEng ? 'EU' : 'UE'} = ${_ua.toFixed(1)} m²</text>`;
@@ -2292,16 +2399,25 @@ function renderCroqui() {
   // Schematic da Unidade Experimental
   if (showUe) {
     const ueParams = {
-      unitType:       document.getElementById('selUnitType').value,
-      plotLength:     parseFloat(document.getElementById('plotLength').value)   || 5,
-      rowSpacing:     parseFloat(document.getElementById('rowSpacing').value)   || 0.5,
-      rowsPerPlot:    parseInt(document.getElementById('rowsPerPlot').value)    || 4,
-      plantSpacing:   parseFloat(document.getElementById('plantSpacing').value) || 0.5,
-      ueArea:         parseFloat(document.getElementById('ueArea').value)        || 12,
-      animalsPerUnit: parseInt(document.getElementById('animalsPerUnit').value)  || 4,
+      unitType:        document.getElementById('selUnitType').value,
+      plotLength:      parseFloat(document.getElementById('plotLength').value)    || 5,
+      rowSpacing:      parseFloat(document.getElementById('rowSpacing').value)    || 0.5,
+      rowsPerPlot:     parseInt(document.getElementById('rowsPerPlot').value)     || 4,
+      plantSpacing:    parseFloat(document.getElementById('plantSpacing').value)  || 0.5,
+      ueArea:          parseFloat(document.getElementById('ueArea').value)         || 12,
+      animalsPerUnit:  parseInt(document.getElementById('animalsPerUnit').value)   || 4,
       borderFrac:      borderFrac,
       latBorderFrac:   latBorderFrac,
       latBorderPlants: latBorderPlants,
+      quadratArea:     parseFloat(document.getElementById('quadratArea').value)    || 1,
+      quadratMethod:   document.getElementById('quadratMethod').value,
+      quadratGridN:    parseInt(document.getElementById('quadratGridN').value)     || 5,
+      transLength:     parseFloat(document.getElementById('transLength').value)    || 50,
+      transWidth:      parseFloat(document.getElementById('transWidth').value)     || 0,
+      transStations:   parseInt(document.getElementById('transStations').value)    || 6,
+      permLength:      parseFloat(document.getElementById('permLength').value)     || 50,
+      permWidth:       parseFloat(document.getElementById('permWidth').value)      || 25,
+      permIndividuals: parseInt(document.getElementById('permIndividuals').value)  || 6,
     };
     const ueSvgContent = buildUeSchematic(ueParams, theme, UE_W, UE_H, isEng);
     svg += `<g transform="translate(${ux.toFixed(1)},${uy.toFixed(1)})">${ueSvgContent}</g>`;
@@ -2465,6 +2581,25 @@ function openUnitModal(dataEnc) {
     html += `<dt>Área bruta</dt><dd>${areaBruta} m²</dd>`;
     if (br > 0) html += `<dt>Área útil</dt><dd>${areaUtil} m²</dd>`;
     html += `<dt>Plantas/parcela</dt><dd>${plants}${br > 0 ? ` (${pUtil} úteis)` : ''}</dd>`;
+  } else if (unitType === 'quadrat') {
+    const qA = parseFloat(document.getElementById('quadratArea').value) || 1;
+    const qM = document.getElementById('quadratMethod').value;
+    const qN = parseInt(document.getElementById('quadratGridN').value) || 5;
+    html += `<dt>Área do quadrat</dt><dd>${qA.toFixed(2)} m² (${Math.sqrt(qA).toFixed(2)} m × ${Math.sqrt(qA).toFixed(2)} m)</dd>`;
+    html += `<dt>Método</dt><dd>${qM === 'grade' ? `Grade ${qN}×${qN} (${qN*qN} pontos)` : 'Censo total'}</dd>`;
+  } else if (unitType === 'transecto') {
+    const tL = parseFloat(document.getElementById('transLength').value) || 50;
+    const tW = parseFloat(document.getElementById('transWidth').value)  || 0;
+    const tS = parseInt(document.getElementById('transStations').value) || 6;
+    html += `<dt>Comprimento</dt><dd>${tL.toFixed(1)} m${tW > 0 ? ` × ${tW.toFixed(1)} m` : ' (linear)'}</dd>`;
+    html += `<dt>Estações</dt><dd>${tS} (intervalo ${tS > 1 ? (tL / (tS-1)).toFixed(1) : '—'} m)</dd>`;
+  } else if (unitType === 'permanente') {
+    const pL = parseFloat(document.getElementById('permLength').value)    || 50;
+    const pW = parseFloat(document.getElementById('permWidth').value)     || 25;
+    const pI = parseInt(document.getElementById('permIndividuals').value) || 6;
+    const pD = parseFloat(document.getElementById('permDensity').value)   || 48;
+    html += `<dt>Dimensões</dt><dd>${pL.toFixed(1)} m × ${pW.toFixed(1)} m (${(pL*pW).toFixed(0)} m²)</dd>`;
+    html += `<dt>Indivíduos marcados</dt><dd>${pI} (${pD.toFixed(1)} ind./ha)</dd>`;
   } else {
     html += `<dt>Área da UE</dt><dd>${ueA.toFixed(1)} m²</dd>`;
     html += `<dt>Animais/UE</dt><dd>${apu}</dd>`;
@@ -2800,32 +2935,46 @@ function buildPublicationText(lang) {
       unitDimCaption = `Dimensão da parcela: ${pl.toFixed(1)} m × ${plotW.toFixed(2)} m (${area.toFixed(1)} m²).`;
     }
   } else if (unitType === 'quadrat' || unitType === 'transecto' || unitType === 'permanente') {
-    const ueA   = parseFloat(document.getElementById('ueArea').value) || (unitType === 'transecto' ? 50 : 100);
-    const sideQ = Math.sqrt(ueA);
     if (unitType === 'transecto') {
+      const tLen = parseFloat(document.getElementById('transLength').value) || 50;
+      const tWid = parseFloat(document.getElementById('transWidth').value)  || 0;
+      const tSt  = Math.max(2, parseInt(document.getElementById('transStations').value) || 6);
+      const tInt = tSt > 1 ? +(tLen / (tSt - 1)).toFixed(1) : '—';
+      const widPt = tWid > 0 ? ` (largura ${tWid.toFixed(1)} m)` : '';
+      const widEn = tWid > 0 ? ` (${tWid.toFixed(1)} m wide)` : '';
       if (isEng) {
-        unitDimText    = `Each experimental unit (transect) was ${ueA.toFixed(1)} m long, with equidistant sampling stations distributed along the line.`;
-        unitDimCaption = `Transect length: ${ueA.toFixed(1)} m.`;
+        unitDimText    = `Each experimental unit (transect) was ${tLen.toFixed(1)} m long${widEn}, with ${tSt} equidistant sampling stations spaced ${tInt} m apart.`;
+        unitDimCaption = `Transect: ${tLen.toFixed(1)} m${tWid > 0 ? ' × ' + tWid.toFixed(1) + ' m' : ''}, ${tSt} stations, ${tInt} m interval.`;
       } else {
-        unitDimText    = `Cada unidade experimental (transecto) teve ${ueA.toFixed(1)} m de comprimento, com estações de amostragem distribuídas equidistantemente ao longo da linha.`;
-        unitDimCaption = `Comprimento do transecto: ${ueA.toFixed(1)} m.`;
+        unitDimText    = `Cada unidade experimental (transecto) teve ${tLen.toFixed(1)} m de comprimento${widPt}, com ${tSt} estações de amostragem equidistantes de ${tInt} m.`;
+        unitDimCaption = `Transecto: ${tLen.toFixed(1)} m${tWid > 0 ? ' × ' + tWid.toFixed(1) + ' m' : ''}, ${tSt} estações, intervalo de ${tInt} m.`;
       }
     } else if (unitType === 'quadrat') {
+      const qA   = parseFloat(document.getElementById('quadratArea').value) || 1;
+      const qM   = document.getElementById('quadratMethod').value || 'censo';
+      const qN   = parseInt(document.getElementById('quadratGridN').value)  || 5;
+      const side = Math.sqrt(qA).toFixed(2);
+      const mPT  = qM === 'grade' ? `grade de ${qN}×${qN} pontos (${qN*qN} pontos de amostragem)` : 'censo total de indivíduos';
+      const mEN  = qM === 'grade' ? `${qN}×${qN} point grid (${qN*qN} sampling points)`           : 'total individual census';
       if (isEng) {
-        unitDimText    = `Each experimental unit (quadrat) measured ${sideQ.toFixed(2)} m × ${sideQ.toFixed(2)} m (${ueA.toFixed(2)} m²), used for floristic and vegetation sampling.`;
-        unitDimCaption = `Quadrat: ${sideQ.toFixed(2)} m × ${sideQ.toFixed(2)} m (${ueA.toFixed(2)} m²).`;
+        unitDimText    = `Each experimental unit (quadrat) measured ${side} m × ${side} m (${qA.toFixed(2)} m²), sampled by ${mEN}.`;
+        unitDimCaption = `Quadrat: ${side} m × ${side} m (${qA.toFixed(2)} m²), ${mEN}.`;
       } else {
-        unitDimText    = `Cada unidade experimental (quadrat) mediu ${sideQ.toFixed(2)} m × ${sideQ.toFixed(2)} m (${ueA.toFixed(2)} m²), utilizada para amostragem fitossociológica.`;
-        unitDimCaption = `Quadrat: ${sideQ.toFixed(2)} m × ${sideQ.toFixed(2)} m (${ueA.toFixed(2)} m²).`;
+        unitDimText    = `Cada unidade experimental (quadrat) mediu ${side} m × ${side} m (${qA.toFixed(2)} m²), amostrada por ${mPT}.`;
+        unitDimCaption = `Quadrat: ${side} m × ${side} m (${qA.toFixed(2)} m²), ${mPT}.`;
       }
     } else {
-      const pH2 = Math.sqrt(ueA / 2), pW2 = ueA / pH2;
+      const pL  = parseFloat(document.getElementById('permLength').value)     || 50;
+      const pWm = parseFloat(document.getElementById('permWidth').value)      || 25;
+      const pI  = parseInt(document.getElementById('permIndividuals').value)  || 6;
+      const pD  = parseFloat(document.getElementById('permDensity').value)    || 48;
+      const pA  = (pL * pWm).toFixed(0);
       if (isEng) {
-        unitDimText    = `Each experimental unit (permanent plot) covered ${ueA.toFixed(0)} m² (approximately ${pW2.toFixed(1)} m × ${pH2.toFixed(1)} m, 2:1 aspect ratio), used for long-term floristic monitoring.`;
-        unitDimCaption = `Permanent plot: ${ueA.toFixed(0)} m² (${pW2.toFixed(1)} m × ${pH2.toFixed(1)} m).`;
+        unitDimText    = `Each experimental unit (permanent plot) measured ${pL.toFixed(1)} m × ${pWm.toFixed(1)} m (${pA} m²), with ${pI} marked individuals (${pD.toFixed(1)} ind./ha), used for long-term floristic monitoring.`;
+        unitDimCaption = `Permanent plot: ${pL.toFixed(1)} m × ${pWm.toFixed(1)} m (${pA} m²), ${pD.toFixed(1)} ind./ha.`;
       } else {
-        unitDimText    = `Cada unidade experimental (parcela permanente) teve área de ${ueA.toFixed(0)} m² (aproximadamente ${pW2.toFixed(1)} m × ${pH2.toFixed(1)} m, proporção 2:1), destinada ao monitoramento florístico de longo prazo.`;
-        unitDimCaption = `Parcela permanente: ${ueA.toFixed(0)} m² (${pW2.toFixed(1)} m × ${pH2.toFixed(1)} m).`;
+        unitDimText    = `Cada unidade experimental (parcela permanente) mediu ${pL.toFixed(1)} m × ${pWm.toFixed(1)} m (${pA} m²), com ${pI} indivíduos marcados (${pD.toFixed(1)} ind./ha), destinada ao monitoramento florístico de longo prazo.`;
+        unitDimCaption = `Parcela permanente: ${pL.toFixed(1)} m × ${pWm.toFixed(1)} m (${pA} m²), ${pD.toFixed(1)} ind./ha.`;
       }
     }
   } else {
@@ -3154,12 +3303,14 @@ function renderUnidade() {
 
   } else if (unitType === 'quadrat') {
     /* ─── Quadrat ─── */
-    const ueA  = parseFloat(document.getElementById('ueArea').value) || 1;
-    const side = Math.sqrt(ueA);
+    const qA   = parseFloat(document.getElementById('quadratArea').value) || 1;
+    const qM   = document.getElementById('quadratMethod').value || 'censo';
+    const qN   = Math.min(15, Math.max(2, parseInt(document.getElementById('quadratGridN').value) || 5));
+    const side = Math.sqrt(qA);
     const svgW = 380, svgH = 320;
     const maxS = 200;
-    const sc   = Math.min(maxS / side, 120);
-    const dS   = Math.min(maxS, Math.round(side * sc));
+    const sc   = Math.min(maxS / Math.max(side, 0.01), 120);
+    const dS   = Math.min(maxS, Math.max(40, Math.round(side * sc)));
     const ox   = (svgW - dS) / 2;
     const oy   = 72;
 
@@ -3168,18 +3319,19 @@ function renderUnidade() {
       ${defs}
       <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${isEng ? 'Quadrat — Top View' : 'Quadrat — Vista Superior'}</text>`;
     svgStr += `<rect x="${ox}" y="${oy}" width="${dS}" height="${dS}" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="2"/>`;
-    // Grade de pontos de amostragem
-    const nCols = Math.min(7, Math.max(2, Math.ceil(Math.sqrt(ueA) * 1.5)));
-    const nRows = nCols;
-    const cw    = dS / (nCols + 1);
-    const ch    = dS / (nRows + 1);
-    for (let r = 1; r <= nRows; r++) {
-      for (let c = 1; c <= nCols; c++) {
-        const px = +(ox + c * cw).toFixed(1);
-        const py = +(oy + r * ch).toFixed(1);
-        svgStr += `<circle cx="${px}" cy="${py}" r="3" fill="#2d6a4f" opacity=".7"/>`;
-        svgStr += `<circle cx="${px}" cy="${py}" r="1.2" fill="#fff"/>`;
+    let nPts = 0;
+    if (qM === 'grade') {
+      const cw = dS / (qN + 1);
+      const ch = dS / (qN + 1);
+      for (let r = 1; r <= qN; r++) {
+        for (let c = 1; c <= qN; c++) {
+          const px = +(ox + c * cw).toFixed(1);
+          const py = +(oy + r * ch).toFixed(1);
+          svgStr += `<circle cx="${px}" cy="${py}" r="3" fill="#2d6a4f" opacity=".7"/>`;
+          svgStr += `<circle cx="${px}" cy="${py}" r="1.2" fill="#fff"/>`;
+        }
       }
+      nPts = qN * qN;
     }
     // Cotas
     const ty = oy - 22;
@@ -3189,24 +3341,32 @@ function renderUnidade() {
     const lx2 = ox - 28;
     svgStr += annLine(lx2, oy, lx2, oy + dS);
     svgStr += `<text x="${lx2 - 5}" y="${+(oy + dS/2 + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="#374151" font-weight="700">${side.toFixed(2)} m</text>`;
-    svgStr += `<text x="${svgW/2}" y="${+(oy + dS + 22).toFixed(1)}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">${ueA.toFixed(2)} m²</text>`;
-    svgStr += `<text x="${svgW/2}" y="${+(oy + dS + 38).toFixed(1)}" text-anchor="middle" font-size="9" fill="#6b7c6e">${isEng ? '● sampling points (schematic grid)' : '● pontos de amostragem (grade esquemática)'}</text>`;
+    svgStr += `<text x="${svgW/2}" y="${+(oy + dS + 22).toFixed(1)}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">${qA.toFixed(2)} m²</text>`;
+    const mLblU = qM === 'grade'
+      ? (isEng ? `● ${nPts} sampling points (${qN}×${qN} grid)` : `● ${nPts} pontos de amostragem (grade ${qN}×${qN})`)
+      : (isEng ? 'Total census — no fixed sampling points' : 'Censo total — sem pontos de amostragem fixos');
+    svgStr += `<text x="${svgW/2}" y="${+(oy + dS + 38).toFixed(1)}" text-anchor="middle" font-size="9" fill="#6b7c6e">${mLblU}</text>`;
     svgStr += `</svg>`;
 
-    const nPts = nCols * nRows;
+    const methodCard = qM === 'grade'
+      ? (isEng ? `Point grid ${qN}×${qN}` : `Grade ${qN}×${qN}`)
+      : (isEng ? 'Total census' : 'Censo total');
     statsHtml = [
-      { label: isEng ? 'Quadrat area'  : 'Área do quadrat', value: ueA.toFixed(2),  unit: 'm²' },
-      { label: isEng ? 'Side'          : 'Lado',            value: side.toFixed(2), unit: 'm'  },
-      { label: isEng ? 'Sample points' : 'Pontos de amos.', value: String(nPts),    unit: ''   },
+      { label: isEng ? 'Quadrat area'     : 'Área do quadrat',    value: qA.toFixed(2),   unit: 'm²' },
+      { label: isEng ? 'Side'             : 'Lado',               value: side.toFixed(2), unit: 'm'  },
+      { label: isEng ? 'Sampling method'  : 'Método amostragem',  value: methodCard,      unit: ''   },
+      ...(qM === 'grade' ? [{ label: isEng ? 'Sample points' : 'Pontos amostrados', value: String(nPts), unit: '' }] : []),
     ].map(s => `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`).join('');
 
   } else if (unitType === 'transecto') {
     /* ─── Transecto ─── */
-    const len  = parseFloat(document.getElementById('ueArea').value) || 50;
-    const svgW = 520, svgH = 240;
+    const len  = parseFloat(document.getElementById('transLength').value)   || 50;
+    const wid  = parseFloat(document.getElementById('transWidth').value)    || 0;
+    const nSt  = Math.max(2, parseInt(document.getElementById('transStations').value) || 6);
+    const svgW = 520, svgH = wid > 0 ? 280 : 240;
     const PAD  = 70;
     const dW   = svgW - 2 * PAD;
-    const dH   = 38;
+    const dH   = wid > 0 ? Math.min(80, Math.max(30, Math.round(dW * wid / len))) : 28;
     const ox   = PAD;
     const oy   = (svgH - dH) / 2;
 
@@ -3219,40 +3379,48 @@ function renderUnidade() {
     const midY = +(oy + dH / 2).toFixed(1);
     svgStr += `<line x1="${ox}" y1="${midY}" x2="${ox + dW}" y2="${midY}" stroke="#40916c" stroke-width="1" stroke-dasharray="6 3"/>`;
     // Estações equidistantes
-    const nSt = Math.min(12, Math.max(3, Math.round(len / 10)));
-    for (let i = 0; i <= nSt; i++) {
-      const px  = +(ox + (i / nSt) * dW).toFixed(1);
-      const lbl = (i * len / nSt).toFixed(0);
+    const intv = nSt > 1 ? len / (nSt - 1) : len;
+    for (let i = 0; i < nSt; i++) {
+      const px  = +(ox + (i / (nSt - 1)) * dW).toFixed(1);
+      const lbl = (i * intv).toFixed(0);
       svgStr += `<circle cx="${px}" cy="${midY}" r="4.5" fill="#2d6a4f" opacity=".8"/>`;
-      svgStr += `<text x="${px}" y="${+(oy + dH + 14).toFixed(1)}" text-anchor="middle" font-size="7.5" fill="${i===0||i===nSt?'#374151':'#6b7c6e'}" font-weight="${i===0||i===nSt?'700':'400'}">${lbl}</text>`;
+      svgStr += `<text x="${px}" y="${+(oy + dH + 14).toFixed(1)}" text-anchor="middle" font-size="7.5" fill="${i===0||i===nSt-1?'#374151':'#6b7c6e'}" font-weight="${i===0||i===nSt-1?'700':'400'}">${lbl}</text>`;
     }
     // Cota de comprimento
     const ty2 = oy - 20;
     svgStr += annLine(ox, ty2, ox + dW, ty2);
     svgStr += `<text x="${+(ox + dW/2).toFixed(1)}" y="${ty2 - 6}" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">${len.toFixed(1)} m</text>`;
     svgStr += `<text x="${+(ox + dW/2).toFixed(1)}" y="${ty2 + 13}" text-anchor="middle" font-size="8" fill="#6b7c6e">${isEng ? 'transect length' : 'comprimento do transecto'}</text>`;
+    // Cota de largura se belt transect
+    if (wid > 0) {
+      const lwx2 = ox - 28;
+      svgStr += annLine(lwx2, oy, lwx2, oy + dH);
+      svgStr += `<text x="${lwx2 - 5}" y="${+(oy + dH/2 + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="#374151" font-weight="700">${wid.toFixed(1)} m</text>`;
+    }
     svgStr += `<text x="${svgW/2}" y="${svgH - 12}" text-anchor="middle" font-size="9" fill="#6b7c6e">${isEng ? '● sampling station (equidistant)' : '● estação de amostragem (equidistante)'}</text>`;
     svgStr += `</svg>`;
 
-    const interval = len / nSt;
-    statsHtml = [
-      { label: isEng ? 'Transect length' : 'Comprimento',   value: len.toFixed(1),      unit: 'm' },
-      { label: isEng ? 'Stations'        : 'Estações',      value: String(nSt + 1),     unit: ''  },
-      { label: isEng ? 'Interval'        : 'Intervalo',     value: interval.toFixed(1), unit: 'm' },
-    ].map(s => `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`).join('');
+    const statsArr2 = [
+      { label: isEng ? 'Transect length' : 'Comprimento',  value: len.toFixed(1),    unit: 'm' },
+      ...(wid > 0 ? [{ label: isEng ? 'Width (belt)' : 'Largura (faixa)', value: wid.toFixed(1), unit: 'm' }] : []),
+      { label: isEng ? 'Stations'        : 'Estações',     value: String(nSt),       unit: ''  },
+      { label: isEng ? 'Interval'        : 'Intervalo',    value: intv.toFixed(1),   unit: 'm' },
+    ];
+    statsHtml = statsArr2.map(s => `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`).join('');
 
   } else if (unitType === 'permanente') {
     /* ─── Parcela permanente ─── */
-    const ueA = parseFloat(document.getElementById('ueArea').value) || 1000;
-    // Proporção 2:1 (comprimento × largura)
-    const pH  = Math.sqrt(ueA / 2);
-    const pW  = ueA / pH;
+    const pL   = parseFloat(document.getElementById('permLength').value)      || 50;
+    const pWv  = parseFloat(document.getElementById('permWidth').value)       || 25;
+    const pI   = Math.max(1, parseInt(document.getElementById('permIndividuals').value) || 6);
+    const pD   = parseFloat(document.getElementById('permDensity').value)     || 48;
+    const ueA  = pL * pWv;
     const svgW = 480, svgH = 340;
     const LPAD2 = 70, TPAD2 = 72;
     const maxDW2 = 300, maxDH2 = 190;
-    const sc2 = Math.min(maxDW2 / pW, maxDH2 / pH);
-    const dW2 = Math.round(pW * sc2);
-    const dH2 = Math.round(pH * sc2);
+    const sc2 = Math.min(maxDW2 / Math.max(pL, 0.01), maxDH2 / Math.max(pWv, 0.01));
+    const dW2 = Math.max(20, Math.round(pL * sc2));
+    const dH2 = Math.max(15, Math.round(pWv * sc2));
     const ox2 = LPAD2 + Math.round((maxDW2 - dW2) / 2);
     const oy2 = TPAD2 + Math.round((maxDH2 - dH2) / 2);
 
@@ -3261,41 +3429,41 @@ function renderUnidade() {
       ${defs}
       <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${isEng ? 'Permanent Plot — Top View' : 'Parcela Permanente — Vista Superior'}</text>`;
     svgStr += `<rect x="${ox2}" y="${oy2}" width="${dW2}" height="${dH2}" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="2"/>`;
-    // Símbolos de árvore
-    const treeDen  = Math.max(1, Math.round(ueA / 400));
-    let tCols = 1, tRows = treeDen;
-    { const asp = dW2 / dH2; let best = Infinity;
-      for (let c = 1; c <= treeDen; c++) { const r = Math.ceil(treeDen/c); const sc = (c*r - treeDen)*1000 + Math.abs(c/r - asp); if (sc < best) { best = sc; tCols = c; tRows = r; } } }
-    const tcw2     = dW2 / (tCols + 1);
-    const tch2     = dH2 / (tRows + 1);
-    for (let r = 1; r <= tRows; r++) {
-      for (let c = 1; c <= tCols; c++) {
-        if ((r - 1) * tCols + c > treeDen) break;
-        const tx2 = +(ox2 + c * tcw2).toFixed(1);
-        const ty3 = +(oy2 + r * tch2).toFixed(1);
+    // Símbolos de árvore — grid simétrico
+    let tCols = 1, tRows = pI;
+    { const asp = dW2 / Math.max(1, dH2); let best = Infinity;
+      for (let c = 1; c <= pI; c++) { const r = Math.ceil(pI/c); const sc = (c*r - pI)*1000 + Math.abs(c/r - asp); if (sc < best) { best = sc; tCols = c; tRows = r; } } }
+    const tcw2 = dW2 / (tCols + 1);
+    const tch2 = dH2 / (tRows + 1);
+    let cnt3 = 0;
+    for (let r = 1; r <= tRows && cnt3 < pI; r++) {
+      for (let c = 1; c <= tCols && cnt3 < pI; c++, cnt3++) {
+        const tx2  = +(ox2 + c * tcw2).toFixed(1);
+        const ty3  = +(oy2 + r * tch2).toFixed(1);
         const rad2 = Math.min(tcw2, tch2) * 0.22;
         svgStr += `<circle cx="${tx2}" cy="${ty3}" r="${+rad2.toFixed(1)}" fill="#52b788" opacity=".55" stroke="#2d6a4f" stroke-width="0.8"/>`;
         svgStr += `<circle cx="${tx2}" cy="${ty3}" r="1.5" fill="#1b4332"/>`;
       }
     }
-    // Cotas comprimento (topo)
+    // Cota comprimento (topo)
     const lay2 = oy2 - 22;
     svgStr += annLine(ox2, lay2, ox2 + dW2, lay2);
-    svgStr += `<text x="${+(ox2 + dW2/2).toFixed(1)}" y="${lay2 - 6}" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">${pW.toFixed(1)} m</text>`;
+    svgStr += `<text x="${+(ox2 + dW2/2).toFixed(1)}" y="${lay2 - 6}" text-anchor="middle" font-size="10" fill="#374151" font-weight="700">${pL.toFixed(1)} m</text>`;
     svgStr += `<text x="${+(ox2 + dW2/2).toFixed(1)}" y="${lay2 + 13}" text-anchor="middle" font-size="8" fill="#6b7c6e">${isEng ? 'length' : 'comprimento'}</text>`;
     // Cota largura (lateral esq.)
     const lwx = ox2 - 26;
     svgStr += annLine(lwx, oy2, lwx, oy2 + dH2);
     const cly = +(oy2 + dH2/2).toFixed(1);
-    svgStr += `<text transform="rotate(-90,${lwx-14},${cly})" x="${lwx-14}" y="${cly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#374151" font-weight="700">${pH.toFixed(1)} m</text>`;
-    svgStr += `<text x="${svgW/2}" y="${+(oy2 + dH2 + 22).toFixed(1)}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">${ueA.toFixed(0)} m²</text>`;
-    svgStr += `<text x="${svgW/2}" y="${+(oy2 + dH2 + 38).toFixed(1)}" text-anchor="middle" font-size="9" fill="#6b7c6e">${isEng ? '⬤ tree (schematic — 2:1 aspect ratio)' : '⬤ árvore (esquemático — proporção 2:1)'}</text>`;
+    svgStr += `<text transform="rotate(-90,${lwx-14},${cly})" x="${lwx-14}" y="${cly}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#374151" font-weight="700">${pWv.toFixed(1)} m</text>`;
+    svgStr += `<text x="${svgW/2}" y="${+(oy2 + dH2 + 22).toFixed(1)}" text-anchor="middle" font-size="10" fill="#2d6a4f" font-weight="600">${ueA.toFixed(0)} m² · ${pD.toFixed(1)} ${isEng ? 'ind./ha' : 'ind./ha'}</text>`;
+    svgStr += `<text x="${svgW/2}" y="${+(oy2 + dH2 + 38).toFixed(1)}" text-anchor="middle" font-size="9" fill="#6b7c6e">${isEng ? `⬤ ${pI} marked trees (schematic)` : `⬤ ${pI} árvores marcadas (esquemático)`}</text>`;
     svgStr += `</svg>`;
 
     statsHtml = [
-      { label: isEng ? 'Plot area'          : 'Área da parcela',   value: ueA.toFixed(0),                    unit: 'm²' },
-      { label: isEng ? 'Dimensions (2:1)'   : 'Dimensões (2:1)',   value: `${pW.toFixed(1)} × ${pH.toFixed(1)}`, unit: 'm' },
-      { label: isEng ? 'Trees (schematic)'  : 'Árvores (esq.)',    value: String(treeDen),                   unit: ''   },
+      { label: isEng ? 'Dimensions'         : 'Dimensões',          value: `${pL.toFixed(1)} × ${pWv.toFixed(1)}`, unit: 'm'      },
+      { label: isEng ? 'Plot area'          : 'Área da parcela',    value: ueA.toFixed(0),                         unit: 'm²'     },
+      { label: isEng ? 'Marked individuals' : 'Indivíduos marcados',value: String(pI),                             unit: ''       },
+      { label: isEng ? 'Density'            : 'Densidade',          value: pD.toFixed(1),                          unit: 'ind./ha'},
     ].map(s => `<div class="summary-card"><div class="label">${esc(s.label)}</div><div class="value">${esc(s.value)}</div>${s.unit?`<div class="unit">${esc(s.unit)}</div>`:''}</div>`).join('');
 
   } else {
@@ -3436,20 +3604,21 @@ function onDesignChange() {
 
 function onUnitTypeChange() {
   const ut = document.getElementById('selUnitType').value;
-  const isVeg   = ut === 'parcela';
-  const isEco   = ut === 'quadrat' || ut === 'transecto' || ut === 'permanente';
-  const isField = ut === 'parcela' || ut === 'piquete' || isEco;
+  const isVeg  = ut === 'parcela';
+  const isAnim = ut === 'animal' || ut === 'baia' || ut === 'piquete' || ut === 'clinica';
+  const isField = isVeg || ut === 'piquete' || ut === 'quadrat' || ut === 'transecto' || ut === 'permanente';
+
   document.getElementById('secVegetal').classList.toggle('hidden', !isVeg);
-  document.getElementById('secAnimal').classList.toggle('hidden', isVeg);
-  const labels = {
-    animal:'Área por animal (m²)', baia:'Área da baia (m²)', piquete:'Área do piquete (m²)', clinica:'Área da unidade clínica (m²)',
-    quadrat:'Área do quadrat (m²)', transecto:'Comprimento do transecto (m)', permanente:'Área da parcela permanente (m²)'
-  };
-  const el = document.getElementById('lblUeArea');
-  if (el && labels[ut]) el.textContent = labels[ut];
-  // Animais por UE: oculto para UEs ecológicas
-  const rowApu = document.getElementById('rowAnimalsPerUnit');
-  if (rowApu) rowApu.style.display = isEco ? 'none' : '';
+  document.getElementById('secAnimal').classList.toggle('hidden', !isAnim);
+  document.getElementById('secQuadrat').classList.toggle('hidden', ut !== 'quadrat');
+  document.getElementById('secTransecto').classList.toggle('hidden', ut !== 'transecto');
+  document.getElementById('secPermanente').classList.toggle('hidden', ut !== 'permanente');
+
+  // Label for ueArea inside secAnimal
+  const ueLabels = { animal:'Área por animal (m²)', baia:'Área da baia (m²)', piquete:'Área do piquete (m²)', clinica:'Área da unidade clínica (m²)' };
+  const lblUe = document.getElementById('lblUeArea');
+  if (lblUe && ueLabels[ut]) lblUe.textContent = ueLabels[ut];
+
   // Ruas, gradiente e setas geográficas: apenas para experimentos a campo
   document.getElementById('rowAlley').style.display    = isField ? '' : 'none';
   document.getElementById('rowGradient').style.display = isField ? '' : 'none';
@@ -3460,6 +3629,54 @@ function onUnitTypeChange() {
   document.getElementById('lblNorthArrow').style.display  = isField ? '' : 'none';
   document.getElementById('lblGradArrow').style.display   = isField ? '' : 'none';
   if (!isField) document.getElementById('rowGradLabel').style.display = 'none';
+}
+
+function onQuadratMethodChange() {
+  const method = document.getElementById('quadratMethod').value;
+  document.getElementById('rowQuadratGrid').classList.toggle('hidden', method !== 'grade');
+  rerenderCroqui();
+}
+
+function onTransIntervalChange() {
+  const len  = parseFloat(document.getElementById('transLength').value) || 50;
+  const intv = parseFloat(document.getElementById('transInterval').value) || 10;
+  if (intv > 0 && intv < len) {
+    document.getElementById('transStations').value = Math.max(2, Math.round(len / intv) + 1);
+  }
+  rerenderCroqui();
+}
+
+function onTransStationsChange() {
+  const len = parseFloat(document.getElementById('transLength').value) || 50;
+  const st  = parseInt(document.getElementById('transStations').value) || 6;
+  if (st >= 2) {
+    document.getElementById('transInterval').value = +(len / (st - 1)).toFixed(2);
+  }
+  rerenderCroqui();
+}
+
+function onPermDimChange() {
+  const L  = parseFloat(document.getElementById('permLength').value) || 50;
+  const W  = parseFloat(document.getElementById('permWidth').value)  || 25;
+  const nd = parseInt(document.getElementById('permIndividuals').value) || 6;
+  document.getElementById('permDensity').value = +(nd / (L * W / 10000)).toFixed(1);
+  rerenderCroqui();
+}
+
+function onPermIndivChange() {
+  const L  = parseFloat(document.getElementById('permLength').value) || 50;
+  const W  = parseFloat(document.getElementById('permWidth').value)  || 25;
+  const nd = parseInt(document.getElementById('permIndividuals').value) || 1;
+  document.getElementById('permDensity').value = +(nd / (L * W / 10000)).toFixed(1);
+  rerenderCroqui();
+}
+
+function onPermDensityChange() {
+  const L    = parseFloat(document.getElementById('permLength').value) || 50;
+  const W    = parseFloat(document.getElementById('permWidth').value)  || 25;
+  const dens = parseFloat(document.getElementById('permDensity').value) || 1;
+  document.getElementById('permIndividuals').value = Math.max(1, Math.round(dens * L * W / 10000));
+  rerenderCroqui();
 }
 
 function onGradArrowToggle() {
@@ -3666,10 +3883,12 @@ const EXAMPLES = {
     document.getElementById('txtTreatments').value = 'Controle (sem intervenção)\nSemeadura a lanço\nSemeadura + adubação NPK\nTransplante de mudas';
     document.getElementById('numReps').value = '5';
     document.getElementById('numSeed').value = '42';
-    document.getElementById('ueArea').value = '1';
+    document.getElementById('quadratArea').value = '1';
+    document.getElementById('quadratMethod').value = 'grade';
+    document.getElementById('quadratGridN').value = '5';
     document.getElementById('txtSpecies').value = 'Cerrado (campos experimentais de restauração)';
     document.getElementById('selGradient').value = 'NS';
-    onDesignChange(); onUnitTypeChange(); onAreaChange();
+    onDesignChange(); onAreaChange(); onQuadratMethodChange();
   },
   mata_transecto: () => {
     document.getElementById('selDesign').value = 'DIC';
@@ -3678,10 +3897,13 @@ const EXAMPLES = {
     document.getElementById('txtTreatments').value = 'Floresta primária\nCapoeira antiga (>25 anos)\nCapoeira jovem (<10 anos)\nÁrea degradada';
     document.getElementById('numReps').value = '4';
     document.getElementById('numSeed').value = '17';
-    document.getElementById('ueArea').value = '50';
+    document.getElementById('transLength').value = '100';
+    document.getElementById('transWidth').value = '2';
+    document.getElementById('transInterval').value = '10';
+    document.getElementById('transStations').value = '11';
     document.getElementById('txtSpecies').value = 'Mata Atlântica (levantamento fitossanitário)';
     document.getElementById('selGradient').value = 'none';
-    onDesignChange(); onUnitTypeChange(); onAreaChange();
+    onDesignChange(); onAreaChange();
   },
   araucaria_permanente: () => {
     document.getElementById('selDesign').value = 'DBC';
@@ -3690,10 +3912,13 @@ const EXAMPLES = {
     document.getElementById('txtTreatments').value = 'Floresta sem manejo\nManejo seletivo leve\nManejo seletivo intenso';
     document.getElementById('numReps').value = '4';
     document.getElementById('numSeed').value = '33';
-    document.getElementById('ueArea').value = '2500';
+    document.getElementById('permLength').value = '50';
+    document.getElementById('permWidth').value = '50';
+    document.getElementById('permIndividuals').value = '6';
+    document.getElementById('permDensity').value = '24';
     document.getElementById('txtSpecies').value = 'Floresta Ombrófila Mista — Araucária';
     document.getElementById('selGradient').value = 'EW';
-    onDesignChange(); onUnitTypeChange(); onAreaChange();
+    onDesignChange(); onAreaChange();
   }
 };
 
@@ -3750,6 +3975,17 @@ function captureCurrentConfig() {
     splBLevels: document.getElementById('splBLevels').value,
     splBlocks: document.getElementById('numSplBlocks').value,
     splSeed: document.getElementById('numSplSeed').value,
+    quadratArea:     document.getElementById('quadratArea').value,
+    quadratMethod:   document.getElementById('quadratMethod').value,
+    quadratGridN:    document.getElementById('quadratGridN').value,
+    transLength:     document.getElementById('transLength').value,
+    transWidth:      document.getElementById('transWidth').value,
+    transInterval:   document.getElementById('transInterval').value,
+    transStations:   document.getElementById('transStations').value,
+    permLength:      document.getElementById('permLength').value,
+    permWidth:       document.getElementById('permWidth').value,
+    permIndividuals: document.getElementById('permIndividuals').value,
+    permDensity:     document.getElementById('permDensity').value,
     gradient:  document.getElementById('selGradient').value,
     gradPT:    document.getElementById('txtGradPT').value,
     gradEN:    document.getElementById('txtGradEN').value,
@@ -3786,6 +4022,12 @@ function applyConfig(c) {
   set('dqlColLevels', c.dqlColLevels); set('dqlSeed', c.dqlSeed);
   set('splALevels', c.splALevels); set('splBLevels', c.splBLevels);
   set('numSplBlocks', c.splBlocks); set('numSplSeed', c.splSeed);
+  set('quadratArea', c.quadratArea); set('quadratMethod', c.quadratMethod); set('quadratGridN', c.quadratGridN);
+  set('transLength', c.transLength); set('transWidth', c.transWidth);
+  set('transInterval', c.transInterval); set('transStations', c.transStations);
+  set('permLength', c.permLength); set('permWidth', c.permWidth);
+  set('permIndividuals', c.permIndividuals); set('permDensity', c.permDensity);
+  if (c.quadratMethod !== undefined) onQuadratMethodChange();
   set('selGradient', c.gradient);
   set('txtGradPT',   c.gradPT);
   set('txtGradEN',   c.gradEN);
@@ -3799,7 +4041,7 @@ function applyConfig(c) {
   if (c.showUe !== undefined) document.getElementById('chkShowUe').checked = c.showUe;
   if (c.unitPB  !== undefined) document.getElementById('chkUnitPB').checked  = c.unitPB;
   if (c.isEng  !== undefined) document.getElementById('chkEnglish').checked = c.isEng;
-  onDesignChange(); onUnitTypeChange();
+  onDesignChange(); onAreaChange();
 }
 
 function savePreset() {
