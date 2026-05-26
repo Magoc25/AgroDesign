@@ -1,6 +1,6 @@
-/* AgroDesign — Service Worker v1.0.0 — cache v19 */
+/* AgroDesign — Service Worker v1.0.0 — cache v20 */
 
-const CACHE_NAME = 'agrodesign-v19';
+const CACHE_NAME = 'agrodesign-v20';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
@@ -24,8 +24,12 @@ self.addEventListener('fetch', event => {
 
   // Network-first: busca sempre a versão mais recente quando online;
   // usa o cache apenas como fallback offline.
+  // Para arquivos do app, força cache: 'no-cache' para ignorar o cache HTTP
+  // do browser e garantir que atualizações cheguem imediatamente no PWA.
+  const req = isAppFile ? new Request(event.request, { cache: 'no-cache' }) : event.request;
+
   event.respondWith(
-    fetch(event.request).then(response => {
+    fetch(req).then(response => {
       if (response.ok && isAppFile) {
         const clone = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
