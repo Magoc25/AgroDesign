@@ -2518,14 +2518,11 @@ function renderCroqui() {
       const sepBot = getY(Math.min(...firstRepIIRows));
       const sepH   = sepBot - sepTop;
       const aw     = (maxCol + 1) * UW;
-      const sepLabel = isEng ? '▼ Repetition II' : '▼ Repetição II';
       if (theme === 'pub') {
         svg += `<rect x="${PAD}" y="${sepTop}" width="${aw}" height="${sepH}" fill="#f0f0f0" stroke="#aaa" stroke-width="0.6" stroke-dasharray="4 3"/>`;
-        svg += `<text x="${PAD + aw / 2}" y="${sepTop + sepH / 2 + 4}" text-anchor="middle" font-size="10" fill="#444" font-weight="600">${sepLabel}</text>`;
       } else {
         svg += `<rect x="${PAD}" y="${sepTop}" width="${aw}" height="${sepH}" fill="#c7f9cc" rx="3"/>`;
         svg += `<rect x="${PAD}" y="${sepTop}" width="${aw}" height="${sepH}" fill="none" stroke="#52b788" stroke-width="0.9" stroke-dasharray="5 3" rx="3"/>`;
-        svg += `<text x="${PAD + aw / 2}" y="${sepTop + sepH / 2 + 4}" text-anchor="middle" font-size="10" fill="#1b4332" font-weight="600">${sepLabel}</text>`;
       }
       // Rótulos verticais "Rep I" / "Rep II" na margem esquerda
       const repLabelX    = PAD - 46;
