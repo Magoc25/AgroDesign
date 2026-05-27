@@ -4011,6 +4011,8 @@ function onDesignChange() {
   if (isSpl) {
     document.getElementById('lblSplBlocks').textContent = d === 'SPL_DIC' ? 'Repetições' : 'Blocos';
   }
+
+  filterAreasByDesign();
 }
 
 function onUnitTypeChange() {
@@ -4099,13 +4101,11 @@ function onGradArrowToggle() {
 }
 
 function onAreaChange() {
-  const area  = document.getElementById('selArea').value;
+  const area = document.getElementById('selArea').value;
   const isEco = area === 'ecologia';
-  const lbl   = document.getElementById('lblSpecies');
-  const inp   = document.getElementById('txtSpecies');
-  const sel   = document.getElementById('selUnitType');
+  const lbl = document.getElementById('lblSpecies');
+  const inp = document.getElementById('txtSpecies');
 
-  // Rótulo e placeholder do campo espécie
   if (isEco) {
     if (lbl) lbl.textContent = 'Comunidade / Fitofisionomia';
     if (inp) inp.placeholder = 'Ex: Floresta de Araucária, Cerrado, Mata Atlântica';
@@ -4114,30 +4114,71 @@ function onAreaChange() {
     if (inp) inp.placeholder = 'Ex: Milho, Frangos de corte, Bovinos leiteiros';
   }
 
-  // Filtra tipos de UE conforme a área selecionada
+  filterUEByDesign();
+  rerenderCroqui();
+}
+
+// Reconstrói selArea conforme restrições do delineamento escolhido
+function filterAreasByDesign() {
+  const d = document.getElementById('selDesign').value;
+  const selArea = document.getElementById('selArea');
+  const prev = selArea.value;
+
+  const allAreas = [
+    { v: 'agronomia', l: 'Agronomia' },
+    { v: 'zootecnia', l: 'Zootecnia' },
+    { v: 'medvet',    l: 'Med. Veterinária' },
+    { v: 'ecologia',  l: 'Ecologia / Floresta', ecoOnly: true },
+  ];
+
+  // LATICE: incompatível com ecologia (ensaio de k² genótipos)
+  const ecoOk = d !== 'LATICE';
+  const allowed = allAreas.filter(a => !a.ecoOnly || ecoOk);
+
+  selArea.innerHTML = allowed.map(a => `<option value="${a.v}">${a.l}</option>`).join('');
+  selArea.value = allowed.some(a => a.v === prev) ? prev : 'agronomia';
+
+  onAreaChange();
+}
+
+// Reconstrói selUnitType conforme área E delineamento ativos
+function filterUEByDesign() {
+  const d   = document.getElementById('selDesign').value;
+  const sel = document.getElementById('selUnitType');
+  const area = document.getElementById('selArea').value;
   const prev = sel.value;
+  const isEco = area === 'ecologia';
+
+  // Delineamentos espaciais (grade 2D) — incompatíveis com UEs sem arranjo espacial
+  const isSpatial = d === 'STRIP';
+  // Delineamentos incompatíveis com Transecto (estrutura linear, não experimental)
+  const noTransecto = d === 'STRIP' || d === 'DQL' || d.startsWith('SPL') || d === 'LATICE';
+
   if (isEco) {
-    sel.innerHTML =
-      '<optgroup label="Ecologia / Floresta">' +
-        '<option value="quadrat">Quadrat</option>' +
-        '<option value="transecto">Transecto</option>' +
-        '<option value="permanente">Parcela permanente</option>' +
+    const opts = [
+      { v: 'quadrat',    l: 'Quadrat' },
+      { v: 'transecto',  l: 'Transecto',         hide: noTransecto },
+      { v: 'permanente', l: 'Parcela permanente' },
+    ].filter(o => !o.hide);
+    sel.innerHTML = '<optgroup label="Ecologia / Floresta">' +
+      opts.map(o => `<option value="${o.v}">${o.l}</option>`).join('') +
       '</optgroup>';
-    sel.value = ['quadrat','transecto','permanente'].includes(prev) ? prev : 'quadrat';
+    sel.value = opts.some(o => o.v === prev) ? prev : opts[0].v;
   } else {
-    sel.innerHTML =
-      '<optgroup label="Agropecuária">' +
-        '<option value="parcela">Parcela vegetal</option>' +
-        '<option value="animal">Animal individual</option>' +
-        '<option value="baia">Baia / Lote</option>' +
-        '<option value="piquete">Piquete</option>' +
-        '<option value="clinica">Unidade clínica</option>' +
+    const opts = [
+      { v: 'parcela', l: 'Parcela vegetal' },
+      { v: 'animal',  l: 'Animal individual', hide: isSpatial },
+      { v: 'baia',    l: 'Baia / Lote',       hide: isSpatial },
+      { v: 'piquete', l: 'Piquete' },
+      { v: 'clinica', l: 'Unidade clínica',   hide: isSpatial },
+    ].filter(o => !o.hide);
+    sel.innerHTML = '<optgroup label="Agropecuária">' +
+      opts.map(o => `<option value="${o.v}">${o.l}</option>`).join('') +
       '</optgroup>';
-    sel.value = ['parcela','animal','baia','piquete','clinica'].includes(prev) ? prev : 'parcela';
+    sel.value = opts.some(o => o.v === prev) ? prev : 'parcela';
   }
 
   onUnitTypeChange();
-  rerenderCroqui();
 }
 
 function toggleBorders() {
