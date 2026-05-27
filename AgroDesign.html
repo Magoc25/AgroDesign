@@ -259,6 +259,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <option value="SPL_DIC">Parcelas Subdivididas em DIC</option>
         <option value="SPL_DBC">Parcelas Subdivididas em DBC</option>
         <option value="STRIP">Strip-plot em Blocos (Faixas Cruzadas)</option>
+        <option value="LATICE">Látice Simples (k²)</option>
       </select>
     </label>
 
@@ -465,6 +466,22 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       </div>
     </div>
 
+    <!-- Látice Simples -->
+    <div id="secLatice" class="hidden">
+      <div class="info-box" style="margin-bottom:.75rem">Blocos incompletos com t = k² tratamentos, r = 2 repetições (Grupo X + Grupo Y), k blocos por repetição e k parcelas por bloco</div>
+      <label><span>Tamanho do bloco (k)</span>
+        <input type="number" id="numLaticeK" value="5" min="3" max="14" oninput="updateLaticeInfo(); debounceGenerate()">
+      </label>
+      <div id="laticeInfo" class="info-box" style="margin-top:.4rem;margin-bottom:.5rem"></div>
+      <label><span>Tratamentos <span class="hint">(um por linha · exatamente k² nomes)</span></span>
+        <textarea id="latTreatments" rows="5" placeholder="T1&#10;T2&#10;T3&#10;..." oninput="debounceGenerate()" onpaste="normalizePaste(event,this)"></textarea>
+      </label>
+      <label title="Semente de randomização: qualquer inteiro. O mesmo número sempre gera o mesmo sorteio.">
+        <span>Semente de rand. <span class="hint" style="font-size:.7rem">(?)</span></span>
+        <input type="number" id="numLaticeSeed" value="42" min="0" oninput="generateCroqui(true)">
+      </label>
+    </div>
+
     <div id="errMsg" class="error-msg hidden"></div>
   </div>
 
@@ -627,6 +644,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('caes_dql')">🐕 Cães — DQL (4 protocolos)</button>
     <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('suinos_spl')">🐖 Suínos — Parcelas Subdivididas em DBC</button>
     <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('cafe_strip')">☕ Café — Strip-plot em Blocos (3×4)</button>
+    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('soja_latice')">🌱 Soja — Látice Simples 5×5 (25 cultivares)</button>
     <div style="border-top:1px solid var(--border);margin:.15rem 0;opacity:.5"></div>
     <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('cerrado_quadrat')">🌿 Cerrado — Restauração em DBC (Quadrats)</button>
     <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('mata_transecto')">🌳 Mata Atlântica — Fitossanidade em DIC (Transectos)</button>
@@ -1144,6 +1162,7 @@ let dqlRowFactorName  = 'Linha';
 let dqlColFactorName  = 'Coluna';
 let stripAFactorName  = 'A';
 let stripBFactorName  = 'B';
+let laticeK           = 0;
 
 /* ── PRNG (LCG) ── */
 function makeLCG(seed) {
@@ -1184,6 +1203,26 @@ function getDQLConfig() {
   const rowLabels = rawRows.length === k ? rawRows : Array.from({length: k}, (_, i) => `${rowName[0].toUpperCase()}${i + 1}`);
   const colLabels = rawCols.length === k ? rawCols : Array.from({length: k}, (_, i) => `${colName[0].toUpperCase()}${i + 1}`);
   return { treats, seed, rowName, colName, rowLabels, colLabels, k };
+}
+
+function getLaticeConfig() {
+  const k      = Math.max(3, Math.min(14, parseInt(document.getElementById('numLaticeK').value) || 5));
+  const seed   = parseInt(document.getElementById('numLaticeSeed').value) || 42;
+  const t      = k * k;
+  const raw    = parseTreatments(document.getElementById('latTreatments').value);
+  const treats = raw.length === t ? raw : Array.from({length: t}, (_, i) => `T${i + 1}`);
+  return { k, seed, t, treats };
+}
+
+function updateLaticeInfo() {
+  const k  = Math.max(3, Math.min(14, parseInt(document.getElementById('numLaticeK').value) || 5));
+  const el = document.getElementById('laticeInfo');
+  if (!el) return;
+  const t     = k * k;
+  const glRes = (k - 1) * (k - 2);
+  let msg = `k = ${k} → t = k² = ${t} tratamentos · 2 repetições · ${k} blocos/rep · ${2 * t} UEs totais · ${glRes} GL do resíduo`;
+  if (k < 4) msg += ` — ⚠ k < 4: apenas ${glRes} GL do resíduo (DBC pode ser preferível)`;
+  el.textContent = msg;
 }
 
 function updateDqlInfo() {
@@ -1354,6 +1393,51 @@ function generateStripPlot() {
   return result;
 }
 
+function generateLatice() {
+  const { k, seed, treats } = getLaticeConfig();
+  const rng = makeLCG(seed);
+
+  // Distribute k² treatments randomly into k×k matrix
+  const shuffled = shuffle([...treats], rng);
+  const matrix = [];
+  for (let i = 0; i < k; i++) matrix.push(shuffled.slice(i * k, (i + 1) * k));
+
+  const result = [];
+  let id = 1;
+
+  // Randomize block order within each replication
+  const repIOrder  = shuffle(Array.from({length: k}, (_, i) => i), rng); // row indices
+  const repIIOrder = shuffle(Array.from({length: k}, (_, j) => j), rng); // col indices
+
+  // Rep I — blocks by rows of matrix
+  repIOrder.forEach((bi, rowIdx) => {
+    const plotOrder = shuffle(Array.from({length: k}, (_, j) => j), rng);
+    plotOrder.forEach((j, colIdx) => {
+      result.push({
+        id: id++, row: rowIdx, col: colIdx,
+        block: rowIdx + 1, rep: 1,
+        treatment: matrix[bi][j],
+        factorA: null, factorB: null, factorC: null, mainPlot: null
+      });
+    });
+  });
+
+  // Rep II — blocks by columns of matrix
+  repIIOrder.forEach((bj, rowIdx) => {
+    const plotOrder = shuffle(Array.from({length: k}, (_, i) => i), rng);
+    plotOrder.forEach((i, colIdx) => {
+      result.push({
+        id: id++, row: k + rowIdx, col: colIdx,
+        block: k + rowIdx + 1, rep: 2,
+        treatment: matrix[i][bj],
+        factorA: null, factorB: null, factorC: null, mainPlot: null
+      });
+    });
+  });
+
+  return result;
+}
+
 /* ── Validate ── */
 function validate(design, treats, reps, blocks) {
   if (design === 'DIC' || design === 'DBC') {
@@ -1387,6 +1471,12 @@ function validate(design, treats, reps, blocks) {
     if (bL.length < 2) return 'Fator B requer pelo menos 2 níveis.';
     if (blk < 2) return 'Strip-plot requer pelo menos 2 blocos.';
   }
+  if (design === 'LATICE') {
+    const k = Math.max(3, Math.min(14, parseInt(document.getElementById('numLaticeK').value) || 5));
+    if (k < 3) return 'Látice simples requer k ≥ 3 (recomendado k ≥ 4).';
+    const raw = parseTreatments(document.getElementById('latTreatments').value);
+    if (raw.length > 0 && raw.length !== k * k) return `Informe exatamente k² = ${k * k} tratamentos ou deixe vazio para rótulos automáticos (T1…T${k * k}).`;
+  }
   return null;
 }
 
@@ -1418,6 +1508,10 @@ function generateCroqui(autoUpdate = false) {
       stripAFactorName = document.getElementById('strAName').value.trim() || 'A';
       stripBFactorName = document.getElementById('strBName').value.trim() || 'B';
       units = generateStripPlot();
+    }
+    else if (design === 'LATICE') {
+      laticeK = getLaticeConfig().k;
+      units = generateLatice();
     }
   } catch(e) {
     errEl.textContent = 'Erro ao gerar: ' + e.message;
@@ -1495,7 +1589,8 @@ function renderSummary() {
     DQL: 'DQL — Quadrado Latino',
     FAT_DIC: 'Fatorial em DIC', FAT_DBC: 'Fatorial em DBC',
     SPL_DIC: 'Parcelas Subdivididas em DIC', SPL_DBC: 'Parcelas Subdivididas em DBC',
-    STRIP: 'Strip-plot em Blocos (Faixas Cruzadas)'
+    STRIP:  'Strip-plot em Blocos (Faixas Cruzadas)',
+    LATICE: 'Látice Simples (k²)'
   };
   html += card('Delineamento', esc(DNAMES[design] || design), '', true);
 
@@ -1554,6 +1649,15 @@ function renderSummary() {
     html += card('Combinações', `${strAn} × ${strBn} = ${strAn * strBn}`);
     html += card('Blocos', repBlocks);
     html += card('UE totais', total);
+  } else if (design === 'LATICE') {
+    const { k, t } = getLaticeConfig();
+    const glRes = (k - 1) * (k - 2);
+    html += card('k (bloco)', k);
+    html += card('Tratamentos (k²)', t);
+    html += card('Repetições', '2 (Rep I + Rep II)');
+    html += card('Blocos/repetição', k);
+    html += card('UE totais', 2 * t);
+    html += card('GL resíduo', glRes);
   }
 
   // ── Dimensionamento ──
@@ -2124,6 +2228,7 @@ function renderCroqui() {
 
   const design    = document.getElementById('selDesign').value;
   const isStrip   = design === 'STRIP';
+  const isLatice  = design === 'LATICE';
   const labelMode = document.getElementById('selLabelMode').value;
   const labelPos  = document.getElementById('selLabelPos').value;
   const theme     = document.getElementById('selTheme').value;
@@ -2162,7 +2267,8 @@ function renderCroqui() {
   const blocks  = [...new Set(units.map(u => u.block).filter(b => b !== null))].sort((a, b) => a - b);
   const hasAlley = document.getElementById('chkAlley').checked && blocks.length > 1;
   const alleyM  = hasAlley ? (parseFloat(document.getElementById('alleyWidth').value) || 1.5) : 0;
-  const ALLEY_H = hasAlley ? Math.max(50, Math.round(UH * 0.62)) : (isStrip ? 50 : 8);
+  const ALLEY_H   = hasAlley ? Math.max(50, Math.round(UH * 0.62)) : (isStrip ? 50 : 8);
+  const REP_SEP_H = isLatice ? 46 : ALLEY_H; // separador maior entre Rep I e Rep II no látice
 
   // ── Mapa rowBlock e rowY ──
   const rowBlock = {};
@@ -2175,7 +2281,12 @@ function renderCroqui() {
     if (idx < allRows.length - 1) {
       const nb = rowBlock[allRows[idx + 1]] ?? null;
       const cb = rowBlock[row] ?? null;
-      curY += UH + (cb !== null && nb !== null && cb !== nb ? ALLEY_H : 0);
+      let gap = 0;
+      if (cb !== null && nb !== null && cb !== nb) {
+        // Para látice: separador maior somente na fronteira Rep I → Rep II
+        gap = (isLatice && cb === laticeK && nb === laticeK + 1) ? REP_SEP_H : ALLEY_H;
+      }
+      curY += UH + gap;
     }
   });
 
@@ -2314,6 +2425,17 @@ function renderCroqui() {
     }
   }
 
+  // LATICE: margem esquerda para rótulos "Rep I" / "Rep II"
+  if (isLatice) {
+    if (legendPos !== 'left') {
+      const LATICE_LEFT = 70;
+      gx += LATICE_LEFT;
+      totalW += LATICE_LEFT;
+      if (legendPos !== 'none') lx += LATICE_LEFT;
+      if (showUe) ux += LATICE_LEFT;
+    }
+  }
+
   // STRIP: margens extras para rótulos de faixa e nomes dos fatores
   if (isStrip) {
     if (legendPos !== 'left') {
@@ -2365,8 +2487,12 @@ function renderCroqui() {
       const bU = units.filter(u => u.block === b);
       const minRow = Math.min(...bU.map(u => u.row));
       const maxRow = Math.max(...bU.map(u => u.row));
-      if (!isStrip) svg += `<text x="${PAD - 7}" y="${getY(minRow) + UH / 2 + 5}" text-anchor="end" font-size="11" fill="${theme === 'pub' ? '#111' : '#6b7c6e'}" font-weight="700">B${b}</text>`;
-      if (isStrip)  svg += `<text x="${getX(maxCol) + UW + 7}" y="${getY(minRow) + UH / 2 + 5}" text-anchor="start" font-size="11" fill="${theme === 'pub' ? '#111' : '#6b7c6e'}" font-weight="700">B${b}</text>`;
+      const blkLabelColor = theme === 'pub' ? '#111' : '#6b7c6e';
+      const blkLabel = isLatice
+        ? (b <= laticeK ? `X${b}` : `Y${b - laticeK}`)
+        : `B${b}`;
+      if (!isStrip) svg += `<text x="${PAD - 7}" y="${getY(minRow) + UH / 2 + 5}" text-anchor="end" font-size="11" fill="${blkLabelColor}" font-weight="700">${blkLabel}</text>`;
+      if (isStrip)  svg += `<text x="${getX(maxCol) + UW + 7}" y="${getY(minRow) + UH / 2 + 5}" text-anchor="start" font-size="11" fill="${blkLabelColor}" font-weight="700">${blkLabel}</text>`;
       if (hasAlley && idx < blocks.length - 1) {
         const ay = getY(maxRow) + UH, aw = (maxCol + 1) * UW;
         if (theme === 'pub') {
@@ -2379,6 +2505,38 @@ function renderCroqui() {
         }
       }
     });
+  }
+
+  // Látice: separador entre Rep I e Rep II + rótulos "Rep I" / "Rep II"
+  if (isLatice && laticeK > 0) {
+    const lastRepIBlock   = units.find(u => u.block === laticeK);
+    const firstRepIIBlock = units.find(u => u.block === laticeK + 1);
+    if (lastRepIBlock && firstRepIIBlock) {
+      const lastRepIRows   = units.filter(u => u.rep === 1).map(u => u.row);
+      const firstRepIIRows = units.filter(u => u.rep === 2).map(u => u.row);
+      const sepTop = getY(Math.max(...lastRepIRows)) + UH;
+      const sepBot = getY(Math.min(...firstRepIIRows));
+      const sepH   = sepBot - sepTop;
+      const aw     = (maxCol + 1) * UW;
+      const sepLabel = isEng ? '▼ Repetition II' : '▼ Repetição II';
+      if (theme === 'pub') {
+        svg += `<rect x="${PAD}" y="${sepTop}" width="${aw}" height="${sepH}" fill="#f0f0f0" stroke="#aaa" stroke-width="0.6" stroke-dasharray="4 3"/>`;
+        svg += `<text x="${PAD + aw / 2}" y="${sepTop + sepH / 2 + 4}" text-anchor="middle" font-size="10" fill="#444" font-weight="600">${sepLabel}</text>`;
+      } else {
+        svg += `<rect x="${PAD}" y="${sepTop}" width="${aw}" height="${sepH}" fill="#c7f9cc" rx="3"/>`;
+        svg += `<rect x="${PAD}" y="${sepTop}" width="${aw}" height="${sepH}" fill="none" stroke="#52b788" stroke-width="0.9" stroke-dasharray="5 3" rx="3"/>`;
+        svg += `<text x="${PAD + aw / 2}" y="${sepTop + sepH / 2 + 4}" text-anchor="middle" font-size="10" fill="#1b4332" font-weight="600">${sepLabel}</text>`;
+      }
+      // Rótulos verticais "Rep I" / "Rep II" na margem esquerda
+      const repLabelX    = PAD - 46;
+      const repLabelColor = theme === 'pub' ? '#222' : '#1b4332';
+      const repIRows  = units.filter(u => u.rep === 1).map(u => u.row);
+      const repIIRows = units.filter(u => u.rep === 2).map(u => u.row);
+      const repICy  = (getY(Math.min(...repIRows))  + getY(Math.max(...repIRows))  + UH) / 2;
+      const repIICy = (getY(Math.min(...repIIRows)) + getY(Math.max(...repIIRows)) + UH) / 2;
+      svg += `<text x="${repLabelX}" y="${repICy}" text-anchor="middle" dominant-baseline="central" font-size="11" fill="${repLabelColor}" font-weight="700" transform="rotate(-90,${repLabelX},${repICy})">${isEng ? 'Rep I' : 'Rep I'}</text>`;
+      svg += `<text x="${repLabelX}" y="${repIICy}" text-anchor="middle" dominant-baseline="central" font-size="11" fill="${repLabelColor}" font-weight="700" transform="rotate(-90,${repLabelX},${repIICy})">${isEng ? 'Rep II' : 'Rep II'}</text>`;
+    }
   }
 
   // Eixos DQL — rótulos das linhas/colunas e nomes dos fatores
@@ -2545,7 +2703,7 @@ function renderCroqui() {
     const cellFill = theme === 'pub' ? (pubFillMap[u.treatment] || '#fff') : color;
     const raw      = u.treatment;
     const td       = encodeURIComponent(JSON.stringify({
-      id: u.id, block: u.block, treatment: u.treatment,
+      id: u.id, block: u.block, rep: u.rep ?? null, treatment: u.treatment,
       factorA: u.factorA, factorB: u.factorB, factorC: u.factorC,
       mainPlot: u.mainPlot, mainPlotLabel: u.mainPlotLabel,
       row: u.row, col: u.col
@@ -2776,7 +2934,8 @@ function openUnitModal(dataEnc) {
 
   let html = '';
   if (spec)          html += `<dt>Espécie</dt><dd>${esc(spec)}</dd>`;
-  if (data.block)    html += `<dt>Bloco</dt><dd>${esc(String(data.block))}</dd>`;
+  if (data.rep)      html += `<dt>Repetição</dt><dd>${data.rep === 1 ? 'Rep I (Grupo X)' : 'Rep II (Grupo Y)'}</dd>`;
+  if (data.block)    html += `<dt>Bloco</dt><dd>${data.rep ? (data.rep === 1 ? `X${data.block}` : `Y${data.block - laticeK}`) : esc(String(data.block))}</dd>`;
   html += `<dt>Tratamento</dt><dd><strong>${esc(data.treatment)}</strong></dd>`;
   if (data.factorA)  html += `<dt>Fator A</dt><dd>${esc(data.factorA)}</dd>`;
   if (data.factorB)  html += `<dt>Fator B</dt><dd>${esc(data.factorB)}</dd>`;
@@ -2835,13 +2994,15 @@ function closeUnitModal() {
 /* ── Field Book ── */
 function renderFieldbook() {
   if (!units.length) return;
-  const design  = document.getElementById('selDesign').value;
-  const isFat   = design.startsWith('FAT');
-  const isSpl   = design.startsWith('SPL');
-  const isDQL   = design === 'DQL';
-  const isStrip = design === 'STRIP';
+  const design   = document.getElementById('selDesign').value;
+  const isFat    = design.startsWith('FAT');
+  const isSpl    = design.startsWith('SPL');
+  const isDQL    = design === 'DQL';
+  const isStrip  = design === 'STRIP';
+  const isLatice = design === 'LATICE';
 
   const cols = ['#', 'Bloco', 'Linha', 'Coluna', 'Tratamento'];
+  if (isLatice) cols.splice(1, 0, 'Rep');
   if (isFat || isSpl || isStrip) cols.push('Fator A', 'Fator B');
   if (units.some(u => u.factorC)) cols.push('Fator C');
   if (isSpl) cols.push('Parcela Principal');
@@ -2851,6 +3012,7 @@ function renderFieldbook() {
 
   const rows = units.map(u => {
     let cells = [u.id, u.block ?? '—', u.row + 1, u.col + 1, u.treatment];
+    if (isLatice) cells.splice(1, 0, u.rep === 1 ? 'Rep I' : 'Rep II');
     if (isFat || isSpl || isStrip) cells.push(u.factorA ?? '—', u.factorB ?? '—');
     if (units.some(x => x.factorC)) cells.push(u.factorC ?? '—');
     if (isSpl) cells.push(u.mainPlotLabel || u.mainPlot || '—');
@@ -2867,12 +3029,13 @@ function renderFieldbook() {
 /* ── Export ── */
 function exportCSV() {
   if (!units.length) return;
-  const design  = document.getElementById('selDesign').value;
-  const spec    = document.getElementById('txtSpecies').value.trim();
-  const isFat   = design.startsWith('FAT');
-  const isSpl   = design.startsWith('SPL');
-  const isDQL   = design === 'DQL';
-  const isStrip = design === 'STRIP';
+  const design   = document.getElementById('selDesign').value;
+  const spec     = document.getElementById('txtSpecies').value.trim();
+  const isFat    = design.startsWith('FAT');
+  const isSpl    = design.startsWith('SPL');
+  const isDQL    = design === 'DQL';
+  const isStrip  = design === 'STRIP';
+  const isLatice = design === 'LATICE';
 
   const meta = [
     `# AgroDesign — Field Book`,
@@ -2883,6 +3046,7 @@ function exportCSV() {
   ].join('\n');
 
   const headers = ['id','bloco','linha','coluna','tratamento'];
+  if (isLatice) headers.splice(1, 0, 'rep');
   if (isFat || isSpl || isStrip) { headers.push('fator_a','fator_b'); }
   if (units.some(u => u.factorC)) headers.push('fator_c');
   if (isSpl) headers.push('parcela_principal');
@@ -2891,6 +3055,7 @@ function exportCSV() {
 
   const rows = units.map(u => {
     const r = [u.id, u.block ?? '', u.row+1, u.col+1, u.treatment];
+    if (isLatice) r.splice(1, 0, u.rep === 1 ? 'Rep I' : 'Rep II');
     if (isFat || isSpl || isStrip) r.push(u.factorA ?? '', u.factorB ?? '');
     if (units.some(x => x.factorC)) r.push(u.factorC ?? '');
     if (isSpl) r.push(u.mainPlotLabel || u.mainPlot || '');
@@ -2911,14 +3076,16 @@ function exportCSV() {
 function exportXLSX() {
   if (!units.length) return;
   if (typeof XLSX === 'undefined') { alert('Biblioteca XLSX não carregou. Verifique a conexão.'); return; }
-  const design  = document.getElementById('selDesign').value;
-  const spec    = document.getElementById('txtSpecies').value.trim();
-  const isFat   = design.startsWith('FAT');
-  const isSpl   = design.startsWith('SPL');
-  const isDQL   = design === 'DQL';
-  const isStrip = design === 'STRIP';
+  const design   = document.getElementById('selDesign').value;
+  const spec     = document.getElementById('txtSpecies').value.trim();
+  const isFat    = design.startsWith('FAT');
+  const isSpl    = design.startsWith('SPL');
+  const isDQL    = design === 'DQL';
+  const isStrip  = design === 'STRIP';
+  const isLatice = design === 'LATICE';
 
   const headers = ['ID','Bloco','Linha','Coluna','Tratamento'];
+  if (isLatice) headers.splice(1, 0, 'Rep');
   if (isFat || isSpl || isStrip) { headers.push('Fator A','Fator B'); }
   if (units.some(u => u.factorC)) headers.push('Fator C');
   if (isSpl) headers.push('Parcela Principal');
@@ -2927,6 +3094,7 @@ function exportXLSX() {
 
   const dataRows = units.map(u => {
     const r = [u.id, u.block ?? '', u.row+1, u.col+1, u.treatment];
+    if (isLatice) r.splice(1, 0, u.rep === 1 ? 'Rep I' : 'Rep II');
     if (isFat || isSpl || isStrip) r.push(u.factorA ?? '', u.factorB ?? '');
     if (units.some(x => x.factorC)) r.push(u.factorC ?? '');
     if (isSpl) r.push(u.mainPlotLabel || u.mainPlot || '');
@@ -3105,7 +3273,8 @@ function buildPublicationText(lang) {
       FAT_DBC: 'factorial experiment in a randomized complete block design (RCBD)',
       SPL_DIC: 'split-plot design in a completely randomized arrangement',
       SPL_DBC: 'split-plot design in randomized complete blocks (RCBD)',
-      STRIP:   'strip-plot design in randomized complete blocks (RCBD)'
+      STRIP:   'strip-plot design in randomized complete blocks (RCBD)',
+      LATICE:  'simple square lattice design'
     },
     pt: {
       DIC:     'delineamento inteiramente casualizado (DIC)',
@@ -3115,7 +3284,8 @@ function buildPublicationText(lang) {
       FAT_DBC: 'esquema fatorial em delineamento em blocos casualizados (DBC)',
       SPL_DIC: 'delineamento em parcelas subdivididas em DIC',
       SPL_DBC: 'delineamento em parcelas subdivididas em DBC',
-      STRIP:   'delineamento em faixas cruzadas em blocos casualizados'
+      STRIP:   'delineamento em faixas cruzadas em blocos casualizados',
+      LATICE:  'látice simples'
     }
   };
   const dname = DN[lang][design] || design;
@@ -3275,6 +3445,14 @@ function buildPublicationText(lang) {
     } else {
       mm = `O experimento foi conduzido em ${dname} com ${sBlk} ${pl_s(sBlk,'bloco','blocos')}, totalizando ${units.length} unidades experimentais. O fator de faixa de linha teve ${aL.length} ${pl_s(aL.length,'nível','níveis')} (${aL.join(', ')}) e o fator de faixa de coluna teve ${bL.length} ${pl_s(bL.length,'nível','níveis')} (${bL.join(', ')}). ${unitDimText}${alleyText}${gradText}`;
     }
+  } else if (design === 'LATICE') {
+    const { k, t } = getLaticeConfig();
+    const glRes = (k - 1) * (k - 2);
+    if (isEng) {
+      mm = `The experiment was conducted in a simple square lattice design (k = ${k}, t = k² = ${t} treatments) with two replications (Rep I — Group X, blocks by rows; Rep II — Group Y, blocks by columns) and ${k} incomplete blocks of ${k} plots each per replication, totaling ${units.length} experimental units. The design is a partially balanced incomplete block design with ${glRes} residual degrees of freedom. ${unitDimText}${gradText} Data were analyzed by intra-block analysis; if the block efficiency factor was not greater than 1, the data were analyzed as a randomized complete block design (RCBD).`;
+    } else {
+      mm = `O experimento foi conduzido em látice simples (k = ${k}, t = k² = ${t} tratamentos) com duas repetições (Rep I — Grupo X, blocos pelas linhas; Rep II — Grupo Y, blocos pelas colunas) e ${k} blocos incompletos de ${k} parcelas cada por repetição, totalizando ${units.length} unidades experimentais. O delineamento é um látice quadrado parcialmente balanceado com ${glRes} graus de liberdade do resíduo intrablocos. ${unitDimText}${gradText} Os dados foram submetidos à análise intrablocos; caso o fator de eficiência de blocos não tenha sido superior à unidade, os dados foram analisados como delineamento em blocos casualizados (DBC).`;
+    }
   }
 
   // Legenda da figura
@@ -3285,11 +3463,13 @@ function buildPublicationText(lang) {
   if (isEng) {
     const blockInfo  = ['DBC','FAT_DBC','SPL_DBC','STRIP'].includes(design) ? ` and ${nBlock} ${pl_s(nBlock,'block','blocks')}` : (design==='DIC' ? ` and ${nReps} ${pl_s(nReps,'replication','replications')}` : '');
     const treatInfo  = ['DIC','DBC','DQL'].includes(design) ? ` with ${nTreat} ${pl_s(nTreat,'treatment','treatments')} (${treatRange})${blockInfo}` : '';
-    caption = `Figure X. Layout of the experiment arranged in a ${dname}${treatInfo}. ${unitDimCaption}${gradArrow}`;
+    const laticeInfo = design === 'LATICE' ? ` with ${nTreat} treatments (k² = ${nTreat}, k = ${laticeK}), 2 replications and ${nBlock} incomplete blocks` : '';
+    caption = `Figure X. Layout of the experiment arranged in a ${dname}${treatInfo}${laticeInfo}. ${unitDimCaption}${gradArrow}`;
   } else {
     const blockInfo  = ['DBC','FAT_DBC','SPL_DBC','STRIP'].includes(design) ? ` e ${nBlock} ${pl_s(nBlock,'bloco','blocos')}` : (design==='DIC' ? ` e ${nReps} ${pl_s(nReps,'repetição','repetições')}` : '');
     const treatInfo  = ['DIC','DBC','DQL'].includes(design) ? ` com ${nTreat} ${pl_s(nTreat,'tratamento','tratamentos')} (${treatRange})${blockInfo}` : '';
-    caption = `Figura X. Croqui do experimento em ${dname}${treatInfo}. ${unitDimCaption}${gradArrow}`;
+    const laticeInfo = design === 'LATICE' ? ` com ${nTreat} tratamentos (k² = ${nTreat}, k = ${laticeK}), 2 repetições e ${nBlock} blocos incompletos` : '';
+    caption = `Figura X. Croqui do experimento em ${dname}${treatInfo}${laticeInfo}. ${unitDimCaption}${gradArrow}`;
   }
 
   return { mm: mm.trim(), caption: caption.trim() };
@@ -3807,12 +3987,15 @@ function onDesignChange() {
   const isFat    = d.startsWith('FAT');
   const isSpl    = d.startsWith('SPL');
   const isStrip  = d === 'STRIP';
+  const isLat    = d === 'LATICE';
 
   document.getElementById('secSimple').classList.toggle('hidden', !isSimple);
   document.getElementById('secDQL').classList.toggle('hidden', !isDQL);
   document.getElementById('secFatorial').classList.toggle('hidden', !isFat);
   document.getElementById('secSplitPlot').classList.toggle('hidden', !isSpl);
   document.getElementById('secStrip').classList.toggle('hidden', !isStrip);
+  document.getElementById('secLatice').classList.toggle('hidden', !isLat);
+  if (isLat) updateLaticeInfo();
 
   if (d === 'DIC') {
     document.getElementById('lblReps').textContent = 'Repetições';
@@ -4179,6 +4362,26 @@ const EXAMPLES = {
     document.getElementById('selGradient').value = 'NS';
     document.getElementById('txtSpecies').value = 'Café (Coffea arabica L.)';
     onDesignChange(); onUnitTypeChange();
+  },
+  soja_latice: () => {
+    document.getElementById('selDesign').value = 'LATICE';
+    document.getElementById('selArea').value = 'agronomia';
+    document.getElementById('selUnitType').value = 'parcela';
+    document.getElementById('numLaticeK').value = '5';
+    document.getElementById('numLaticeSeed').value = '42';
+    document.getElementById('latTreatments').value =
+      'BRS 317\nBRS 360\nBRS 370\nBRS 388\nBRS 391\n' +
+      'BRS 232\nBRS 257\nBRS 284\nBRS 295\nBRS 307\n' +
+      'CD 201\nCD 202\nCD 206\nCD 208\nCD 215\n' +
+      'NA 5909\nNA 7337\nNA 8015\nNA 8114\nNA 8419\n' +
+      'TMG 801\nTMG 803\nTMG 1176\nTMG 1179\nTMG 1180';
+    document.getElementById('rowSpacing').value = '0.45';
+    document.getElementById('plantSpacing').value = '0.2';
+    document.getElementById('rowsPerPlot').value = '4';
+    document.getElementById('plotLength').value = '5';
+    document.getElementById('selGradient').value = 'NS';
+    document.getElementById('txtSpecies').value = 'Soja (Glycine max L.) — Ensaio de VCU';
+    onDesignChange(); onUnitTypeChange();
   }
 };
 
@@ -4243,6 +4446,9 @@ function captureCurrentConfig() {
     strBLevels: document.getElementById('strBLevels').value,
     strBlocks:  document.getElementById('numStrBlocks').value,
     strSeed:    document.getElementById('numStrSeed').value,
+    laticeK:    document.getElementById('numLaticeK').value,
+    laticeTreatments: document.getElementById('latTreatments').value,
+    laticeSeed: document.getElementById('numLaticeSeed').value,
     quadratArea:     document.getElementById('quadratArea').value,
     quadratMethod:   document.getElementById('quadratMethod').value,
     quadratGridN:    document.getElementById('quadratGridN').value,
@@ -4293,6 +4499,7 @@ function applyConfig(c) {
   set('strAName', c.strAName); set('strAn', c.strAn); set('strALevels', c.strALevels);
   set('strBName', c.strBName); set('strBn', c.strBn); set('strBLevels', c.strBLevels);
   set('numStrBlocks', c.strBlocks); set('numStrSeed', c.strSeed);
+  set('numLaticeK', c.laticeK); set('latTreatments', c.laticeTreatments); set('numLaticeSeed', c.laticeSeed);
   set('quadratArea', c.quadratArea); set('quadratMethod', c.quadratMethod); set('quadratGridN', c.quadratGridN);
   set('transLength', c.transLength); set('transWidth', c.transWidth);
   set('transInterval', c.transInterval); set('transStations', c.transStations);
@@ -4687,6 +4894,7 @@ function exportScriptR() {
   const hasBloco  = design !== 'DIC' && design !== 'FAT_DIC' && design !== 'SPL_DIC';
   const isSplit   = design.startsWith('SPL');
   const isStrip   = design === 'STRIP';
+  const isLatice  = design === 'LATICE';
   const isFat     = design.startsWith('FAT');
   const isDQL     = design === 'DQL';
   const varLines  = numVars.length ? numVars.map(v => `"${_safeName(v.name)}"`).join(', ')
@@ -4701,11 +4909,14 @@ function exportScriptR() {
 
   s += `# 1. Pacotes ────────────────────────────────────────────────\n`;
   s += `if (!require(agricolae)) install.packages("agricolae")\n`;
-  if (isSplit) s += `if (!require(ExpDes.pt)) install.packages("ExpDes.pt")\n`;
-  if (isStrip) s += `if (!require(ExpDes.pt)) install.packages("ExpDes.pt")\n`;
+  if (isSplit)  s += `if (!require(ExpDes.pt)) install.packages("ExpDes.pt")\n`;
+  if (isStrip)  s += `if (!require(ExpDes.pt)) install.packages("ExpDes.pt")\n`;
+  if (isLatice) s += `if (!require(lme4))    install.packages("lme4")\n`;
+  if (isLatice) s += `if (!require(lmerTest)) install.packages("lmerTest")\n`;
   s += `library(agricolae)\n`;
-  if (isSplit) s += `library(ExpDes.pt)\n`;
-  if (isStrip) s += `library(ExpDes.pt)\n`;
+  if (isSplit)  s += `library(ExpDes.pt)\n`;
+  if (isStrip)  s += `library(ExpDes.pt)\n`;
+  if (isLatice) s += `library(lme4)\nlibrary(lmerTest)\n`;
   s += `\n`;
 
   s += `# 2. Importar dados ─────────────────────────────────────────\n`;
@@ -4719,6 +4930,7 @@ function exportScriptR() {
 
   s += `# 3. Fatores ────────────────────────────────────────────────\n`;
   if (hasBloco)    s += `dados$Bloco      <- factor(dados$Bloco)\n`;
+  if (isLatice)    s += `dados$Rep        <- factor(dados$rep)\n`;
   s += `dados$Tratamento <- factor(dados$Tratamento)\n`;
   if (isFat || isSplit) {
     s += `dados$Fator_A    <- factor(dados$Fator.A)\n`;
@@ -4746,7 +4958,7 @@ function exportScriptR() {
     else if (design === 'FAT_DIC') formula = `${vn} ~ Fator_A * Fator_B`;
     else if (design === 'FAT_DBC') formula = `${vn} ~ Fator_A * Fator_B + Bloco`;
 
-    if (!isSplit && !isStrip) {
+    if (!isSplit && !isStrip && !isLatice) {
       if (v._template) s += `${vn} <- dados[["${csvCol}"]]  # ajuste o nome\n`;
       else             s += `${vn} <- dados[["${csvCol}"]]\n`;
       s += `\nmodelo_${i+1} <- aov(${formula}, data = dados)\n`;
@@ -4768,7 +4980,7 @@ function exportScriptR() {
         s += `     fac.names=c("${_safeName(document.getElementById('splAName')?.value||'FatorA')}",\n`;
         s += `                 "${_safeName(document.getElementById('splBName')?.value||'FatorB')}"))\n\n`;
       }
-    } else {
+    } else if (isStrip) {
       // Strip-plot via ExpDes.pt::stpd
       s += `# Strip-plot — usando ExpDes.pt::stpd\n`;
       s += `# stpd(trat1, trat2, bloco, resp, mcomp="tukey",\n`;
@@ -4779,6 +4991,24 @@ function exportScriptR() {
         s += `     fac.names=c("${_safeName(document.getElementById('strAName')?.value||'FatorA')}",\n`;
         s += `                 "${_safeName(document.getElementById('strBName')?.value||'FatorB')}"))\n\n`;
       }
+    } else if (isLatice) {
+      // Látice simples — análise intrablocos com lme4/lmerTest
+      if (v._template) s += `${vn} <- dados[["${csvCol}"]]  # ajuste o nome\n`;
+      else             s += `${vn} <- dados[["${csvCol}"]]\n`;
+      s += `\n# Látice simples — modelo misto com blocos incompletos aninhados em repetições\n`;
+      s += `# Bloco(Rep) como efeito aleatório; Tratamento e Rep como efeitos fixos\n`;
+      s += `modelo_${i+1} <- lmer(${vn} ~ Tratamento + Rep + (1|Rep:Bloco), data = dados)\n`;
+      s += `cat("\\n── ANOVA (látice): ${v.name} ──\\n"); print(anova(modelo_${i+1}))\n\n`;
+      s += `# Médias marginais por tratamento (emmeans)\n`;
+      s += `if (!require(emmeans)) install.packages("emmeans"); library(emmeans)\n`;
+      s += `emm_${i+1} <- emmeans(modelo_${i+1}, ~ Tratamento)\n`;
+      s += `print(pairs(emm_${i+1}, adjust = "tukey"))\n\n`;
+      s += `# Alternativa: ANOVA simples com Bloco aninhado em Rep (sem ajuste)\n`;
+      s += `modelo_${i+1}b <- aov(${vn} ~ Rep + Tratamento + Bloco %in% Rep, data = dados)\n`;
+      s += `cat("\\n── ANOVA simples (Rep + Trat + Bloco/Rep): ${v.name} ──\\n"); summary(modelo_${i+1}b)\n\n`;
+      s += `# Pressupostos\n`;
+      s += `shapiro.test(resid(modelo_${i+1}b))                          # normalidade\n`;
+      s += `bartlett.test(${vn} ~ Tratamento, data = dados)              # homogeneidade\n\n`;
     }
   });
 
@@ -4792,6 +5022,7 @@ function exportScriptSAS() {
   const hasBloco = design !== 'DIC' && design !== 'FAT_DIC' && design !== 'SPL_DIC';
   const isSplit  = design.startsWith('SPL');
   const isStrip  = design === 'STRIP';
+  const isLatice = design === 'LATICE';
   const isFat    = design.startsWith('FAT') || isSplit;
   const isDQL    = design === 'DQL';
 
@@ -4814,7 +5045,8 @@ function exportScriptSAS() {
   const respVars = numVars.length ? numVars : [{ name:'Variavel1', _template:true }];
   respVars.forEach((v, i) => {
     const vn  = _safeName(v.name);
-    s += `/* ${2+i}. ${design}${isSplit?' — split-plot':''} — ${v.name}${v._template?' (ajuste o nome)':''} */\n`;
+    const desLabel = isLatice ? ' — látice simples' : (isSplit ? ' — split-plot' : '');
+    s += `/* ${2+i}. ${design}${desLabel} — ${v.name}${v._template?' (ajuste o nome)':''} */\n`;
 
     let classVars, modelStr;
     if (design === 'DIC')      { classVars='Tratamento'; modelStr=`${vn} = Tratamento`; }
@@ -4830,7 +5062,7 @@ function exportScriptSAS() {
       modelStr=`${vn} = Fator_A Fator_B Fator_A*Fator_B`;
     }
 
-    if (!isSplit && !isStrip) {
+    if (!isSplit && !isStrip && !isLatice) {
       s += `PROC GLM DATA = dados;\n`;
       s += `    CLASS ${classVars};\n`;
       s += `    MODEL ${modelStr};\n`;
@@ -4845,7 +5077,7 @@ function exportScriptSAS() {
       s += `    RANDOM Bloco Bloco*Fator_A;\n`;
       s += `    LSMEANS Fator_A*Fator_B / PDIFF ADJUST=TUKEY;\n`;
       s += `RUN;\n\n`;
-    } else {
+    } else if (isStrip) {
       s += `/* Strip-plot: faixa linha=Fator_A, faixa coluna=Fator_B */\n`;
       s += `PROC MIXED DATA = dados;\n`;
       s += `    CLASS Bloco Fator_A Fator_B;\n`;
@@ -4853,9 +5085,29 @@ function exportScriptSAS() {
       s += `    RANDOM Bloco Bloco*Fator_A Bloco*Fator_B;\n`;
       s += `    LSMEANS Fator_A*Fator_B / PDIFF ADJUST=TUKEY;\n`;
       s += `RUN;\n\n`;
+    } else {
+      s += `/* Látice simples: Bloco incompleto aninhado em Rep */\n`;
+      s += `/* Opção 1 — PROC GLM (ANOVA sem ajuste, rápido) */\n`;
+      s += `PROC GLM DATA = dados;\n`;
+      s += `    CLASS Rep Bloco Tratamento;\n`;
+      s += `    MODEL ${vn} = Rep Tratamento Bloco(Rep);\n`;
+      s += `    MEANS Tratamento / TUKEY CLDIFF ALPHA=0.05;\n`;
+      s += `    OUTPUT OUT=res_${i+1} R=residuo_${i+1};\n`;
+      s += `RUN;\n\n`;
+      s += `/* Opção 2 — PROC MIXED (análise intrablocos ajustada, recomendada) */\n`;
+      s += `PROC MIXED DATA = dados;\n`;
+      s += `    CLASS Rep Bloco Tratamento;\n`;
+      s += `    MODEL ${vn} = Tratamento Rep / DDFM=KR;\n`;
+      s += `    RANDOM Bloco(Rep);\n`;
+      s += `    LSMEANS Tratamento / PDIFF ADJUST=TUKEY;\n`;
+      s += `RUN;\n\n`;
     }
     s += `/* Normalidade dos resíduos */\n`;
-    if (!isSplit && !isStrip) {
+    if (!isSplit && !isStrip && !isLatice) {
+      s += `PROC UNIVARIATE DATA=res_${i+1} NORMAL;\n`;
+      s += `    VAR residuo_${i+1};\n`;
+      s += `RUN;\n\n`;
+    } else if (isLatice) {
       s += `PROC UNIVARIATE DATA=res_${i+1} NORMAL;\n`;
       s += `    VAR residuo_${i+1};\n`;
       s += `RUN;\n\n`;
@@ -4872,6 +5124,7 @@ function exportScriptPy() {
   const hasBloco = design !== 'DIC' && design !== 'FAT_DIC' && design !== 'SPL_DIC';
   const isSplit  = design.startsWith('SPL');
   const isStrip  = design === 'STRIP';
+  const isLatice = design === 'LATICE';
   const isFat    = design.startsWith('FAT') || isSplit;
   const isDQL    = design === 'DQL';
 
@@ -4888,7 +5141,8 @@ function exportScriptPy() {
   s += `import pandas as pd\n`;
   s += `import pingouin as pg\n`;
   s += `from scipy import stats\n`;
-  if (isSplit || isStrip) s += `import statsmodels.formula.api as smf\n`;
+  if (isSplit || isStrip || isLatice) s += `import statsmodels.formula.api as smf\n`;
+  if (isLatice) s += `from statsmodels.stats.anova import anova_lm\n`;
   s += `\n`;
 
   s += `# 1. Importar dados ─────────────────────────────────────────\n`;
@@ -4899,6 +5153,7 @@ function exportScriptPy() {
 
   s += `# 2. Tipos de dados ─────────────────────────────────────────\n`;
   if (hasBloco)    s += `df["Bloco"]      = df["Bloco"].astype(str)\n`;
+  if (isLatice)    s += `df["rep"]        = df["rep"].astype(str)\n`;
   s += `df["Tratamento"] = df["Tratamento"].astype(str)\n`;
   if (isFat || isStrip) { s += `df["Fator A"]    = df["Fator A"].astype(str)\n`; s += `df["Fator B"]    = df["Fator B"].astype(str)\n`; }
   s += `print(df.head())\n\n`;
@@ -4909,7 +5164,21 @@ function exportScriptPy() {
     const colQuote = `"${colName}"`;
     s += `# ${3+i}. ${v.name}${v._template?' (substitua pelo nome real)':''} ──────────────────\n`;
 
-    if (!isSplit && !isFat) {
+    if (isLatice) {
+      // Látice simples — modelo misto com statsmodels
+      s += `# Látice simples — modelo misto: blocos incompletos aninhados em repetições\n`;
+      s += `from statsmodels.regression.mixed_linear_model import MixedLM\n`;
+      s += `# Cria identificador de bloco dentro de rep\n`;
+      s += `df["bloco_rep"] = df["rep"].astype(str) + "_" + df["bloco"].astype(str)\n`;
+      s += `modelo = smf.mixedlm('Q("${colName}") ~ C(Tratamento) + C(rep)',\n`;
+      s += `                      groups=df["bloco_rep"], data=df).fit()\n`;
+      s += `print(modelo.summary())\n\n`;
+      s += `# Tukey aproximado (via pairwise)\n`;
+      s += `tukey_${i+1} = pg.pairwise_tukey(dv=${colQuote},\n`;
+      s += `                                  between="Tratamento", data=df)\n`;
+      s += `print(tukey_${i+1})\n`;
+      s += `# Nota: use R::lme4 + emmeans para análise intrablocos completa (mais precisa)\n\n`;
+    } else if (!isSplit && !isFat) {
       // DIC / DBC / DQL
       if (isDQL) {
         const rPy = dqlRowFactorName || 'Linha_DQL';
