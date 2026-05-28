@@ -875,7 +875,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 <footer>
   <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
   <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
-  <span id="appVersion">© MGC · v1.2.5</span>
+  <span id="appVersion">© MGC · v1.2.6</span>
 </footer>
 
 <!-- ═══ UNIT TOOLTIP ═══ -->
@@ -1131,7 +1131,7 @@ df = pd.read_csv("AgroDesign_dados.csv",
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 /* ── Constantes ── */
-const APP_VERSION  = '1.2.5';
+const APP_VERSION  = '1.2.6';
 const APP_NAME     = 'AgroDesign';
 const PROJECT_ID   = 'agrodesign';
 const PIX_KEY      = '4c6086a2-4bb8-474b-a4cf-ced8c8d82189';
@@ -2570,8 +2570,8 @@ function renderCroqui() {
       const repIIRows = units.filter(u => u.rep === 2).map(u => u.row);
       const repICy  = (getY(Math.min(...repIRows))  + getY(Math.max(...repIRows))  + UH) / 2;
       const repIICy = (getY(Math.min(...repIIRows)) + getY(Math.max(...repIIRows)) + UH) / 2;
-      svg += `<text x="${repLabelX}" y="${repICy}" text-anchor="middle" dominant-baseline="central" font-size="11" fill="${repLabelColor}" font-weight="700" transform="rotate(-90,${repLabelX},${repICy})">${isEng ? 'Rep I' : 'Rep I'}</text>`;
-      svg += `<text x="${repLabelX}" y="${repIICy}" text-anchor="middle" dominant-baseline="central" font-size="11" fill="${repLabelColor}" font-weight="700" transform="rotate(-90,${repLabelX},${repIICy})">${isEng ? 'Rep II' : 'Rep II'}</text>`;
+      svg += `<text x="${repLabelX}" y="${repICy}" text-anchor="middle" dominant-baseline="central" font-size="13" fill="${repLabelColor}" font-weight="700" font-style="italic" transform="rotate(-90,${repLabelX},${repICy})">${isEng ? 'Rep I' : 'Rep I'}</text>`;
+      svg += `<text x="${repLabelX}" y="${repIICy}" text-anchor="middle" dominant-baseline="central" font-size="13" fill="${repLabelColor}" font-weight="700" font-style="italic" transform="rotate(-90,${repLabelX},${repIICy})">${isEng ? 'Rep II' : 'Rep II'}</text>`;
     }
   }
 
