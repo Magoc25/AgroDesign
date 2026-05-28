@@ -854,7 +854,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 <footer>
   <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
   <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
-  <span id="appVersion">© MGC · v1.2.2</span>
+  <span id="appVersion">© MGC · v1.2.3</span>
 </footer>
 
 <!-- ═══ UNIT TOOLTIP ═══ -->
@@ -1110,7 +1110,7 @@ df = pd.read_csv("AgroDesign_dados.csv",
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 /* ── Constantes ── */
-const APP_VERSION  = '1.2.2';
+const APP_VERSION  = '1.2.3';
 const APP_NAME     = 'AgroDesign';
 const PROJECT_ID   = 'agrodesign';
 const PIX_KEY      = '4c6086a2-4bb8-474b-a4cf-ced8c8d82189';
@@ -1788,9 +1788,19 @@ function cellBg(uw, uh, color, style) {
 
 // Texto da célula — suporta 5 modos de rótulo, 3 posições e integração com estilo Ponto
 // Coordenadas relativas ao centro da célula (0,0) via transform externo
-function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, smartCode, labelPos, cellStyle, fixedDescFs = null) {
+function hexLuminance(hex) {
+  if (!hex || hex.startsWith('url(')) return 255;
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return 255;
+  const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+  return 0.299*r + 0.587*g + 0.114*b;
+}
+
+function cellLabel(text, uw, uh, labelMode, unitId, treatCode, factCode, smartCode, labelPos, cellStyle, fixedDescFs = null, bgColor = null) {
   const maxW = uw - 8;
-  const fc = '#1b2a1e', sc = '#4b7a5e';
+  const onDark = hexLuminance(bgColor) < 128;
+  const fc = onDark ? '#f0f0f0' : '#1b2a1e';
+  const sc = onDark ? '#c8c8c8' : '#4b7a5e';
 
   // Modo ID + Descrição: ID como badge (ou dentro do círculo no estilo Ponto) + descrição centrada
   if (labelMode === 'id+desc') {
@@ -2729,7 +2739,7 @@ function renderCroqui() {
     svg += `<g transform="translate(${x},${y})" style="cursor:pointer" onclick="openUnitModal('${td}')">`;
     svg += cellBg(UW, UH, cellFill, cellStyle);
     svg += `<g transform="translate(${UW / 2},${UH / 2})">`;
-    svg += cellLabel(raw, UW, UH, labelMode, u.id, treatCode, factCode, smartCode, labelPos, cellStyle, idDescFixedFs);
+    svg += cellLabel(raw, UW, UH, labelMode, u.id, treatCode, factCode, smartCode, labelPos, cellStyle, idDescFixedFs, cellFill);
     svg += '</g>';
     svg += '</g>';
   });
