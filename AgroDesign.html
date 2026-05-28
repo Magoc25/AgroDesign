@@ -34,6 +34,26 @@
   --radius: 8px;
   --shadow: 0 2px 8px rgba(0,0,0,.08);
 }
+[data-dark] {
+  --bg: #111814;
+  --surface: #1c2420;
+  --primary: #40916c;
+  --primary-light: #52b788;
+  --primary-pale: #1b3028;
+  --accent: #74c69d;
+  --text: #d8eede;
+  --text-muted: #7fa98e;
+  --border: #2a3d32;
+  --danger: #e05c4b;
+  --warn: #f0a040;
+  --shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+[data-dark] .btn-danger { background: #3d1a1a; border-color: #6b2a2a; }
+[data-dark] .data-table-wrap,
+[data-dark] .svg-scroll { background: var(--surface); }
+[data-dark] .data-table tr:nth-child(even) td,
+[data-dark] tr:nth-child(even) td { background: #1f2d24; }
+[data-dark] textarea[readonly] { background: var(--surface) !important; color: var(--text) !important; }
 *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ── Fontes embutidas (Agro Sans = Inter, Agro Sans Alt = Carlito/Calibri, Agro Serif = Lora) ── */
@@ -232,6 +252,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     <h1>AgroDesign</h1>
     <p>Experimental Design para Ciências Agrárias</p>
   </div>
+  <button id="btnDark" onclick="toggleDark()" title="Modo escuro" style="margin-left:auto;background:none;border:none;color:#fff;font-size:1.25rem;cursor:pointer;opacity:.85;padding:4px 8px;line-height:1">🌙</button>
 </header>
 
 <div class="app-layout">
@@ -854,7 +875,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 <footer>
   <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
   <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
-  <span id="appVersion">© MGC · v1.2.3</span>
+  <span id="appVersion">© MGC · v1.2.4</span>
 </footer>
 
 <!-- ═══ UNIT TOOLTIP ═══ -->
@@ -1110,7 +1131,7 @@ df = pd.read_csv("AgroDesign_dados.csv",
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 /* ── Constantes ── */
-const APP_VERSION  = '1.2.3';
+const APP_VERSION  = '1.2.4';
 const APP_NAME     = 'AgroDesign';
 const PROJECT_ID   = 'agrodesign';
 const PIX_KEY      = '4c6086a2-4bb8-474b-a4cf-ced8c8d82189';
@@ -5718,6 +5739,19 @@ applyFontMode(document.getElementById('selFont').value);
     const last = JSON.parse(localStorage.getItem('agrodesign_last_config') || 'null');
     if (last) applyConfig(last);
   } catch(e) {}
+})();
+
+// ── Modo escuro ──
+function toggleDark() {
+  const on = document.documentElement.toggleAttribute('data-dark');
+  try { localStorage.setItem('agrodesign_dark', on ? '1' : '0'); } catch(e) {}
+  document.getElementById('btnDark').textContent = on ? '☀️' : '🌙';
+}
+(function() {
+  if (localStorage.getItem('agrodesign_dark') === '1') {
+    document.documentElement.setAttribute('data-dark', '');
+    document.getElementById('btnDark').textContent = '☀️';
+  }
 })();
 </script>
 </body>
