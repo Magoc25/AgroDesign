@@ -19,6 +19,7 @@ self.addEventListener('fetch', event => {
   if (!event.request.url.startsWith(self.location.origin)) return;
 
   const isAppFile = event.request.url.includes('AgroDesign.html') ||
+                    event.request.url.includes('AgroDesignLab.html') ||
                     event.request.url.includes('manifest.json') ||
                     event.request.url.includes('icon-');
 

@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgroDesign Lab</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+/* ── Variáveis ── */
+:root {
+  --bg:#f4f7f5;--surface:#ffffff;--primary:#2d6a4f;--primary-light:#40916c;
+  --primary-pale:#d8f3dc;--accent:#52b788;--text:#1b2a1e;--text-muted:#6b7c6e;
+  --border:#cde0d3;--danger:#c0392b;--warn:#e67e22;--radius:8px;
+  --shadow:0 2px 8px rgba(0,0,0,.08);
+}
+[data-dark]{
+  --bg:#111814;--surface:#1c2420;--primary:#40916c;--primary-light:#52b788;
+  --primary-pale:#1b3028;--accent:#74c69d;--text:#d8eede;--text-muted:#7fa98e;
+  --border:#2a3d32;--danger:#e05c4b;--warn:#f0a040;--shadow:0 2px 8px rgba(0,0,0,.4);
+}
+[data-dark] tr:nth-child(even) td{background:#1f2d24}
+[data-dark] .table-wrap,[data-dark] .plate-wrap{background:var(--surface)}
+[data-dark] textarea[readonly]{background:var(--surface)!important;color:var(--text)!important}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;
+  height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.hidden{display:none!important}
+
+/* Header */
+header{background:var(--primary);color:#fff;padding:.75rem 1rem;display:flex;
+  align-items:center;gap:.75rem;position:sticky;top:0;z-index:100;
+  box-shadow:0 2px 6px rgba(0,0,0,.2)}
+header h1{font-size:1.1rem;font-weight:700;letter-spacing:.02em}
+header p{font-size:.75rem;opacity:.8}
+.header-logo{font-size:1.6rem;line-height:1}
+.header-link{margin-left:auto;background:rgba(255,255,255,.15);
+  border:1px solid rgba(255,255,255,.3);color:#fff;font-size:.78rem;
+  padding:.3rem .75rem;border-radius:var(--radius);cursor:pointer;
+  text-decoration:none;display:flex;align-items:center;gap:.3rem}
+.header-link:hover{background:rgba(255,255,255,.25)}
+#btnDark{background:none;border:none;color:#fff;font-size:1.25rem;
+  cursor:pointer;opacity:.85;padding:4px 8px;line-height:1;margin-left:.5rem}
+
+/* Layout */
+.app-layout{display:flex;flex:1;min-height:0;overflow:hidden}
+.config-panel{width:285px;min-width:265px;background:var(--surface);
+  border-right:1px solid var(--border);overflow-y:auto;padding:.75rem;
+  display:flex;flex-direction:column;gap:.25rem}
+.result-panel{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+
+/* Forms */
+.form-section{margin-bottom:.85rem}
+.form-section-title{font-size:.7rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--primary);border-bottom:1px solid var(--primary-pale);
+  padding-bottom:.3rem;margin-bottom:.55rem}
+label{display:flex;flex-direction:column;gap:.2rem;font-size:.82rem;
+  color:var(--text);margin-bottom:.4rem}
+label span{font-weight:500}
+input[type=text],input[type=number],select,textarea{
+  border:1px solid var(--border);border-radius:var(--radius);padding:.35rem .6rem;
+  font-size:.85rem;color:var(--text);background:var(--surface);width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);
+  box-shadow:0 0 0 2px var(--primary-pale)}
+textarea{resize:vertical;min-height:65px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.hint{font-size:.72rem;color:var(--text-muted)}
+
+/* Buttons */
+.btn{border:none;border-radius:var(--radius);padding:.45rem .9rem;
+  font-size:.82rem;font-weight:600;cursor:pointer;transition:background .15s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-light)}
+.btn-secondary{background:var(--primary-pale);color:var(--primary);border:1px solid var(--border)}
+.btn-ghost{background:none;color:var(--primary);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg)}
+.btn-sm{padding:.3rem .65rem;font-size:.78rem}
+.btn-block{width:100%}
+
+/* Tabs */
+.tab-nav{display:flex;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.tab-btn{padding:.5rem 1rem;font-size:.82rem;font-weight:600;border:none;background:none;
+  color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+.tab-content{display:none;flex:1;overflow:auto;padding:.75rem;flex-direction:column;gap:.65rem}
+.tab-content.active{display:flex}
+
+/* Plate */
+.plate-wrap{flex:1;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+  overflow:auto;min-height:180px;padding:.5rem}
+.plate-legend{display:flex;flex-wrap:wrap;gap:.4rem;flex-shrink:0}
+.legend-item{display:flex;align-items:center;gap:.35rem;font-size:.78rem}
+.legend-swatch{width:13px;height:13px;border-radius:50%;border:1px solid rgba(0,0,0,.15);flex-shrink:0}
+
+/* Summary */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:.55rem}
+.summary-card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:.55rem .75rem;box-shadow:var(--shadow)}
+.summary-card .lbl{font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em}
+.summary-card .val{font-size:1rem;font-weight:700;color:var(--primary)}
+
+/* Info/warn boxes */
+.info-box{background:var(--primary-pale);border:1px solid var(--border);
+  border-radius:var(--radius);padding:.6rem .8rem;font-size:.8rem}
+.warn-box{background:#fff8e1;border:1px solid #ffe082;border-radius:var(--radius);
+  padding:.6rem .8rem;font-size:.8rem;color:#5d4037}
+[data-dark] .warn-box{background:#2c2010;border-color:#5d4515;color:var(--text)}
+
+/* Table */
+.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{background:var(--primary);color:#fff;padding:.35rem .6rem;text-align:left;
+  font-weight:600;position:sticky;top:0}
+td{padding:.28rem .6rem;border-bottom:1px solid var(--border)}
+tr:nth-child(even) td{background:#f9fbfa}
+tr:hover td{background:var(--primary-pale)}
+
+/* Badges */
+.badge{display:inline-block;padding:.12rem .45rem;border-radius:12px;font-size:.72rem;font-weight:700}
+.badge-ok{background:#d8f3dc;color:#1b4332}
+.badge-warn{background:#fff3cd;color:#856404}
+.badge-err{background:#ffe0e0;color:#c0392b}
+[data-dark] .badge-ok{background:#1b3028;color:#74c69d}
+[data-dark] .badge-warn{background:#2c2010;color:#f0a040}
+[data-dark] .badge-err{background:#3d1a1a;color:#e05c4b}
+
+/* Action row */
+.action-row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;flex-shrink:0}
+
+/* Templates */
+.template-list{display:flex;flex-direction:column;gap:.3rem}
+.template-btn{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+  padding:.38rem .65rem;font-size:.77rem;cursor:pointer;text-align:left;color:var(--text);
+  transition:background .15s}
+.template-btn:hover{background:var(--primary-pale);border-color:var(--primary)}
+
+/* Toast */
+.toast{position:fixed;bottom:70px;right:16px;z-index:999;max-width:300px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:.65rem .9rem;font-size:.8rem;box-shadow:var(--shadow);animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Tooltip */
+.well-tooltip{position:fixed;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:.4rem .65rem;font-size:.78rem;
+  box-shadow:var(--shadow);pointer-events:none;z-index:999;display:none;max-width:210px;line-height:1.5}
+
+/* Well counter */
+#wellCounter{font-size:.77rem;margin:.35rem 0}
+
+/* MM textarea */
+#labMMText{width:100%;font-size:.82rem;line-height:1.65;resize:vertical;
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:.5rem .75rem;background:var(--surface);color:var(--text)}
+
+/* Footer */
+footer{background:var(--surface);border-top:1px solid var(--border);padding:.5rem 1rem;
+  display:flex;align-items:center;justify-content:center;gap:.75rem;flex-wrap:wrap}
+.footer-btn{font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid var(--border);
+  background:var(--bg);color:var(--text-muted);cursor:pointer}
+#appVersion{font-size:9px;color:#9ca3af;user-select:none}
+
+@media(max-width:700px){
+  .app-layout{flex-direction:column}
+  .config-panel{width:100%;min-width:unset;border-right:none;border-bottom:1px solid var(--border)}
+}
+@media print{header,footer,.config-panel,.tab-nav,.action-row{display:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="header-logo">🧪</span>
+  <div><h1>AgroDesign Lab</h1><p>Delineamento em Microplacas · 96 poços</p></div>
+  <a class="header-link" href="./AgroDesign.html">🌿 Campo</a>
+  <button id="btnDark" onclick="toggleDark()" title="Modo escuro">🌙</button>
+</header>
+
+<div class="app-layout">
+
+<!-- ═══ CONFIG PANEL ═══ -->
+<div class="config-panel">
+
+  <div class="form-section">
+    <div class="form-section-title">Templates</div>
+    <div class="template-list">
+      <button class="template-btn" onclick="loadTemplate('mic')">💊 MIC Antimicrobiano (CLSI M07)</button>
+      <button class="template-btn" onclick="loadTemplate('mtt')">🔬 Viabilidade Celular (MTT)</button>
+      <button class="template-btn" onclick="loadTemplate('phyto')">🌿 Fitotoxicidade (OECD TG 208)</button>
+      <button class="template-btn" onclick="loadTemplate('crd')">🎲 CRD Genérico</button>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Delineamento</div>
+    <label><span>Tipo</span>
+      <select id="selDesignLab" onchange="onDesignChange()">
+        <option value="CRD">CRD — Completamente Aleatório</option>
+        <option value="RCBD-R">RCBD-R — Blocos por Linha</option>
+        <option value="RCBD-C">RCBD-C — Blocos por Coluna</option>
+        <option value="RCBD-Q">RCBD-Q — Blocos por Quadrante</option>
+      </select>
+    </label>
+    <div id="designInfo" class="hint"></div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Poços de Borda</div>
+    <label><span>Política</span>
+      <select id="selEdge" onchange="updateWellCounter()">
+        <option value="normal">Usar todos os 96 poços</option>
+        <option value="ctrl-edge">Controles na borda (36 poços)</option>
+        <option value="sacrificial">Borda sacrificial — buffer</option>
+      </select>
+    </label>
+    <div id="edgeInfo" class="hint"></div>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Tratamentos</div>
+    <label><span>Nomes (um por linha)</span>
+      <textarea id="txtTreatments" rows="5"
+        placeholder="Extrato A&#10;Extrato B&#10;Extrato C&#10;..."
+        oninput="updateWellCounter()"></textarea>
+    </label>
+    <label><span>Replicatas técnicas / tratamento</span>
+      <input type="number" id="numReps" value="3" min="1" max="30" oninput="updateWellCounter()">
+    </label>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Controles</div>
+    <div class="row2">
+      <label><span>Ctrl. Negativo (n)</span>
+        <input type="number" id="numCtrlNeg" value="3" min="0" max="24" oninput="updateWellCounter()">
+      </label>
+      <label><span>Ctrl. Positivo (n)</span>
+        <input type="number" id="numCtrlPos" value="3" min="0" max="24" oninput="updateWellCounter()">
+      </label>
+    </div>
+    <label><span>Branco / Blank (n)</span>
+      <input type="number" id="numBlank" value="2" min="0" max="12" oninput="updateWellCounter()">
+    </label>
+    <label><span>Nome ctrl. negativo</span>
+      <input type="text" id="txtCtrlNegName" value="Controle Negativo">
+    </label>
+    <label><span>Nome ctrl. positivo</span>
+      <input type="text" id="txtCtrlPosName" value="Controle Positivo">
+    </label>
+  </div>
+
+  <div class="form-section">
+    <div class="form-section-title">Randomização</div>
+    <label><span>Semente (seed)</span>
+      <input type="number" id="numSeedLab" value="42" min="1">
+    </label>
+    <div id="wellCounter"></div>
+    <button class="btn btn-primary btn-block" style="margin-top:.4rem" onclick="generatePlate()">
+      🧪 Gerar Layout da Placa
+    </button>
+  </div>
+
+</div><!-- /config-panel -->
+
+<!-- ═══ RESULT PANEL ═══ -->
+<div class="result-panel">
+  <div class="tab-nav">
+    <button class="tab-btn active" data-tab="placa"     onclick="switchTab('placa')">🧫 Placa</button>
+    <button class="tab-btn"        data-tab="resumo"    onclick="switchTab('resumo')">📊 Resumo</button>
+    <button class="tab-btn"        data-tab="fieldbook" onclick="switchTab('fieldbook')">📋 Field Book</button>
+    <button class="tab-btn"        data-tab="mm"        onclick="switchTab('mm')">📝 M&amp;M</button>
+  </div>
+
+  <!-- Placa -->
+  <div id="tabPlaca" class="tab-content active">
+    <div class="action-row">
+      <button class="btn btn-ghost btn-sm" onclick="exportSVGLab()">⬇ SVG</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportPNGLab()">⬇ PNG</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSVLab()">⬇ CSV</button>
+      <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;margin:0">
+        <input type="checkbox" id="chkPubLab" onchange="renderPlate()"> Publicação
+      </label>
+      <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;margin:0">
+        <input type="checkbox" id="chkEngLab" onchange="onEngChange()"> English
+      </label>
+    </div>
+    <div class="plate-wrap" id="plateWrap">
+      <div style="color:var(--text-muted);font-size:.88rem;text-align:center;padding:2rem">
+        Configure os parâmetros e clique em <strong>Gerar Layout da Placa</strong>
+      </div>
+    </div>
+    <div id="plateLegend" class="plate-legend"></div>
+  </div>
+
+  <!-- Resumo -->
+  <div id="tabResumo" class="tab-content">
+    <div class="summary-grid" id="labSummaryCards"></div>
+    <div id="labQualityBox"></div>
+  </div>
+
+  <!-- Field Book -->
+  <div id="tabFieldbook" class="tab-content">
+    <div class="action-row">
+      <button class="btn btn-ghost btn-sm" onclick="exportCSVLab()">⬇ CSV</button>
+      <span class="hint" id="fbCount"></span>
+    </div>
+    <div class="table-wrap">
+      <table><thead id="fbHead"></thead><tbody id="fbBody"></tbody></table>
+    </div>
+  </div>
+
+  <!-- M&M -->
+  <div id="tabMM" class="tab-content">
+    <div class="action-row">
+      <button class="tab-btn active" id="btnMMpt" onclick="setLabLang('pt')">🇧🇷 PT</button>
+      <button class="tab-btn"        id="btnMMen" onclick="setLabLang('en')">🇺🇸 EN</button>
+      <button class="btn btn-ghost btn-sm" onclick="copyLabMM()">📋 Copiar</button>
+    </div>
+    <div class="form-section-title">Material e Métodos</div>
+    <textarea id="labMMText" rows="10" readonly></textarea>
+    <div class="hint">Texto pronto para a seção de M&amp;M do manuscrito. Cite a semente para reprodutibilidade.</div>
+    <div class="info-box" style="font-size:.78rem">
+      <strong>Replicatas biológicas vs. técnicas</strong><br>
+      As replicatas configuradas acima são <em>técnicas</em> (mesmo material, mesma placa).
+      Para publicações de alto impacto (<em>Nature</em>, <em>PNAS</em>, <em>Frontiers</em>),
+      repita o experimento em ≥ 3 placas independentes (replicatas biológicas) e declare ambos os n no manuscrito.
+    </div>
+  </div>
+
+</div><!-- /result-panel -->
+</div><!-- /app-layout -->
+
+<div class="well-tooltip" id="wellTooltip"></div>
+
+<footer>
+  <button class="footer-btn" onclick="window.open('https://github.com/Magoc25/AgroDesign','_blank')">⭐ GitHub</button>
+  <span id="appVersion">© MGC · Lab v1.0.0</span>
+</footer>
+
+<script>
+'use strict';
+
+/* ── Constantes ── */
+const LAB_VERSION = '1.0.0';
+const ROWS = ['A','B','C','D','E','F','G','H'];
+const COLS = [1,2,3,4,5,6,7,8,9,10,11,12];
+
+const EDGE_SET = new Set(
+  ROWS.flatMap(r => COLS.map(c => `${r}${c}`))
+      .filter(w => { const c = parseInt(w.slice(1)); return w[0]==='A'||w[0]==='H'||c===1||c===12; })
+);
+const INNER_WELLS = ROWS.slice(1,7).flatMap(r => COLS.slice(1,11).map(c => `${r}${c}`));
+const ALL_WELLS   = ROWS.flatMap(r => COLS.map(c => `${r}${c}`));
+
+/* Cores por tratamento */
+const TREAT_COLORS = [
+  '#4ade80','#60a5fa','#fb923c','#f472b6','#a78bfa',
+  '#34d399','#facc15','#38bdf8','#f87171','#818cf8',
+  '#86efac','#93c5fd','#fbbf24','#c4b5fd','#6ee7b7'
+];
+const PUB_FILLS = ['#ffffff','#d4d4d4','#a3a3a3','#737373','#555','#3a3a3a','#e8e8e8','#bfbfbf','#ababab','#8a8a8a'];
+
+const CTRL_COLOR = { ctrl_neg:'#86efac', ctrl_pos:'#fca5a1', blank:'#e5e7eb', buffer:'#bfdbfe', empty:'#f3f4f6' };
+const CTRL_PUB   = { ctrl_neg:'#d4d4d4', ctrl_pos:'#a3a3a3', blank:'#ffffff', buffer:'#e8e8e8', empty:'#f5f5f5' };
+
+/* ── Estado ── */
+let plateLayout = [];
+let labLang = 'pt';
+
+/* ── RNG com semente (xorshift32) ── */
+function seededRng(seed) {
+  let s = (seed >>> 0) || 1;
+  return () => { s^=s<<13; s^=s>>17; s^=s<<5; return (s>>>0)/4294967296; };
+}
+function shuffle(arr, rng) {
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+/* ── Helpers de poço ── */
+const wellRow = w => w[0];
+const wellCol = w => parseInt(w.slice(1));
+const isEdge  = w => EDGE_SET.has(w);
+
+/* ── Parser de tratamentos ── */
+function parseTreatments(txt){
+  return txt.split('\n').map(s=>s.trim()).filter(Boolean);
+}
+
+/* ── Contador de poços ── */
+function updateWellCounter() {
+  const treats = parseTreatments(document.getElementById('txtTreatments').value);
+  const reps   = parseInt(document.getElementById('numReps').value)||1;
+  const neg    = parseInt(document.getElementById('numCtrlNeg').value)||0;
+  const pos    = parseInt(document.getElementById('numCtrlPos').value)||0;
+  const blank  = parseInt(document.getElementById('numBlank').value)||0;
+  const edge   = document.getElementById('selEdge').value;
+
+  const samples  = treats.length * reps;
+  const ctrls    = neg + pos + blank;
+  const needed   = samples + ctrls;
+  const avail    = edge === 'sacrificial' ? 60 : 96;
+  const free     = avail - needed;
+  const badge    = free < 0
+    ? `<span class="badge badge-err">Excede em ${-free} poços</span>`
+    : free === 0
+    ? `<span class="badge badge-ok">Exato</span>`
+    : `<span class="badge badge-ok">${free} livre${free!==1?'s':''}</span>`;
+
+  document.getElementById('wellCounter').innerHTML =
+    `Amostras <strong>${samples}</strong> · Controles <strong>${ctrls}</strong> · Total <strong>${needed}</strong>/${avail} ${badge}`;
+
+  const hints = {
+    normal:'Todos os 96 poços disponíveis para amostras e controles.',
+    'ctrl-edge':'Controles alocados nos 36 poços de borda; amostras nos 60 internos (B2–G11).',
+    sacrificial:'Borda sacrificial: 36 poços externos = PBS/buffer. Amostras e controles usam apenas os 60 poços internos (B2–G11), mitigando gradientes térmicos e evaporação.'
+  };
+  document.getElementById('edgeInfo').textContent = hints[edge]||'';
+}
+
+/* ── Info de delineamento ── */
+function onDesignChange() {
+  const d = document.getElementById('selDesignLab').value;
+  const info = {
+    CRD:'Tratamentos e controles distribuídos aleatoriamente em todos os poços disponíveis (randomização restrita).',
+    'RCBD-R':'Cada linha (A–H) é um bloco; tratamentos distribuídos por round-robin entre linhas para maximizar cobertura espacial.',
+    'RCBD-C':'Cada coluna (1–12) é um bloco; tratamentos distribuídos por round-robin entre colunas.',
+    'RCBD-Q':'Placa dividida em 4 quadrantes (A–D × 1–6, A–D × 7–12, E–H × 1–6, E–H × 7–12); tratamentos distribuídos entre quadrantes.'
+  };
+  document.getElementById('designInfo').textContent = info[d]||'';
+}
+
+/* ── Distribuição round-robin por bloco ── */
+function roundRobinWells(wells, groupFn, groupKeys, rng) {
+  const groups = {};
+  groupKeys.forEach(k => groups[k] = []);
+  wells.forEach(w => { const k=groupFn(w); if(groups[k]) groups[k].push(w); });
+  groupKeys.forEach(k => { groups[k] = shuffle(groups[k], rng); });
+  const ptrs = {}; groupKeys.forEach(k => ptrs[k]=0);
+  const result = []; let gi = 0;
+  const maxNeeded = wells.length;
+  for(let n=0; n<maxNeeded; n++) {
+    let placed=false;
+    for(let a=0; a<groupKeys.length; a++) {
+      const k = groupKeys[(gi+a)%groupKeys.length];
+      if(ptrs[k] < groups[k].length) { result.push(groups[k][ptrs[k]++]); gi=(gi+a+1)%groupKeys.length; placed=true; break; }
+    }
+    if(!placed) break;
+  }
+  return result;
+}
+
+/* ── Ordena poços pelo design ── */
+function designOrder(design, wells, rng) {
+  if(design==='CRD') return shuffle(wells, rng);
+  if(design==='RCBD-R') return roundRobinWells(wells, wellRow, ROWS, rng);
+  if(design==='RCBD-C') return roundRobinWells(wells, w=>String(wellCol(w)), COLS.map(String), rng);
+  if(design==='RCBD-Q') {
+    const quad = w => {
+      const ri=ROWS.indexOf(wellRow(w)), c=wellCol(w);
+      return String((ri<4?0:2)+(c<=6?0:1));
+    };
+    return roundRobinWells(wells, quad, ['0','1','2','3'], rng);
+  }
+  return shuffle(wells, rng);
+}
+
+/* ── Bloco de cada poço ── */
+function blockOf(design, row, col) {
+  if(design==='RCBD-R') return ROWS.indexOf(row)+1;
+  if(design==='RCBD-C') return col;
+  if(design==='RCBD-Q') { const ri=ROWS.indexOf(row); return (ri<4?0:2)+(col<=6?0:1)+1; }
+  return null;
+}
+
+/* ══════════════════════════════════════════════
+   GERAR LAYOUT
+══════════════════════════════════════════════ */
+function generatePlate() {
+  const treats   = parseTreatments(document.getElementById('txtTreatments').value);
+  if(!treats.length){ alert('Informe ao menos um tratamento.'); return; }
+
+  const reps     = parseInt(document.getElementById('numReps').value)||1;
+  const neg      = parseInt(document.getElementById('numCtrlNeg').value)||0;
+  const pos      = parseInt(document.getElementById('numCtrlPos').value)||0;
+  const blank    = parseInt(document.getElementById('numBlank').value)||0;
+  const negName  = document.getElementById('txtCtrlNegName').value.trim()||'Ctrl. Negativo';
+  const posName  = document.getElementById('txtCtrlPosName').value.trim()||'Ctrl. Positivo';
+  const seed     = parseInt(document.getElementById('numSeedLab').value)||42;
+  const design   = document.getElementById('selDesignLab').value;
+  const edgePol  = document.getElementById('selEdge').value;
+  const rng      = seededRng(seed);
+
+  /* Inicializa todos os poços como vazios */
+  const wm = {};
+  ALL_WELLS.forEach(id => {
+    wm[id] = { id, row:id[0], col:parseInt(id.slice(1)), type:'empty', treatment:'', rep:null, block:null };
+  });
+
+  /* Política de borda */
+  let samplePool_wells, ctrl_wells;
+  if(edgePol==='sacrificial') {
+    EDGE_SET.forEach(id => { wm[id].type='buffer'; wm[id].treatment='Buffer (PBS)'; });
+    samplePool_wells = [...INNER_WELLS];
+    ctrl_wells = [...INNER_WELLS];
+  } else if(edgePol==='ctrl-edge') {
+    samplePool_wells = [...INNER_WELLS];
+    ctrl_wells = ALL_WELLS.filter(w => EDGE_SET.has(w));
+  } else {
+    samplePool_wells = [...ALL_WELLS];
+    ctrl_wells = [...ALL_WELLS];
+  }
+
+  /* Validação */
+  const totalSamples = treats.length * reps;
+  const totalCtrls   = neg + pos + blank;
+  const availSamples = edgePol==='ctrl-edge' ? INNER_WELLS.length : (edgePol==='sacrificial' ? INNER_WELLS.length : 96);
+  const availCtrls   = edgePol==='ctrl-edge' ? 36 : availSamples;
+
+  if(edgePol==='ctrl-edge') {
+    if(totalCtrls > 36)  { alert(`Controles (${totalCtrls}) excedem os 36 poços de borda.`); return; }
+    if(totalSamples > 60){ alert(`Amostras (${totalSamples}) excedem os 60 poços internos.`); return; }
+  } else {
+    if(totalSamples + totalCtrls > availSamples) {
+      alert(`Poços insuficientes: ${totalSamples+totalCtrls} necessários, ${availSamples} disponíveis.`); return;
+    }
+  }
+
+  /* Atribui controles */
+  const shuffledCtrlWells = shuffle(ctrl_wells.filter(w => wm[w].type==='empty'), rng);
+  let ctrlIdx = 0;
+  const addCtrl = (type, name, n) => {
+    for(let i=0; i<n && ctrlIdx<shuffledCtrlWells.length; i++, ctrlIdx++) {
+      const id = shuffledCtrlWells[ctrlIdx];
+      wm[id] = { ...wm[id], type, treatment:name, rep:i+1 };
+    }
+  };
+  addCtrl('ctrl_neg', negName, neg);
+  addCtrl('ctrl_pos', posName, pos);
+  addCtrl('blank', 'Branco', blank);
+
+  /* Atribui amostras com order pelo design */
+  const usedSet = new Set(shuffledCtrlWells.slice(0, ctrlIdx));
+  const freeSampleWells = samplePool_wells.filter(w => !usedSet.has(w) && wm[w].type==='empty');
+  const orderedSampleWells = designOrder(design, freeSampleWells, rng);
+
+  const sampleAssignments = shuffle(
+    treats.flatMap((t,ti) => Array.from({length:reps}, (_,ri) => ({treatment:t, rep:ri+1, treatIdx:ti}))),
+    rng
+  );
+  sampleAssignments.forEach((item, i) => {
+    const id = orderedSampleWells[i];
+    if(id) wm[id] = { ...wm[id], type:'sample', treatment:item.treatment, rep:item.rep };
+  });
+
+  /* Atribui blocos */
+  ALL_WELLS.forEach(id => {
+    const w = wm[id];
+    if(w.type !== 'empty' && w.type !== 'buffer') {
+      w.block = blockOf(design, w.row, w.col);
+    }
+  });
+
+  /* Flatten em ordem de leitura (A1→H12) */
+  plateLayout = ROWS.flatMap(r => COLS.map(c => wm[`${r}${c}`]));
+
+  renderPlate();
+  renderSummaryLab();
+  renderFieldBook();
+  renderMM();
+  switchTab('placa');
+}
+
+/* ══════════════════════════════════════════════
+   RENDERIZAR PLACA (SVG)
+══════════════════════════════════════════════ */
+function renderPlate() {
+  if(!plateLayout.length) return;
+  const isPub = document.getElementById('chkPubLab').checked;
+  const isEng = document.getElementById('chkEngLab').checked;
+
+  /* Mapa de cor por tratamento */
+  const treats = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
+  const colorMap = {};
+  treats.forEach((t,i) => { colorMap[t] = isPub ? PUB_FILLS[i%PUB_FILLS.length] : TREAT_COLORS[i%TREAT_COLORS.length]; });
+
+  /* Dimensões */
+  const WS = 29, R = 11;
+  const PL = 38, PT = 32, PR = 10, PB = 10;
+  const svgW = PL + 12*WS + PR;
+  const svgH = PT + 8*WS  + PB;
+
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgW} ${svgH}" width="${svgW}" height="${svgH}" id="plateSvg">`;
+  s += `<rect width="${svgW}" height="${svgH}" fill="${isPub?'#fff':'#f8fafb'}" rx="6"/>`;
+
+  /* Cabeçalhos de coluna */
+  COLS.forEach((c,ci) => {
+    const cx = PL + ci*WS + WS/2;
+    s += `<text x="${cx}" y="${PT-9}" text-anchor="middle" font-size="9" fill="${isPub?'#333':'#6b7c6e'}" font-weight="700">${c}</text>`;
+  });
+  /* Cabeçalhos de linha */
+  ROWS.forEach((r,ri) => {
+    const cy = PT + ri*WS + WS/2;
+    s += `<text x="${PL-12}" y="${cy+3.5}" text-anchor="middle" font-size="9" fill="${isPub?'#333':'#6b7c6e'}" font-weight="700">${r}</text>`;
+  });
+
+  /* Poços */
+  plateLayout.forEach(w => {
+    const ri = ROWS.indexOf(w.row), ci = w.col - 1;
+    const cx = PL + ci*WS + WS/2, cy = PT + ri*WS + WS/2;
+
+    let fill, stroke;
+    if(w.type==='sample') {
+      fill = colorMap[w.treatment]||'#e5e7eb';
+      stroke = isPub ? '#333' : 'rgba(0,0,0,.25)';
+    } else if(w.type==='empty') {
+      fill = '#f3f4f6'; stroke = '#d1d5db';
+    } else {
+      fill = isPub ? CTRL_PUB[w.type]||'#e5e5e5' : CTRL_COLOR[w.type]||'#e5e7eb';
+      stroke = isPub ? '#555' : 'rgba(0,0,0,.3)';
+    }
+
+    const lum = hexLum(fill);
+    const textFill = lum < 130 ? '#fff' : (isPub ? '#111' : '#1b2a1e');
+
+    s += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${fill}" stroke="${stroke}" stroke-width="${isPub?'0.9':'0.6'}" data-well="${w.id}" style="cursor:${w.type!=='empty'?'pointer':'default'}"/>`;
+
+    const lbl = shortLabel(w, treats, isEng);
+    if(lbl) {
+      const fs = lbl.length > 3 ? 5 : lbl.length > 2 ? 6 : 7;
+      s += `<text x="${cx}" y="${cy+fs*0.4}" text-anchor="middle" font-size="${fs}" fill="${textFill}" font-weight="700" pointer-events="none">${esc(lbl)}</text>`;
+    }
+  });
+
+  s += '</svg>';
+
+  const wrap = document.getElementById('plateWrap');
+  wrap.innerHTML = s;
+
+  /* Tooltips */
+  wrap.querySelectorAll('circle[data-well]').forEach(el => {
+    if(el.style.cursor === 'pointer') {
+      el.addEventListener('mouseenter', e => showTip(e, el.getAttribute('data-well')));
+      el.addEventListener('mouseleave', hideTip);
+      el.addEventListener('mousemove',  moveTip);
+    }
+  });
+
+  renderLegend(colorMap, isPub, isEng);
+}
+
+function shortLabel(w, treats, isEng) {
+  if(w.type==='empty')    return '';
+  if(w.type==='buffer')   return isEng?'BUF':'BUF';
+  if(w.type==='blank')    return isEng?'BK':'BK';
+  if(w.type==='ctrl_neg') return 'NC';
+  if(w.type==='ctrl_pos') return 'PC';
+  if(w.type==='sample') { const i=treats.indexOf(w.treatment); return i>=0?`T${i+1}`:'?'; }
+  return '';
+}
+
+function hexLum(hex) {
+  if(!hex||!hex.startsWith('#')) return 200;
+  const h=hex.replace('#',''); if(h.length!==6) return 200;
+  return 0.299*parseInt(h.slice(0,2),16)+0.587*parseInt(h.slice(2,4),16)+0.114*parseInt(h.slice(4,6),16);
+}
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ── Legenda ── */
+function renderLegend(colorMap, isPub, isEng) {
+  const items = [];
+  Object.entries(colorMap).forEach(([t,c]) => {
+    items.push(`<div class="legend-item"><div class="legend-swatch" style="background:${c}"></div><span>${esc(t)}</span></div>`);
+  });
+  const ctrlDefs = [
+    {type:'ctrl_neg', labelPt:'Ctrl. Negativo', labelEn:'Neg. Control'},
+    {type:'ctrl_pos', labelPt:'Ctrl. Positivo', labelEn:'Pos. Control'},
+    {type:'blank',    labelPt:'Branco',          labelEn:'Blank'},
+    {type:'buffer',   labelPt:'Buffer (PBS)',     labelEn:'Buffer (PBS)'},
+  ];
+  ctrlDefs.forEach(({type, labelPt, labelEn}) => {
+    if(plateLayout.some(w=>w.type===type)) {
+      const c = isPub ? CTRL_PUB[type] : CTRL_COLOR[type];
+      const lbl = isEng ? labelEn : labelPt;
+      items.push(`<div class="legend-item"><div class="legend-swatch" style="background:${c};border:1px solid #999"></div><span>${lbl}</span></div>`);
+    }
+  });
+  document.getElementById('plateLegend').innerHTML = items.join('');
+}
+
+/* ── Tooltip ── */
+function showTip(e, wellId) {
+  const w = plateLayout.find(x=>x.id===wellId); if(!w) return;
+  const tipLabels = {sample:'Amostra',ctrl_neg:'Ctrl. Negativo',ctrl_pos:'Ctrl. Positivo',blank:'Branco',buffer:'Buffer',empty:'Vazio'};
+  let html = `<strong>${w.id}</strong><br>Tipo: ${tipLabels[w.type]||w.type}`;
+  if(w.treatment) html += `<br>Tratamento: ${esc(w.treatment)}`;
+  if(w.rep)       html += `<br>Replicata: ${w.rep}`;
+  if(w.block)     html += `<br>Bloco: ${w.block}`;
+  const tip = document.getElementById('wellTooltip');
+  tip.innerHTML = html; tip.style.display='block'; moveTip(e);
+}
+function moveTip(e) {
+  const t=document.getElementById('wellTooltip');
+  t.style.left=(e.clientX+14)+'px'; t.style.top=(e.clientY+14)+'px';
+}
+function hideTip(){ document.getElementById('wellTooltip').style.display='none'; }
+
+/* ══════════════════════════════════════════════
+   RESUMO
+══════════════════════════════════════════════ */
+function renderSummaryLab() {
+  const design   = document.getElementById('selDesignLab').value;
+  const edgePol  = document.getElementById('selEdge').value;
+  const reps     = parseInt(document.getElementById('numReps').value)||1;
+  const treats   = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
+  const nSample  = plateLayout.filter(w=>w.type==='sample').length;
+  const nNeg     = plateLayout.filter(w=>w.type==='ctrl_neg').length;
+  const nPos     = plateLayout.filter(w=>w.type==='ctrl_pos').length;
+  const nBlank   = plateLayout.filter(w=>w.type==='blank').length;
+  const nBuf     = plateLayout.filter(w=>w.type==='buffer').length;
+  const nUsed    = plateLayout.filter(w=>w.type!=='empty').length;
+  const nFree    = 96 - nUsed;
+
+  const dNames = { CRD:'CRD', 'RCBD-R':'RCBD (linhas)', 'RCBD-C':'RCBD (colunas)', 'RCBD-Q':'RCBD (quadrantes)' };
+  const eNames = { normal:'Sem restrição', 'ctrl-edge':'Controles na borda', sacrificial:'Borda sacrificial' };
+
+  const cards = [
+    {lbl:'Delineamento',    val:dNames[design]||design},
+    {lbl:'Política de borda',val:eNames[edgePol]||edgePol},
+    {lbl:'Tratamentos',     val:treats.length},
+    {lbl:'Rep. técnicas',   val:reps},
+    {lbl:'Poços — amostras',val:nSample},
+    {lbl:'Ctrl. Negativo',  val:nNeg},
+    {lbl:'Ctrl. Positivo',  val:nPos},
+    {lbl:'Brancos',         val:nBlank},
+    {lbl:'Buffer/borda',    val:nBuf},
+    {lbl:'Poços usados',    val:nUsed},
+    {lbl:'Poços livres',    val:nFree},
+  ];
+
+  document.getElementById('labSummaryCards').innerHTML = cards.map(c =>
+    `<div class="summary-card"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div></div>`
+  ).join('');
+
+  let quality = '';
+  if(nNeg>0 && nPos>0) {
+    quality = `<div class="info-box"><strong>Z' Factor (pós-leitura)</strong><br>
+Com controles positivo e negativo definidos, calcule o Z' após a leitura da placa:<br>
+<code style="font-size:.8rem;display:block;margin:.3rem 0">Z' = 1 − (3σ₊ + 3σ₋) / |µ₊ − µ₋|</code>
+<span class="hint">Z' ≥ 0,6 = Excelente &nbsp;·&nbsp; Z' 0,5–0,6 = Aceitável &nbsp;·&nbsp; Z' &lt; 0,5 = Reprovar<br>
+<em>Zhang et al., J Biomol Screen, 1999 — padrão para ensaios HTS</em></span></div>`;
+  }
+  document.getElementById('labQualityBox').innerHTML = quality;
+}
+
+/* ══════════════════════════════════════════════
+   FIELD BOOK
+══════════════════════════════════════════════ */
+function renderFieldBook() {
+  const isEng = document.getElementById('chkEngLab').checked;
+  const heads = isEng
+    ? ['Well','Row','Column','Type','Treatment','Tech. Replicate','Block']
+    : ['Poço','Linha','Coluna','Tipo','Tratamento','Rep. Técnica','Bloco'];
+  document.getElementById('fbHead').innerHTML = `<tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr>`;
+
+  const typeLabels = {
+    sample:'Amostra', ctrl_neg:'Ctrl. Negativo', ctrl_pos:'Ctrl. Positivo',
+    blank:'Branco', buffer:'Buffer (PBS)', empty:'Vazio'
+  };
+  const typeLabelsEn = {
+    sample:'Sample', ctrl_neg:'Neg. Control', ctrl_pos:'Pos. Control',
+    blank:'Blank', buffer:'Buffer (PBS)', empty:'Empty'
+  };
+  const labels = isEng ? typeLabelsEn : typeLabels;
+
+  const rows = plateLayout
+    .filter(w=>w.type!=='empty')
+    .map(w=>[w.id, w.row, w.col, labels[w.type]||w.type, w.treatment||'', w.rep??'', w.block??'']);
+
+  document.getElementById('fbBody').innerHTML = rows.map(r=>
+    `<tr>${r.map(c=>`<td>${esc(String(c))}</td>`).join('')}</tr>`
+  ).join('');
+  document.getElementById('fbCount').textContent = `${rows.length} poços utilizados`;
+}
+
+/* ══════════════════════════════════════════════
+   MATERIAL E MÉTODOS
+══════════════════════════════════════════════ */
+function renderMM() {
+  document.getElementById('labMMText').value = buildMM(document.getElementById('chkEngLab').checked);
+}
+
+function buildMM(en) {
+  const treats  = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
+  const reps    = parseInt(document.getElementById('numReps').value)||1;
+  const design  = document.getElementById('selDesignLab').value;
+  const edgePol = document.getElementById('selEdge').value;
+  const seed    = document.getElementById('numSeedLab').value;
+  const neg     = parseInt(document.getElementById('numCtrlNeg').value)||0;
+  const pos     = parseInt(document.getElementById('numCtrlPos').value)||0;
+  const blank   = parseInt(document.getElementById('numBlank').value)||0;
+  const negName = document.getElementById('txtCtrlNegName').value.trim();
+  const posName = document.getElementById('txtCtrlPosName').value.trim();
+
+  const dNamePt = {CRD:'delineamento inteiramente casualizado (DIC)','RCBD-R':'delineamento em blocos casualizados com linhas como blocos (DBC)','RCBD-C':'delineamento em blocos casualizados com colunas como blocos (DBC)','RCBD-Q':'delineamento em blocos casualizados com quadrantes como blocos (DBC)'};
+  const dNameEn = {CRD:'completely randomized design (CRD)','RCBD-R':'randomized complete block design with rows as blocks (RCBD)','RCBD-C':'randomized complete block design with columns as blocks (RCBD)','RCBD-Q':'randomized complete block design with quadrants as blocks (RCBD)'};
+
+  const edgePt = {
+    normal:'Todos os 96 poços foram utilizados sem restrição de borda.',
+    'ctrl-edge':'Os controles foram alocados nos 36 poços de borda para absorver potenciais efeitos de borda (gradiente térmico e evaporação); as amostras ocuparam os 60 poços internos (B2–G11).',
+    sacrificial:'Adotou-se borda sacrificial: os 36 poços externos foram preenchidos com tampão fosfato-salino (PBS/buffer), e apenas os 60 poços internos (B2–G11) foram utilizados para amostras e controles, seguindo boas práticas para mitigar gradientes térmicos e efeitos de evaporação na periferia da placa (Malo et al., 2006).'
+  };
+  const edgeEn = {
+    normal:'All 96 wells were used without edge restrictions.',
+    'ctrl-edge':'Control wells were placed on the 36 perimeter wells to absorb potential edge effects (thermal gradient and evaporation); sample wells occupied the 60 inner wells (B2–G11).',
+    sacrificial:'A sacrificial perimeter strategy was applied: the 36 outer wells were filled with phosphate-buffered saline (PBS/buffer), and only the 60 inner wells (B2–G11) were used for samples and controls, following best practices to mitigate thermal gradient and evaporation edge effects (Malo et al., 2006).'
+  };
+
+  let ctrlPt='', ctrlEn='';
+  if(neg>0||pos>0||blank>0) {
+    const pts=[]; const ens=[];
+    if(neg>0){pts.push(`${neg} poço${neg>1?'s':''} de controle negativo (${negName})`); ens.push(`${neg} negative control well${neg>1?'s':''} (${negName})`);}
+    if(pos>0){pts.push(`${pos} poço${pos>1?'s':''} de controle positivo (${posName})`); ens.push(`${pos} positive control well${pos>1?'s':''} (${posName})`);}
+    if(blank>0){pts.push(`${blank} poço${blank>1?'s':''} branco`); ens.push(`${blank} blank well${blank>1?'s':''}`);}
+    ctrlPt=` A placa incluiu ${pts.join(', ')}.`;
+    ctrlEn=` The plate also included ${ens.join(', ')}.`;
+  }
+
+  const nt = treats.length;
+  if(en) {
+    return `The experiment was conducted in a 96-well microplate (8 × 12, ANSI/SLAS format) in a ${dNameEn[design]}. ${nt} treatment${nt>1?'s':''} (${treats.join(', ')}) were tested with ${reps} technical replicate${reps>1?'s':''} per treatment (n = ${reps} per treatment, per plate).${ctrlEn} ${edgeEn[edgePol]} Well positions were assigned by computer-generated constrained randomization (seed = ${seed}), ensuring that each treatment was distributed across multiple rows and columns to minimize systematic biases from pipetting order, thermal gradients, and evaporation. The plate layout was exported as CSV for integration with plate reader software. Absorbance/fluorescence data were normalized using plate controls and analyzed by one-way ANOVA with Tukey's HSD post-hoc test (p < 0.05) [or appropriate statistical method]. For multi-plate experiments, plate was included as a random effect in a linear mixed model (lme4, R; Treatment ~ 1 + (1|Plate)).`;
+  } else {
+    return `O experimento foi conduzido em microplaca de 96 poços (8 × 12, formato ANSI/SLAS) em ${dNamePt[design]}. ${nt} tratamento${nt>1?'s':''} (${treats.join(', ')}) foram avaliados com ${reps} replicata${reps>1?'s':''} técnica${reps>1?'s':''} por tratamento (n = ${reps} por tratamento, por placa).${ctrlPt} ${edgePt[edgePol]} As posições dos poços foram atribuídas por randomização restrita gerada computacionalmente (semente = ${seed}), garantindo que cada tratamento fosse distribuído por múltiplas linhas e colunas, minimizando vieses sistemáticos decorrentes da ordem de pipetagem, gradientes térmicos e evaporação. O mapa da placa foi exportado em formato CSV para integração com o software do leitor de microplacas. Os dados de absorbância/fluorescência foram normalizados pelos controles da placa e analisados por ANOVA unifatorial com teste de Tukey (p < 0,05) [ou método estatístico adequado]. Para experimentos com múltiplas placas, a placa deve ser incluída como efeito aleatório em modelo misto linear (lme4, R; Tratamento ~ 1 + (1|Placa)).`;
+  }
+}
+
+function setLabLang(lang) {
+  labLang = lang;
+  ['pt','en'].forEach(l => {
+    const btn = document.getElementById(`btnMM${l}`);
+    btn.classList.toggle('active', l===lang);
+  });
+  renderMM();
+  if(plateLayout.length) renderFieldBook();
+}
+
+function copyLabMM() {
+  navigator.clipboard.writeText(document.getElementById('labMMText').value)
+    .then(()=>toast('Texto copiado!'))
+    .catch(()=>{});
+}
+
+function onEngChange() { if(plateLayout.length){ renderPlate(); renderFieldBook(); renderMM(); } }
+
+/* ══════════════════════════════════════════════
+   EXPORTAÇÕES
+══════════════════════════════════════════════ */
+function exportCSVLab() {
+  if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
+  const header = 'Poço,Linha,Coluna,Tipo,Tratamento,Replicata_Técnica,Bloco\n';
+  const typeMap = {sample:'Amostra',ctrl_neg:'Ctrl. Negativo',ctrl_pos:'Ctrl. Positivo',blank:'Branco',buffer:'Buffer (PBS)',empty:'Vazio'};
+  const rows = plateLayout.map(w =>
+    `${w.id},${w.row},${w.col},${typeMap[w.type]||w.type},"${w.treatment||''}",${w.rep??''},${w.block??''}`
+  ).join('\n');
+  const blob = new Blob(['﻿'+header+rows], {type:'text/csv;charset=utf-8'});
+  dlBlob(blob, 'agrodesign-lab-layout.csv');
+}
+
+function exportSVGLab() {
+  const svg = document.getElementById('plateSvg');
+  if(!svg){ alert('Gere o layout primeiro.'); return; }
+  dlBlob(new Blob([new XMLSerializer().serializeToString(svg)], {type:'image/svg+xml'}), 'agrodesign-lab-plate.svg');
+}
+
+function exportPNGLab() {
+  const svg = document.getElementById('plateSvg');
+  if(!svg){ alert('Gere o layout primeiro.'); return; }
+  const scale=2;
+  const vb=svg.getAttribute('viewBox').split(' ').map(Number);
+  const clone=svg.cloneNode(true);
+  clone.setAttribute('width',vb[2]*scale); clone.setAttribute('height',vb[3]*scale);
+  const img=new Image();
+  img.onload=()=>{
+    const c=document.createElement('canvas');
+    c.width=vb[2]*scale; c.height=vb[3]*scale;
+    c.getContext('2d').drawImage(img,0,0);
+    const a=Object.assign(document.createElement('a'),{href:c.toDataURL('image/png'),download:'agrodesign-lab-plate.png'});
+    a.click();
+  };
+  img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(new XMLSerializer().serializeToString(clone))));
+}
+
+function dlBlob(blob, name) {
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:name});
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ══════════════════════════════════════════════
+   TEMPLATES
+══════════════════════════════════════════════ */
+function loadTemplate(name) {
+  const T = {
+    mic:{
+      design:'CRD', edge:'normal',
+      treats:'Composto 1\nComposto 2\nComposto 3\nComposto 4\nComposto 5\nComposto 6',
+      reps:1, neg:6, pos:6, blank:4,
+      negName:'Crescimento (sem droga)', posName:'Inibição total (referência)',
+      seed:42,
+      msg:'Template MIC (CLSI M07): 6 compostos × 1 poço + controles. Para diluição seriada completa, use o modo Dose-Resposta (Fase 2).'
+    },
+    mtt:{
+      design:'CRD', edge:'sacrificial',
+      treats:'Extrato 50 µg/mL\nExtrato 100 µg/mL\nExtrato 200 µg/mL\nExtrato 400 µg/mL\nExtrato 800 µg/mL',
+      reps:6, neg:6, pos:6, blank:3,
+      negName:'Células sem tratamento', posName:'Células + citotóxico padrão',
+      seed:123,
+      msg:'Template MTT/Viabilidade: borda sacrificial (PBS), 5 concentrações × 6 replicatas nos 60 poços internos (B2–G11).'
+    },
+    phyto:{
+      design:'RCBD-R', edge:'normal',
+      treats:'Extrato 0,1%\nExtrato 0,5%\nExtrato 1,0%\nExtrato 2,5%\nExtrato 5,0%',
+      reps:4, neg:8, pos:4, blank:4,
+      negName:'Água destilada', posName:'Herbicida padrão',
+      seed:77,
+      msg:'Template Fitotoxicidade (OECD TG 208 adaptado): RCBD por linha, 5 concentrações × 4 replicatas técnicas.'
+    },
+    crd:{
+      design:'CRD', edge:'normal',
+      treats:'Tratamento 1\nTratamento 2\nTratamento 3\nTratamento 4\nTratamento 5',
+      reps:6, neg:4, pos:4, blank:2,
+      negName:'Controle Negativo', posName:'Controle Positivo',
+      seed:42,
+      msg:'CRD genérico: 5 tratamentos × 6 replicatas técnicas.'
+    }
+  };
+  const cfg=T[name]; if(!cfg) return;
+  document.getElementById('selDesignLab').value = cfg.design;
+  document.getElementById('selEdge').value      = cfg.edge;
+  document.getElementById('txtTreatments').value = cfg.treats;
+  document.getElementById('numReps').value       = cfg.reps;
+  document.getElementById('numCtrlNeg').value    = cfg.neg;
+  document.getElementById('numCtrlPos').value    = cfg.pos;
+  document.getElementById('numBlank').value      = cfg.blank;
+  document.getElementById('txtCtrlNegName').value = cfg.negName;
+  document.getElementById('txtCtrlPosName').value = cfg.posName;
+  document.getElementById('numSeedLab').value    = cfg.seed;
+  onDesignChange(); updateWellCounter();
+  toast(cfg.msg);
+}
+
+/* ── Toast ── */
+function toast(msg) {
+  const el=document.createElement('div');
+  el.className='toast'; el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 4000);
+}
+
+/* ── Tabs ── */
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  const el=document.getElementById('tab'+name.charAt(0).toUpperCase()+name.slice(1));
+  if(el) el.classList.add('active');
+}
+
+/* ── Dark mode ── */
+function toggleDark() {
+  const on=document.documentElement.toggleAttribute('data-dark');
+  try{ localStorage.setItem('agrodesignlab_dark', on?'1':'0'); }catch(e){}
+  document.getElementById('btnDark').textContent = on?'☀️':'🌙';
+  if(plateLayout.length) renderPlate();
+}
+
+/* ── Init ── */
+onDesignChange();
+updateWellCounter();
+(function(){
+  const dk = localStorage.getItem('agrodesignlab_dark')||localStorage.getItem('agrodesign_dark');
+  if(dk==='1'){
+    document.documentElement.setAttribute('data-dark','');
+    document.getElementById('btnDark').textContent='☀️';
+  }
+})();
+</script>
+</body>
+</html>
