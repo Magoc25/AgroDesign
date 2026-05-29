@@ -481,6 +481,8 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
       <button class="btn btn-ghost btn-sm" onclick="exportXLSColeta()">⬇ XLSX</button>
       <button class="btn btn-ghost btn-sm" onclick="exportTXTColeta()">⬇ TXT</button>
       <button class="btn btn-ghost btn-sm" onclick="importColetaCSV()" title="Importar valores medidos de um arquivo CSV exportado pelo app">⬆ Importar</button>
+      <span style="color:var(--border);font-size:.9rem">|</span>
+      <button id="btnLoadExample" class="btn btn-primary btn-sm" onclick="loadExampleData()" style="display:none">📋 Carregar Exemplo</button>
       <button class="btn btn-secondary btn-sm" onclick="exportResultsXLSXLab()" title="Exportar dados + estatísticas + análises em planilha multi-abas">⬇ Resultados XLSX</button>
       <span style="color:var(--border);font-size:.9rem">|</span>
       <button class="btn btn-secondary btn-sm" onclick="exportScriptRLab()"   title="Script R (aov/drc/FICI conforme o modo)">⬇ R</button>
@@ -2564,6 +2566,44 @@ const ECO_SUB=[
   ['H',3,'carboxylic','4-Hydroxy benzoic acid'],
 ];
 
+/* ── Dados de exemplo por template (OD brutos, leitura a 590 nm, 96 h) ── */
+const EXAMPLE_DATA = {
+  ecoplate: {
+    /* Comunidade microbiana de solo rizosférico fictícia (solo agrícola tropical, 96 h)
+       Placa 1 (cols 1-4): ctrl H₂O = A1
+       Placa 2 (cols 5-8): ctrl H₂O = A5
+       Placa 3 (cols 9-12): ctrl H₂O = A9
+       OD médio ≈ substrato + ctrl;  água ≈ 0.10-0.12 */
+    /* Placa 1 */
+    A1:0.11, A2:0.96, A3:0.53, A4:0.49,
+    B1:1.23, B2:0.39, B3:0.72, B4:0.26,
+    C1:0.85, C2:1.04, C3:1.29, C4:0.99,
+    D1:1.16, D2:0.66, D3:0.90, D4:0.79,
+    E1:1.34, E2:0.56, E3:0.33, E4:0.78,
+    F1:1.46, F2:0.62, F3:0.93, F4:0.84,
+    G1:1.05, G2:0.44, G3:0.87, G4:0.30,
+    H1:1.59, H2:0.52, H3:0.68, H4:0.37,
+    /* Placa 2 */
+    A5:0.10, A6:0.98, A7:0.54, A8:0.50,
+    B5:1.19, B6:0.37, B7:0.73, B8:0.27,
+    C5:0.81, C6:1.05, C7:1.32, C8:1.01,
+    D5:1.18, D6:0.63, D7:0.92, D8:0.75,
+    E5:1.36, E6:0.57, E7:0.34, E8:0.79,
+    F5:1.48, F6:0.59, F7:0.95, F8:0.81,
+    G5:1.07, G6:0.41, G7:0.88, G8:0.31,
+    H5:1.61, H6:0.49, H7:0.65, H8:0.38,
+    /* Placa 3 */
+    A9:0.12, A10:0.95, A11:0.52, A12:0.49,
+    B9:1.26, B10:0.42, B11:0.70, B12:0.26,
+    C9:0.88, C10:1.02, C11:1.27, C12:0.97,
+    D9:1.14, D10:0.69, D11:0.89, D12:0.82,
+    E9:1.32, E10:0.55, E11:0.32, E12:0.77,
+    F9:1.44, F10:0.65, F11:0.91, F12:0.87,
+    G9:1.04, G10:0.47, G11:0.86, G12:0.29,
+    H9:1.58, H10:0.55, H11:0.71, H12:0.36
+  }
+};
+
 function generateEcoPlateLayout() {
   const wm={};
   ALL_WELLS.forEach(id=>{
@@ -2875,6 +2915,9 @@ function loadTemplate(name) {
   /* Cancela debounce pendente e bloqueia eventos durante o carregamento */
   clearTimeout(_debTimer); _debTimer = null;
   _templateLoading = true;
+  _activeTemplate   = name;
+  _templatePristine = true;
+  _exampleDataLoaded = false;
 
   /* Destaca o botão do template ativo */
   document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
@@ -2991,6 +3034,7 @@ function loadTemplate(name) {
     toast(cfg.msg);
   } finally {
     _templateLoading = false;
+    updateExampleBtn();
   }
 }
 
@@ -3245,9 +3289,47 @@ function closeImportHelpModalLab() { document.getElementById('importHelpModalLab
 /* ── Debounce / live update ── */
 let _debTimer = null;
 let _templateLoading = false;
+let _templatePristine = false;
+let _activeTemplate   = null;
+let _exampleDataLoaded = false;
+
 function debounceGenerate() {
   clearTimeout(_debTimer);
   _debTimer = setTimeout(() => generatePlate(true), 400);
+}
+
+function updateExampleBtn() {
+  const btn = document.getElementById('btnLoadExample');
+  if(!btn) return;
+  const hasData = _activeTemplate && EXAMPLE_DATA[_activeTemplate];
+  if(!hasData) { btn.style.display='none'; return; }
+  btn.style.display = '';
+  const isEng = document.getElementById('chkEngLab')?.checked;
+  if(_templatePristine) {
+    btn.disabled = false;
+    btn.classList.remove('btn-ghost');
+    btn.classList.add('btn-primary');
+    btn.title = isEng ? 'Load fictitious example data for this template' : 'Carregar dados de exemplo fictícios para este template';
+  } else {
+    btn.disabled = true;
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-ghost');
+    btn.title = isEng ? 'Reload the template to re-enable example data' : 'Recarregue o template para habilitar novamente';
+  }
+}
+
+function loadExampleData() {
+  if(!_activeTemplate || !EXAMPLE_DATA[_activeTemplate] || !_templatePristine) return;
+  const data = EXAMPLE_DATA[_activeTemplate];
+  Object.entries(data).forEach(([well, val]) => {
+    const inp = document.querySelector(`.val-input[data-well="${well}"]`);
+    if(inp) inp.value = val;
+  });
+  _exampleDataLoaded = true;
+  switchTab('coleta');
+  calcStats();
+  const isEng = document.getElementById('chkEngLab')?.checked;
+  toast(isEng ? 'Example data loaded — statistics calculated below.' : 'Dados de exemplo carregados — estatísticas calculadas abaixo.');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -3364,17 +3446,28 @@ updateWellCounter();
   _setupLabProjectImport();
 
   /* Live-update: qualquer campo do painel lateral dispara regeneração */
+  function _markDirty() {
+    if(_templatePristine) {
+      _templatePristine = false;
+      if(_exampleDataLoaded) {
+        document.querySelectorAll('.val-input').forEach(inp => { inp.value = ''; });
+        document.getElementById('coletaStats').innerHTML = '';
+        _exampleDataLoaded = false;
+      }
+      updateExampleBtn();
+    }
+  }
   document.querySelector('.config-panel').addEventListener('change', e => {
     if(_templateLoading) return;
     const tag = e.target.tagName;
-    if(tag==='SELECT' || tag==='INPUT') generatePlate(true);
+    if(tag==='SELECT' || tag==='INPUT') { _markDirty(); generatePlate(true); }
   });
   document.querySelector('.config-panel').addEventListener('input', e => {
     if(_templateLoading) return;
     const tag = e.target.tagName;
     const type = e.target.type;
-    if(tag==='TEXTAREA' || (tag==='INPUT' && type==='text')) debounceGenerate();
-    else if(tag==='INPUT' && type==='number') generatePlate(true);
+    if(tag==='TEXTAREA' || (tag==='INPUT' && type==='text')) { _markDirty(); debounceGenerate(); }
+    else if(tag==='INPUT' && type==='number') { _markDirty(); generatePlate(true); }
   });
 })();
 </script>
