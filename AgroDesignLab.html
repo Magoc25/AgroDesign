@@ -3327,9 +3327,8 @@ function loadExampleData() {
   });
   _exampleDataLoaded = true;
   switchTab('coleta');
-  calcStats();
   const isEng = document.getElementById('chkEngLab')?.checked;
-  toast(isEng ? 'Example data loaded — statistics calculated below.' : 'Dados de exemplo carregados — estatísticas calculadas abaixo.');
+  toast(isEng ? 'Example data loaded. Click "Calculate Statistics" to analyse.' : 'Dados de exemplo carregados. Clique em "Calcular Estatísticas" para analisar.');
 }
 
 /* ══════════════════════════════════════════════════════════════
