@@ -3591,7 +3591,9 @@ function renderUnidade() {
     const ox = LPAD + Math.round((maxDW - dW) / 2);
     const oy = TPAD + Math.round((maxDH - dH) / 2);
     const svgW = LPAD + maxDW + RPAD;
-    const svgH = TPAD + maxDH + BPAD;
+    /* +30 quando bordadura lateral ativa: a anotação "m úteis" é desenhada abaixo
+       do croqui (y ≈ oy+dH+17) e sem espaço extra colide com a legenda (legY fixo) */
+    const svgH = TPAD + maxDH + BPAD + (lbp > 0 ? 30 : 0);
     const rowH = +(rs * sc).toFixed(2);
     const plantStp = +(ps * sc).toFixed(2);
 
