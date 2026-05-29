@@ -197,6 +197,9 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
       <button class="template-btn" onclick="loadTemplate('mic')">💊 MIC Antimicrobiano (CLSI M07)</button>
       <button class="template-btn" onclick="loadTemplate('mtt')">🔬 Viabilidade Celular (MTT)</button>
       <button class="template-btn" onclick="loadTemplate('phyto')">🌿 Fitotoxicidade (OECD TG 208)</button>
+      <button class="template-btn" onclick="loadTemplate('elisa')">🩸 ELISA (RCBD-C)</button>
+      <button class="template-btn" onclick="loadTemplate('dose')">📈 Dose-Resposta (Diluição Seriada)</button>
+      <button class="template-btn" onclick="loadTemplate('check')">♟ Checkerboard (Sinergismo)</button>
       <button class="template-btn" onclick="loadTemplate('crd')">🎲 CRD Genérico</button>
     </div>
   </div>
@@ -205,16 +208,90 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
     <div class="form-section-title">Delineamento</div>
     <label><span>Tipo</span>
       <select id="selDesignLab" onchange="onDesignChange()">
-        <option value="CRD">CRD — Completamente Aleatório</option>
-        <option value="RCBD-R">RCBD-R — Blocos por Linha</option>
-        <option value="RCBD-C">RCBD-C — Blocos por Coluna</option>
-        <option value="RCBD-Q">RCBD-Q — Blocos por Quadrante</option>
+        <optgroup label="Delineamentos Clássicos">
+          <option value="CRD">CRD — Completamente Aleatório</option>
+          <option value="RCBD-R">RCBD-R — Blocos por Linha</option>
+          <option value="RCBD-C">RCBD-C — Blocos por Coluna</option>
+          <option value="RCBD-Q">RCBD-Q — Blocos por Quadrante</option>
+        </optgroup>
+        <optgroup label="Fase 2 — Dose-Resposta">
+          <option value="DOSE">DOSE — Diluição Seriada</option>
+          <option value="CHECK">CHECK — Checkerboard (Sinergismo)</option>
+        </optgroup>
       </select>
     </label>
     <div id="designInfo" class="hint"></div>
   </div>
 
-  <div class="form-section">
+  <!-- Painel DOSE — Diluição Seriada -->
+  <div id="secDose" class="form-section" style="display:none">
+    <div class="form-section-title">Diluição Seriada</div>
+    <label><span>Compostos (um por linha, máx 8)</span>
+      <textarea id="doseCompounds" rows="4"
+        placeholder="Composto A&#10;Composto B&#10;Composto C&#10;..."
+        oninput="updateDosePreview()"></textarea>
+    </label>
+    <div class="row2">
+      <label><span>Conc. inicial</span>
+        <input type="number" id="doseC0" value="1000" step="any" min="0" oninput="updateDosePreview()">
+      </label>
+      <label><span>Unidade</span>
+        <input type="text" id="doseUnit" value="µg/mL" oninput="updateDosePreview()">
+      </label>
+    </div>
+    <div class="row2">
+      <label><span>Fator de diluição</span>
+        <select id="doseFactor" onchange="updateDosePreview()">
+          <option value="2">2× (1:2)</option>
+          <option value="4">4× (1:4)</option>
+          <option value="10">10× (1:10)</option>
+          <option value="custom">Personalizado</option>
+        </select>
+      </label>
+      <label><span>Nº concentrações</span>
+        <input type="number" id="doseNCon" value="8" min="2" max="12" oninput="updateDosePreview()">
+      </label>
+    </div>
+    <div id="doseCustomRow" style="display:none">
+      <label><span>Fator personalizado</span>
+        <input type="number" id="doseCustomFactor" value="3" step="any" min="1.01" oninput="updateDosePreview()">
+      </label>
+    </div>
+    <label><span>Replicatas / concentração</span>
+      <input type="number" id="doseReps" value="1" min="1" max="4" oninput="updateDosePreview()">
+    </label>
+    <div id="dosePreview" class="hint" style="line-height:1.7;margin-top:.3rem"></div>
+  </div>
+
+  <!-- Painel CHECK — Checkerboard -->
+  <div id="secCheck" class="form-section" style="display:none">
+    <div class="form-section-title">Checkerboard</div>
+    <label><span>Fármaco A — nome</span>
+      <input type="text" id="checkDrugA" value="Fármaco A" oninput="updateCheckPreview()">
+    </label>
+    <label><span>Concentrações A (uma por linha, máx 8)</span>
+      <textarea id="checkConcA" rows="4"
+        placeholder="800&#10;400&#10;200&#10;100&#10;50&#10;25&#10;12,5&#10;6,25"
+        oninput="updateCheckPreview()"></textarea>
+    </label>
+    <label><span>Unidade A</span>
+      <input type="text" id="checkUnitA" value="µg/mL" oninput="updateCheckPreview()">
+    </label>
+    <label><span>Fármaco B — nome</span>
+      <input type="text" id="checkDrugB" value="Fármaco B" oninput="updateCheckPreview()">
+    </label>
+    <label><span>Concentrações B (uma por linha, máx 12)</span>
+      <textarea id="checkConcB" rows="4"
+        placeholder="800&#10;400&#10;200&#10;100&#10;50&#10;25&#10;12,5&#10;6,25"
+        oninput="updateCheckPreview()"></textarea>
+    </label>
+    <label><span>Unidade B</span>
+      <input type="text" id="checkUnitB" value="µg/mL" oninput="updateCheckPreview()">
+    </label>
+    <div id="checkPreview" class="hint" style="line-height:1.7;margin-top:.3rem"></div>
+  </div>
+
+  <div id="secBorda" class="form-section">
     <div class="form-section-title">Poços de Borda</div>
     <label><span>Política</span>
       <select id="selEdge" onchange="updateWellCounter()">
@@ -226,7 +303,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
     <div id="edgeInfo" class="hint"></div>
   </div>
 
-  <div class="form-section">
+  <div id="secTreatments" class="form-section">
     <div class="form-section-title">Tratamentos</div>
     <label><span>Nomes (um por linha)</span>
       <textarea id="txtTreatments" rows="5"
@@ -238,7 +315,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
     </label>
   </div>
 
-  <div class="form-section">
+  <div id="secControls" class="form-section">
     <div class="form-section-title">Controles</div>
     <div class="row2">
       <label><span>Ctrl. Negativo (n)</span>
@@ -288,6 +365,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
       <button class="btn btn-ghost btn-sm" onclick="exportSVGLab()">⬇ SVG</button>
       <button class="btn btn-ghost btn-sm" onclick="exportPNGLab()">⬇ PNG</button>
       <button class="btn btn-ghost btn-sm" onclick="exportCSVLab()">⬇ CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportXLSLab()">⬇ XLS</button>
       <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;margin:0">
         <input type="checkbox" id="chkPubLab" onchange="renderPlate()"> Publicação
       </label>
@@ -372,14 +450,14 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
 
 <footer>
   <button class="footer-btn" onclick="window.open('https://github.com/Magoc25/AgroDesign','_blank')">⭐ GitHub</button>
-  <span id="appVersion">© MGC · Lab v1.0.1</span>
+  <span id="appVersion">© MGC · Lab v1.1.0</span>
 </footer>
 
 <script>
 'use strict';
 
 /* ── Constantes ── */
-const LAB_VERSION = '1.0.1';
+const LAB_VERSION = '1.1.0';
 const ROWS = ['A','B','C','D','E','F','G','H'];
 const COLS = [1,2,3,4,5,6,7,8,9,10,11,12];
 
@@ -428,6 +506,10 @@ function parseTreatments(txt){
 
 /* ── Contador de poços ── */
 function updateWellCounter() {
+  const d = document.getElementById('selDesignLab').value;
+  if(d==='DOSE')  { updateDosePreview();  return; }
+  if(d==='CHECK') { updateCheckPreview(); return; }
+
   const treats = parseTreatments(document.getElementById('txtTreatments').value);
   const reps   = parseInt(document.getElementById('numReps').value)||1;
   const neg    = parseInt(document.getElementById('numCtrlNeg').value)||0;
@@ -461,12 +543,26 @@ function updateWellCounter() {
 function onDesignChange() {
   const d = document.getElementById('selDesignLab').value;
   const info = {
-    CRD:'Tratamentos e controles distribuídos aleatoriamente em todos os poços disponíveis (randomização restrita).',
-    'RCBD-R':'Cada linha (A–H) é um bloco; tratamentos distribuídos por round-robin entre linhas para maximizar cobertura espacial.',
-    'RCBD-C':'Cada coluna (1–12) é um bloco; tratamentos distribuídos por round-robin entre colunas.',
-    'RCBD-Q':'Placa dividida em 4 quadrantes (A–D × 1–6, A–D × 7–12, E–H × 1–6, E–H × 7–12); tratamentos distribuídos entre quadrantes.'
+    CRD:      'Tratamentos e controles distribuídos aleatoriamente em todos os poços disponíveis (randomização restrita).',
+    'RCBD-R': 'Cada linha (A–H) é um bloco; tratamentos distribuídos por round-robin entre linhas.',
+    'RCBD-C': 'Cada coluna (1–12) é um bloco; tratamentos distribuídos por round-robin entre colunas.',
+    'RCBD-Q': 'Placa dividida em 4 quadrantes; tratamentos distribuídos entre quadrantes.',
+    DOSE:     'Layout sistemático: compostos nas linhas, concentrações decrescentes nas colunas (diluição seriada).',
+    CHECK:    'Checkerboard: Fármaco A nas linhas × Fármaco B nas colunas — todas as combinações de concentração testadas.',
   };
   document.getElementById('designInfo').textContent = info[d]||'';
+
+  const isDose  = d==='DOSE';
+  const isCheck = d==='CHECK';
+  const isClassic = !isDose && !isCheck;
+
+  document.getElementById('secDose').style.display       = isDose  ? '' : 'none';
+  document.getElementById('secCheck').style.display      = isCheck ? '' : 'none';
+  document.getElementById('secBorda').style.display      = isClassic ? '' : 'none';
+  document.getElementById('secTreatments').style.display = isClassic ? '' : 'none';
+  document.getElementById('secControls').style.display   = !isCheck  ? '' : 'none';
+
+  updateWellCounter();
 }
 
 /* ── Distribuição round-robin por bloco ── */
@@ -516,6 +612,10 @@ function blockOf(design, row, col) {
    GERAR LAYOUT
 ══════════════════════════════════════════════ */
 function generatePlate() {
+  const d = document.getElementById('selDesignLab').value;
+  if(d==='DOSE')  { generateDoseLayout();  return; }
+  if(d==='CHECK') { generateCheckLayout(); return; }
+
   const treats   = parseTreatments(document.getElementById('txtTreatments').value);
   if(!treats.length){ alert('Informe ao menos um tratamento.'); return; }
 
@@ -620,29 +720,99 @@ function renderPlate() {
   const isEng = document.getElementById('chkEngLab').checked;
 
   /* Mapa de cor por tratamento */
-  const treats = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
-  const colorMap = {};
-  treats.forEach((t,i) => { colorMap[t] = isPub ? PUB_FILLS[i%PUB_FILLS.length] : TREAT_COLORS[i%TREAT_COLORS.length]; });
+  const mode = plateMode();
+  let treats, colorMap;
+  if(mode==='check') {
+    /* CHECK: cor por linha (Drug A conc) */
+    treats = [...new Set(plateLayout.filter(w=>w.type==='sample'&&w.concA!==undefined).map(w=>w.concA))];
+    colorMap = {};
+    plateLayout.filter(w=>w.type==='sample'&&w.concA!==undefined).forEach(w=>{
+      const ai = treats.indexOf(w.concA);
+      colorMap[w.treatment] = isPub ? PUB_FILLS[ai%PUB_FILLS.length] : TREAT_COLORS[ai%TREAT_COLORS.length];
+    });
+    treats = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
+  } else if(mode==='dose') {
+    /* DOSE: cor por composto */
+    const compounds = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
+    colorMap = {};
+    compounds.forEach((t,i) => { colorMap[t] = isPub ? PUB_FILLS[i%PUB_FILLS.length] : TREAT_COLORS[i%TREAT_COLORS.length]; });
+    treats = compounds;
+  } else {
+    treats = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
+    colorMap = {};
+    treats.forEach((t,i) => { colorMap[t] = isPub ? PUB_FILLS[i%PUB_FILLS.length] : TREAT_COLORS[i%TREAT_COLORS.length]; });
+  }
 
-  /* Dimensões */
+  /* Dimensões — margens maiores para DOSE/CHECK */
+  const mode = plateMode();
   const WS = 29, R = 11;
-  const PL = 38, PT = 32, PR = 10, PB = 10;
+  const PL = mode==='check' ? 56 : mode==='dose' ? 46 : 38;
+  const PT = mode==='check' ? 46 : 32;
+  const PR = 10, PB = 10;
   const svgW = PL + 12*WS + PR;
   const svgH = PT + 8*WS  + PB;
+
+  const tc = isPub?'#333':'#6b7c6e';
 
   let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgW} ${svgH}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" id="plateSvg">`;
   s += `<rect width="${svgW}" height="${svgH}" fill="${isPub?'#fff':'#f8fafb'}" rx="6"/>`;
 
-  /* Cabeçalhos de coluna */
-  COLS.forEach((c,ci) => {
-    const cx = PL + ci*WS + WS/2;
-    s += `<text x="${cx}" y="${PT-9}" text-anchor="middle" font-size="9" fill="${isPub?'#333':'#6b7c6e'}" font-weight="700">${c}</text>`;
-  });
-  /* Cabeçalhos de linha */
-  ROWS.forEach((r,ri) => {
-    const cy = PT + ri*WS + WS/2;
-    s += `<text x="${PL-12}" y="${cy+3.5}" text-anchor="middle" font-size="9" fill="${isPub?'#333':'#6b7c6e'}" font-weight="700">${r}</text>`;
-  });
+  if(mode==='check') {
+    /* Eixos CHECK — título dos fármacos + concentrações */
+    const drugBName = plateLayout.find(w=>w.concB!==undefined)?.drugB||'B';
+    const drugAName = plateLayout.find(w=>w.concA!==undefined)?.drugA||'A';
+    s += `<text x="${PL + 12*WS/2}" y="10" text-anchor="middle" font-size="8" font-weight="700" fill="${tc}" font-style="italic">${esc(drugBName)} →</text>`;
+    s += `<text x="8" y="${PT + 8*WS/2}" text-anchor="middle" font-size="8" font-weight="700" fill="${tc}" font-style="italic" transform="rotate(-90,8,${PT+8*WS/2})">${esc(drugAName)} →</text>`;
+    /* Concentrações B no cabeçalho de coluna */
+    const concBByCol = {};
+    plateLayout.filter(w=>w.concB!==undefined).forEach(w=>{ concBByCol[w.col-1]=w.concB; });
+    COLS.forEach((_,ci) => {
+      const cx = PL + ci*WS + WS/2;
+      const lbl = concBByCol[ci]||String(ci+1);
+      s += `<text x="${cx}" y="${PT-18}" text-anchor="middle" font-size="7" fill="${tc}" font-weight="600">${esc(lbl)}</text>`;
+    });
+    /* Concentrações A nos rótulos de linha */
+    const concAByRow = {};
+    plateLayout.filter(w=>w.concA!==undefined).forEach(w=>{ concAByRow[ROWS.indexOf(w.row)]=w.concA; });
+    ROWS.forEach((_,ri) => {
+      const cy = PT + ri*WS + WS/2;
+      const lbl = concAByRow[ri]||ROWS[ri];
+      s += `<text x="${PL-6}" y="${cy+3.5}" text-anchor="end" font-size="7" fill="${tc}" font-weight="600">${esc(lbl)}</text>`;
+    });
+  } else if(mode==='dose') {
+    /* Eixos DOSE — nomes de compostos + concentrações */
+    const compByRow = {};
+    plateLayout.filter(w=>w.type==='sample'&&w.concentration!==undefined).forEach(w=>{
+      const ri=ROWS.indexOf(w.row);
+      if(!compByRow[ri]) compByRow[ri]=w.treatment;
+    });
+    const concByCol = {};
+    plateLayout.filter(w=>w.type==='sample'&&w.concentration!==undefined).forEach(w=>{
+      const ci=w.col-1;
+      if(concByCol[ci]===undefined) concByCol[ci]=w.concentration;
+    });
+    COLS.forEach((_,ci) => {
+      const cx = PL + ci*WS + WS/2;
+      const lbl = concByCol[ci]!==undefined ? fmtConc(concByCol[ci]) : String(ci+1);
+      s += `<text x="${cx}" y="${PT-9}" text-anchor="middle" font-size="8" fill="${tc}" font-weight="700">${esc(lbl)}</text>`;
+    });
+    ROWS.forEach((_,ri) => {
+      const cy = PT + ri*WS + WS/2;
+      const name = compByRow[ri]||ROWS[ri];
+      const truncated = name.length>6 ? name.slice(0,5)+'…' : name;
+      s += `<text x="${PL-6}" y="${cy+3.5}" text-anchor="end" font-size="7.5" fill="${tc}" font-weight="600">${esc(truncated)}</text>`;
+    });
+  } else {
+    /* Eixos standard */
+    COLS.forEach((c,ci) => {
+      const cx = PL + ci*WS + WS/2;
+      s += `<text x="${cx}" y="${PT-9}" text-anchor="middle" font-size="9" fill="${tc}" font-weight="700">${c}</text>`;
+    });
+    ROWS.forEach((r,ri) => {
+      const cy = PT + ri*WS + WS/2;
+      s += `<text x="${PL-12}" y="${cy+3.5}" text-anchor="middle" font-size="9" fill="${tc}" font-weight="700">${r}</text>`;
+    });
+  }
 
   /* Poços */
   plateLayout.forEach(w => {
@@ -689,13 +859,31 @@ function renderPlate() {
   renderLegend(colorMap, isPub, isEng);
 }
 
+function plateMode() {
+  if(plateLayout.some(w=>w.concentration!==undefined)) return 'dose';
+  if(plateLayout.some(w=>w.concA!==undefined))          return 'check';
+  return 'standard';
+}
+
+function fmtConc(c) {
+  if(c===0) return '0';
+  if(c>=100)  return String(Math.round(c));
+  if(c>=10)   return c.toFixed(1).replace(/\.0$/,'');
+  if(c>=1)    return c.toFixed(2).replace(/\.?0+$/,'');
+  return c.toFixed(3).replace(/\.?0+$/,'');
+}
+
 function shortLabel(w, treats, isEng) {
   if(w.type==='empty')    return '';
-  if(w.type==='buffer')   return isEng?'BUF':'BUF';
-  if(w.type==='blank')    return isEng?'BK':'BK';
+  if(w.type==='buffer')   return 'BUF';
+  if(w.type==='blank')    return 'BK';
   if(w.type==='ctrl_neg') return 'NC';
   if(w.type==='ctrl_pos') return 'PC';
-  if(w.type==='sample') { const i=treats.indexOf(w.treatment); return i>=0?`T${i+1}`:'?'; }
+  if(w.type==='sample') {
+    if(w.concentration!==undefined) return fmtConc(w.concentration);
+    if(w.concA!==undefined) return '';
+    const i=treats.indexOf(w.treatment); return i>=0?`T${i+1}`:'?';
+  }
   return '';
 }
 
@@ -709,10 +897,35 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 
 /* ── Legenda ── */
 function renderLegend(colorMap, isPub, isEng) {
+  const mode = plateMode();
   const items = [];
-  Object.entries(colorMap).forEach(([t,c]) => {
-    items.push(`<div class="legend-item"><div class="legend-swatch" style="background:${c}"></div><span>${esc(t)}</span></div>`);
-  });
+  if(mode==='check') {
+    /* CHECK: legenda por Drug A concentration (linha) */
+    const drugAName = plateLayout.find(w=>w.concA!==undefined)?.drugA||'A';
+    const unitA = plateLayout.find(w=>w.concA!==undefined)?.unitA||'';
+    const seenA = new Set();
+    plateLayout.filter(w=>w.type==='sample'&&w.concA!==undefined).forEach(w=>{
+      if(!seenA.has(w.concA)){
+        seenA.add(w.concA);
+        const c = colorMap[w.treatment]||'#ccc';
+        items.push(`<div class="legend-item"><div class="legend-swatch" style="background:${c}"></div><span>${esc(drugAName)} ${esc(String(w.concA))} ${esc(unitA)}</span></div>`);
+      }
+    });
+  } else if(mode==='dose') {
+    /* DOSE: legenda por composto */
+    const seen = new Set();
+    plateLayout.filter(w=>w.type==='sample').forEach(w=>{
+      if(!seen.has(w.treatment)){
+        seen.add(w.treatment);
+        const c = colorMap[w.treatment]||'#ccc';
+        items.push(`<div class="legend-item"><div class="legend-swatch" style="background:${c}"></div><span>${esc(w.treatment)}</span></div>`);
+      }
+    });
+  } else {
+    Object.entries(colorMap).forEach(([t,c]) => {
+      items.push(`<div class="legend-item"><div class="legend-swatch" style="background:${c}"></div><span>${esc(t)}</span></div>`);
+    });
+  }
   const ctrlDefs = [
     {type:'ctrl_neg', labelPt:'Ctrl. Negativo', labelEn:'Neg. Control'},
     {type:'ctrl_pos', labelPt:'Ctrl. Positivo', labelEn:'Pos. Control'},
@@ -764,9 +977,18 @@ function showTip(e, wellId) {
   const w = plateLayout.find(x=>x.id===wellId); if(!w) return;
   const tipLabels = {sample:'Amostra',ctrl_neg:'Ctrl. Negativo',ctrl_pos:'Ctrl. Positivo',blank:'Branco',buffer:'Buffer',empty:'Vazio'};
   let html = `<strong>${w.id}</strong><br>Tipo: ${tipLabels[w.type]||w.type}`;
-  if(w.treatment) html += `<br>Tratamento: ${esc(w.treatment)}`;
-  if(w.rep)       html += `<br>Replicata: ${w.rep}`;
-  if(w.block)     html += `<br>Bloco: ${w.block}`;
+  if(w.concA!==undefined) {
+    html += `<br>${esc(w.drugA||'A')}: ${esc(String(w.concA))} ${esc(w.unitA||'')}`;
+    html += `<br>${esc(w.drugB||'B')}: ${esc(String(w.concB))} ${esc(w.unitB||'')}`;
+  } else if(w.concentration!==undefined) {
+    html += `<br>Composto: ${esc(w.treatment)}`;
+    html += `<br>Concentração: ${fmtConc(w.concentration)} ${esc(w.concUnit||'')}`;
+    if(w.rep) html += `<br>Replicata: ${w.rep}`;
+  } else {
+    if(w.treatment) html += `<br>Tratamento: ${esc(w.treatment)}`;
+    if(w.rep)       html += `<br>Replicata: ${w.rep}`;
+    if(w.block)     html += `<br>Bloco: ${w.block}`;
+  }
   const tip = document.getElementById('wellTooltip');
   tip.innerHTML = html; tip.style.display='block'; moveTip(e);
 }
@@ -791,6 +1013,35 @@ function renderSummaryLab() {
   const nBuf     = plateLayout.filter(w=>w.type==='buffer').length;
   const nUsed    = plateLayout.filter(w=>w.type!=='empty').length;
   const nFree    = 96 - nUsed;
+
+  const mode = plateMode();
+  if(mode==='dose'||mode==='check') {
+    const nSample = plateLayout.filter(w=>w.type==='sample').length;
+    const nUsed   = plateLayout.filter(w=>w.type!=='empty').length;
+    const extra   = [];
+    if(mode==='dose') {
+      const compounds = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
+      const nConc = [...new Set(plateLayout.filter(w=>w.concentration!==undefined).map(w=>w.concIndex??w.concentration))].length;
+      extra.push({lbl:'Compostos',val:compounds.length},{lbl:'Concentrações',val:nConc});
+    } else {
+      const drugA = plateLayout.find(w=>w.concA!==undefined)?.drugA||'A';
+      const drugB = plateLayout.find(w=>w.concB!==undefined)?.drugB||'B';
+      const nA = [...new Set(plateLayout.filter(w=>w.concA!==undefined).map(w=>w.concA))].length;
+      const nB = [...new Set(plateLayout.filter(w=>w.concB!==undefined).map(w=>w.concB))].length;
+      extra.push({lbl:`Conc. ${drugA}`,val:nA},{lbl:`Conc. ${drugB}`,val:nB});
+    }
+    const cards = [
+      ...extra,
+      {lbl:'Poços — amostras',val:nSample},
+      {lbl:'Poços usados',val:nUsed},
+      {lbl:'Poços livres',val:96-nUsed},
+    ];
+    document.getElementById('labSummaryCards').innerHTML = cards.map(c=>
+      `<div class="summary-card"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div></div>`
+    ).join('');
+    document.getElementById('labQualityBox').innerHTML='';
+    return;
+  }
 
   const dNames = { CRD:'CRD', 'RCBD-R':'RCBD (linhas)', 'RCBD-C':'RCBD (colunas)', 'RCBD-Q':'RCBD (quadrantes)' };
   const eNames = { normal:'Sem restrição', 'ctrl-edge':'Controles na borda', sacrificial:'Borda sacrificial' };
@@ -862,6 +1113,27 @@ function renderMM() {
 }
 
 function buildMM(en) {
+  const mode = plateMode();
+  if(mode==='dose') {
+    const compounds = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
+    const seed      = document.getElementById('numSeedLab').value;
+    const unit      = plateLayout.find(w=>w.concUnit)?.concUnit||'';
+    const concs     = [...new Map(plateLayout.filter(w=>w.concentration!==undefined).map(w=>[w.concentration,w])).values()]
+                        .sort((a,b)=>b.concentration-a.concentration).map(w=>fmtConc(w.concentration));
+    if(en) return `The experiment was conducted in a 96-well microplate (8 × 12, ANSI/SLAS format) using a serial dilution dose-response design. ${compounds.length} compound${compounds.length>1?'s':''} (${compounds.join(', ')}) were tested at ${concs.length} concentrations (${concs.join(', ')} ${unit}), with each compound occupying one row of the plate and concentrations distributed across columns in decreasing order. Well positions for controls were assigned by computer-generated randomization (seed = ${seed}). Absorbance/fluorescence data were normalized as percent inhibition relative to plate controls and dose-response curves were fitted using a four-parameter logistic (4PL) model for IC₅₀/EC₅₀ determination.`;
+    return `O experimento foi conduzido em microplaca de 96 poços (8 × 12, formato ANSI/SLAS) em delineamento de dose-resposta por diluição seriada. ${compounds.length} composto${compounds.length>1?'s':''} (${compounds.join(', ')}) foram avaliados em ${concs.length} concentrações (${concs.join(', ')} ${unit}), com cada composto ocupando uma linha da placa e as concentrações distribuídas nas colunas em ordem decrescente. Os poços de controle foram posicionados por randomização computacional (semente = ${seed}). Os dados de absorbância/fluorescência foram normalizados como percentual de inibição em relação aos controles da placa e as curvas dose-resposta ajustadas pelo modelo logístico de quatro parâmetros (4PL) para determinação de IC₅₀/EC₅₀.`;
+  }
+  if(mode==='check') {
+    const drugA = plateLayout.find(w=>w.drugA)?.drugA||'A';
+    const drugB = plateLayout.find(w=>w.drugB)?.drugB||'B';
+    const unitA = plateLayout.find(w=>w.unitA)?.unitA||'';
+    const unitB = plateLayout.find(w=>w.unitB)?.unitB||'';
+    const concA = [...new Set(plateLayout.filter(w=>w.concA!==undefined).map(w=>w.concA))];
+    const concB = [...new Set(plateLayout.filter(w=>w.concB!==undefined).map(w=>w.concB))];
+    if(en) return `Antimicrobial synergy was evaluated by the checkerboard broth microdilution method (Odds, 2003). ${drugA} (${concA.join(', ')} ${unitA}) was distributed across rows (A–${ROWS[concA.length-1]}) and ${drugB} (${concB.join(', ')} ${unitB}) across columns (1–${concB.length}) of a 96-well microplate, generating ${concA.length} × ${concB.length} = ${concA.length*concB.length} drug combination wells. Fractional inhibitory concentration indices (FICI) were calculated as FICI = MIC_AB/MIC_A + MIC_AB/MIC_B; FICI ≤ 0.5 = synergy, 0.5–4.0 = indifference, > 4.0 = antagonism (EUCAST guidelines).`;
+    return `O sinergismo antimicrobiano foi avaliado pelo método de macrodiluição em tabuleiro de xadrez (checkerboard) em caldo (Odds, 2003). ${drugA} (${concA.join(', ')} ${unitA}) foi distribuído nas linhas (A–${ROWS[concA.length-1]}) e ${drugB} (${concB.join(', ')} ${unitB}) nas colunas (1–${concB.length}) de uma microplaca de 96 poços, gerando ${concA.length} × ${concB.length} = ${concA.length*concB.length} combinações de fármacos. Os índices de concentração inibitória fracionária (FICI) foram calculados como FICI = CIM_AB/CIM_A + CIM_AB/CIM_B; FICI ≤ 0,5 = sinergismo, 0,5–4,0 = indiferença, > 4,0 = antagonismo (diretrizes EUCAST).`;
+  }
+
   const treats  = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
   const reps    = parseInt(document.getElementById('numReps').value)||1;
   const design  = document.getElementById('selDesignLab').value;
@@ -970,6 +1242,54 @@ function dlBlob(blob, name) {
   a.click(); URL.revokeObjectURL(a.href);
 }
 
+function exportXLSLab() {
+  if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
+  const mode = plateMode();
+  const typeMap = {sample:'Amostra',ctrl_neg:'Ctrl. Negativo',ctrl_pos:'Ctrl. Positivo',blank:'Branco',buffer:'Buffer (PBS)',empty:'Vazio'};
+  const treats = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
+  const valMap = {};
+  document.querySelectorAll('.val-input').forEach(inp=>{ if(inp.value) valMap[inp.dataset.well]=inp.value; });
+  const hasVals = Object.keys(valMap).length>0;
+
+  /* Mapa visual da placa */
+  let mapRows = `<tr><th></th>${COLS.map(c=>`<th>${c}</th>`).join('')}</tr>`;
+  ROWS.forEach(r => {
+    mapRows += `<tr><th>${r}</th>${COLS.map(c=>{
+      const w=plateLayout.find(x=>x.id===`${r}${c}`);
+      if(!w||w.type==='empty') return '<td></td>';
+      if(mode==='check'&&w.concA!==undefined) return `<td>${esc(String(w.concA))}/${esc(String(w.concB))}</td>`;
+      if(mode==='dose'&&w.concentration!==undefined) return `<td>${fmtConc(w.concentration)}</td>`;
+      const lbl=w.type==='sample'?`T${treats.indexOf(w.treatment)+1}`:w.type==='ctrl_neg'?'NC':w.type==='ctrl_pos'?'PC':w.type==='blank'?'BK':'BUF';
+      return `<td>${lbl}</td>`;
+    }).join('')}</tr>`;
+  });
+
+  /* Field book */
+  const fbHeader = mode==='check'
+    ? '<tr><th>Poço</th><th>Linha</th><th>Col.</th><th>Tipo</th><th>Fármaco A</th><th>Conc. A</th><th>Unidade A</th><th>Fármaco B</th><th>Conc. B</th><th>Unidade B</th>'+(hasVals?'<th>Valor</th>':'')+'</tr>'
+    : mode==='dose'
+    ? '<tr><th>Poço</th><th>Linha</th><th>Col.</th><th>Tipo</th><th>Composto</th><th>Concentração</th><th>Unidade</th><th>Rep.</th>'+(hasVals?'<th>Valor</th>':'')+'</tr>'
+    : '<tr><th>Poço</th><th>Linha</th><th>Col.</th><th>Tipo</th><th>Tratamento</th><th>Rep. Técnica</th><th>Bloco</th>'+(hasVals?'<th>Valor</th>':'')+'</tr>';
+
+  const fbRows = plateLayout.filter(w=>w.type!=='empty').map(w=>{
+    const val = hasVals ? `<td>${valMap[w.id]??''}</td>` : '';
+    if(mode==='check'&&w.concA!==undefined) return `<tr><td>${w.id}</td><td>${w.row}</td><td>${w.col}</td><td>Amostra</td><td>${esc(w.drugA)}</td><td>${esc(String(w.concA))}</td><td>${esc(w.unitA)}</td><td>${esc(w.drugB)}</td><td>${esc(String(w.concB))}</td><td>${esc(w.unitB)}</td>${val}</tr>`;
+    if(mode==='dose'&&w.concentration!==undefined) return `<tr><td>${w.id}</td><td>${w.row}</td><td>${w.col}</td><td>Amostra</td><td>${esc(w.treatment)}</td><td>${fmtConc(w.concentration)}</td><td>${esc(w.concUnit)}</td><td>${w.rep??''}</td>${val}</tr>`;
+    return `<tr><td>${w.id}</td><td>${w.row}</td><td>${w.col}</td><td>${typeMap[w.type]||w.type}</td><td>${esc(w.treatment||'')}</td><td>${w.rep??''}</td><td>${w.block??''}</td>${val}</tr>`;
+  }).join('');
+
+  const styles = `<style>body{font-family:Calibri,Arial,sans-serif;font-size:11px}table{border-collapse:collapse;margin-bottom:20px}td,th{border:1px solid #ccc;padding:3px 7px}th{background:#2d6a4f;color:#fff;font-weight:bold}.title{font-size:14px;font-weight:bold;margin-bottom:6px;color:#2d6a4f}</style>`;
+
+  const html = `<html><head><meta charset="UTF-8">${styles}</head><body>
+<div class="title">AgroDesign Lab — Mapa da Placa</div>
+<table>${mapRows}</table>
+<div class="title">Field Book</div>
+<table><thead>${fbHeader}</thead><tbody>${fbRows}</tbody></table>
+</body></html>`;
+
+  dlBlob(new Blob([html],{type:'application/vnd.ms-excel;charset=utf-8'}), 'agrodesign-lab.xls');
+}
+
 /* ══════════════════════════════════════════════
    COLETA DE DADOS
 ══════════════════════════════════════════════ */
@@ -1050,12 +1370,35 @@ function calcStats() {
     return `<tr><td>${esc(name)}</td><td>${n}</td><td>${mean.toFixed(4)}</td><td>${sd.toFixed(4)}</td><td>${cv.toFixed(1)}</td><td>${mn.toFixed(4)}</td><td>${mx.toFixed(4)}</td></tr>`;
   }).join('');
 
+  /* Z' factor — calculado quando ctrl_neg e ctrl_pos têm valores */
+  let zpBox = '';
+  const negVals = groups[isEng?'Neg. Control':'Ctrl. Negativo']||[];
+  const posVals = groups[isEng?'Pos. Control':'Ctrl. Positivo']||[];
+  if(negVals.length>=2 && posVals.length>=2) {
+    const meanFn = arr => arr.reduce((a,b)=>a+b,0)/arr.length;
+    const sdFn   = arr => { const m=meanFn(arr); return Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/(arr.length-1)); };
+    const mu_pos=meanFn(posVals), sd_pos=sdFn(posVals);
+    const mu_neg=meanFn(negVals), sd_neg=sdFn(negVals);
+    const dyn = Math.abs(mu_pos-mu_neg);
+    if(dyn>0) {
+      const zp = 1-(3*sd_pos+3*sd_neg)/dyn;
+      const badge = zp>=0.6 ? `<span class="badge badge-ok">Excelente</span>`
+                  : zp>=0.5 ? `<span class="badge badge-warn">Aceitável</span>`
+                  :           `<span class="badge badge-err">Reprovar</span>`;
+      zpBox = `<div class="info-box" style="margin-top:.5rem">
+        <strong>Z' Factor = ${zp.toFixed(3)}</strong> ${badge}<br>
+        <span class="hint">µ₊=${mu_pos.toFixed(4)} σ₊=${sd_pos.toFixed(4)} · µ₋=${mu_neg.toFixed(4)} σ₋=${sd_neg.toFixed(4)}<br>
+        Z' ≥ 0,6 = Excelente · Z' 0,5–0,6 = Aceitável · Z' &lt; 0,5 = Reprovar<br>
+        <em>Zhang et al., J Biomol Screen, 1999</em></span></div>`;
+    }
+  }
+
   document.getElementById('coletaStats').innerHTML =
     `<div class="form-section-title" style="margin-top:.65rem">${isEng?'Statistics by Treatment':'Estatísticas por Tratamento'}</div>
      <div class="table-wrap">
        <table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
        <tbody>${rows}</tbody></table>
-     </div>`;
+     </div>${zpBox}`;
 }
 
 function exportCSVColeta() {
@@ -1071,9 +1414,182 @@ function exportCSVColeta() {
 }
 
 /* ══════════════════════════════════════════════
+   DOSE — DILUIÇÃO SERIADA
+══════════════════════════════════════════════ */
+function getDoseFactor() {
+  const sel = document.getElementById('doseFactor').value;
+  document.getElementById('doseCustomRow').style.display = sel==='custom'?'':'none';
+  return sel==='custom' ? (parseFloat(document.getElementById('doseCustomFactor').value)||2) : parseFloat(sel);
+}
+
+function updateDosePreview() {
+  getDoseFactor(); // sync custom row visibility
+  const compounds = parseTreatments(document.getElementById('doseCompounds').value);
+  const c0      = parseFloat(document.getElementById('doseC0').value)||1000;
+  const unit    = document.getElementById('doseUnit').value.trim()||'µg/mL';
+  const factor  = getDoseFactor();
+  const nConc   = parseInt(document.getElementById('doseNCon').value)||8;
+  const reps    = parseInt(document.getElementById('doseReps').value)||1;
+  const nRows   = compounds.length * reps;
+  const neg     = parseInt(document.getElementById('numCtrlNeg').value)||0;
+  const pos     = parseInt(document.getElementById('numCtrlPos').value)||0;
+  const blank   = parseInt(document.getElementById('numBlank').value)||0;
+  const used    = nRows * nConc + neg + pos + blank;
+  const free    = 96 - used;
+
+  const serie = [];
+  for(let i=0;i<Math.min(nConc,4);i++) serie.push(fmtConc(c0/Math.pow(factor,i)));
+  const serieStr = serie.join(' → ') + (nConc>4 ? ` → … → ${fmtConc(c0/Math.pow(factor,nConc-1))}` : '');
+
+  const badge = free<0
+    ? `<span class="badge badge-err">Excede em ${-free} poços</span>`
+    : free===0
+    ? `<span class="badge badge-ok">Exato</span>`
+    : `<span class="badge badge-ok">${free} livre${free!==1?'s':''}</span>`;
+
+  document.getElementById('dosePreview').innerHTML =
+    (compounds.length ? `Série: ${serieStr} ${esc(unit)}<br>` : '') +
+    `${nRows} linha${nRows!==1?'s':''} × ${nConc} col. = <strong>${nRows*nConc}</strong> amostras + ${neg+pos+blank} controles = <strong>${used}</strong>/96 ${badge}`;
+  document.getElementById('wellCounter').innerHTML = '';
+}
+
+function generateDoseLayout() {
+  const compounds = parseTreatments(document.getElementById('doseCompounds').value);
+  if(!compounds.length){ alert('Informe ao menos um composto.'); return; }
+  const c0     = parseFloat(document.getElementById('doseC0').value)||1000;
+  const unit   = document.getElementById('doseUnit').value.trim()||'µg/mL';
+  const factor = getDoseFactor();
+  const nConc  = parseInt(document.getElementById('doseNCon').value)||8;
+  const reps   = parseInt(document.getElementById('doseReps').value)||1;
+  const nRows  = compounds.length * reps;
+  if(nRows>8)  { alert(`${compounds.length} compostos × ${reps} rep = ${nRows} linhas (máx 8).`); return; }
+  if(nConc>12) { alert('Máximo 12 concentrações (colunas).'); return; }
+
+  const concs = Array.from({length:nConc}, (_,i) => c0/Math.pow(factor,i));
+
+  const neg     = parseInt(document.getElementById('numCtrlNeg').value)||0;
+  const pos     = parseInt(document.getElementById('numCtrlPos').value)||0;
+  const blank   = parseInt(document.getElementById('numBlank').value)||0;
+  const negName = document.getElementById('txtCtrlNegName').value.trim()||'Ctrl. Negativo';
+  const posName = document.getElementById('txtCtrlPosName').value.trim()||'Ctrl. Positivo';
+  const seed    = parseInt(document.getElementById('numSeedLab').value)||42;
+  const rng     = seededRng(seed);
+
+  const wm = {};
+  ALL_WELLS.forEach(id => {
+    wm[id] = { id, row:id[0], col:parseInt(id.slice(1)), type:'empty', treatment:'', rep:null, block:null };
+  });
+
+  compounds.forEach((cmp, ci) => {
+    for(let ri=0; ri<reps; ri++) {
+      const rowLetter = ROWS[ci*reps+ri];
+      concs.forEach((conc,ki) => {
+        const id = `${rowLetter}${ki+1}`;
+        wm[id] = { ...wm[id], type:'sample', treatment:cmp, rep:ri+1, block:null, concentration:conc, concUnit:unit };
+      });
+    }
+  });
+
+  const freeWells = ALL_WELLS.filter(w => wm[w].type==='empty');
+  const shuffledFree = shuffle(freeWells, rng);
+  let idx=0;
+  const addCtrl = (type,name,n) => { for(let i=0;i<n&&idx<shuffledFree.length;i++,idx++){ const id=shuffledFree[idx]; wm[id]={...wm[id],type,treatment:name,rep:i+1}; } };
+  addCtrl('ctrl_neg',negName,neg);
+  addCtrl('ctrl_pos',posName,pos);
+  addCtrl('blank','Branco',blank);
+
+  plateLayout = ROWS.flatMap(r => COLS.map(c => wm[`${r}${c}`]));
+  renderPlate(); renderSummaryLab(); renderFieldBook(); renderColeta(); renderMM();
+  switchTab('placa');
+}
+
+/* ══════════════════════════════════════════════
+   CHECK — CHECKERBOARD
+══════════════════════════════════════════════ */
+function updateCheckPreview() {
+  const concA = parseTreatments(document.getElementById('checkConcA').value);
+  const concB = parseTreatments(document.getElementById('checkConcB').value);
+  const used  = concA.length * concB.length;
+  const free  = 96 - used;
+  const badge = free<0
+    ? `<span class="badge badge-err">Excede em ${-free} poços</span>`
+    : free===0
+    ? `<span class="badge badge-ok">Exato</span>`
+    : `<span class="badge badge-ok">${free} livre${free!==1?'s':''}</span>`;
+  document.getElementById('checkPreview').innerHTML =
+    `${concA.length} conc. A × ${concB.length} conc. B = <strong>${used}</strong>/96 poços ${badge}`;
+  document.getElementById('wellCounter').innerHTML='';
+}
+
+function generateCheckLayout() {
+  const drugAName = document.getElementById('checkDrugA').value.trim()||'Fármaco A';
+  const drugBName = document.getElementById('checkDrugB').value.trim()||'Fármaco B';
+  const concAList = parseTreatments(document.getElementById('checkConcA').value);
+  const concBList = parseTreatments(document.getElementById('checkConcB').value);
+  const unitA = document.getElementById('checkUnitA').value.trim()||'µg/mL';
+  const unitB = document.getElementById('checkUnitB').value.trim()||'µg/mL';
+  if(!concAList.length||!concBList.length){ alert('Informe as concentrações de ambos os fármacos.'); return; }
+  if(concAList.length>8)  { alert('Fármaco A: máximo 8 concentrações (linhas A–H).'); return; }
+  if(concBList.length>12) { alert('Fármaco B: máximo 12 concentrações (colunas 1–12).'); return; }
+
+  const wm = {};
+  ALL_WELLS.forEach(id => {
+    wm[id] = { id, row:id[0], col:parseInt(id.slice(1)), type:'empty', treatment:'', rep:null };
+  });
+
+  concAList.forEach((ca,ri) => {
+    const rowLetter = ROWS[ri];
+    concBList.forEach((cb,ci) => {
+      const id = `${rowLetter}${ci+1}`;
+      wm[id] = { ...wm[id], type:'sample',
+        treatment:`${drugAName} ${ca} × ${drugBName} ${cb}`,
+        drugA:drugAName, drugB:drugBName, concA:ca, concB:cb, unitA, unitB, rep:1, block:null };
+    });
+  });
+
+  plateLayout = ROWS.flatMap(r => COLS.map(c => wm[`${r}${c}`]));
+  renderPlate(); renderSummaryLab(); renderFieldBook(); renderColeta(); renderMM();
+  switchTab('placa');
+}
+
+/* ══════════════════════════════════════════════
    TEMPLATES
 ══════════════════════════════════════════════ */
 function loadTemplate(name) {
+  /* Templates DOSE e CHECK têm lógica própria */
+  if(name==='dose') {
+    document.getElementById('selDesignLab').value = 'DOSE';
+    onDesignChange();
+    document.getElementById('doseCompounds').value = 'Composto A\nComposto B\nComposto C\nComposto D';
+    document.getElementById('doseC0').value   = '1000';
+    document.getElementById('doseUnit').value = 'µg/mL';
+    document.getElementById('doseFactor').value = '2';
+    document.getElementById('doseNCon').value = '10';
+    document.getElementById('doseReps').value = '1';
+    document.getElementById('numCtrlNeg').value  = '4';
+    document.getElementById('numCtrlPos').value  = '4';
+    document.getElementById('numBlank').value    = '2';
+    document.getElementById('txtCtrlNegName').value = 'Crescimento (sem droga)';
+    document.getElementById('txtCtrlPosName').value = 'Inibição total';
+    document.getElementById('numSeedLab').value  = '42';
+    updateDosePreview();
+    toast('Template Dose-Resposta: 4 compostos × 10 concentrações (1000→1,95 µg/mL, fator 2×). Controles nos poços livres.');
+    return;
+  }
+  if(name==='check') {
+    document.getElementById('selDesignLab').value = 'CHECK';
+    onDesignChange();
+    document.getElementById('checkDrugA').value = 'Ampicilina';
+    document.getElementById('checkConcA').value = '64\n32\n16\n8\n4\n2\n1\n0,5';
+    document.getElementById('checkUnitA').value = 'µg/mL';
+    document.getElementById('checkDrugB').value = 'Gentamicina';
+    document.getElementById('checkConcB').value = '64\n32\n16\n8\n4\n2\n1\n0,5';
+    document.getElementById('checkUnitB').value = 'µg/mL';
+    updateCheckPreview();
+    toast('Template Checkerboard: Ampicilina × Gentamicina, 8×8 = 64 combinações. Análise de sinergismo por FICI.');
+    return;
+  }
+
   const T = {
     mic:{
       design:'CRD', edge:'normal',
@@ -1081,7 +1597,7 @@ function loadTemplate(name) {
       reps:1, neg:6, pos:6, blank:4,
       negName:'Crescimento (sem droga)', posName:'Inibição total (referência)',
       seed:42,
-      msg:'Template MIC (CLSI M07): 6 compostos × 1 poço + controles. Para diluição seriada completa, use o modo Dose-Resposta (Fase 2).'
+      msg:'MIC (CLSI M07): 6 compostos × 1 poço + controles. Para diluição seriada, use o template Dose-Resposta.'
     },
     mtt:{
       design:'CRD', edge:'sacrificial',
@@ -1089,7 +1605,7 @@ function loadTemplate(name) {
       reps:6, neg:6, pos:6, blank:3,
       negName:'Células sem tratamento', posName:'Células + citotóxico padrão',
       seed:123,
-      msg:'Template MTT/Viabilidade: borda sacrificial (PBS), 5 concentrações × 6 replicatas nos 60 poços internos (B2–G11).'
+      msg:'MTT/Viabilidade: borda sacrificial (PBS), 5 concentrações × 6 replicatas nos 60 poços internos.'
     },
     phyto:{
       design:'RCBD-R', edge:'normal',
@@ -1097,7 +1613,15 @@ function loadTemplate(name) {
       reps:4, neg:8, pos:4, blank:4,
       negName:'Água destilada', posName:'Herbicida padrão',
       seed:77,
-      msg:'Template Fitotoxicidade (OECD TG 208 adaptado): RCBD por linha, 5 concentrações × 4 replicatas técnicas.'
+      msg:'Fitotoxicidade (OECD TG 208): RCBD por linha, 5 concentrações × 4 replicatas.'
+    },
+    elisa:{
+      design:'RCBD-C', edge:'normal',
+      treats:'Amostra 1\nAmostra 2\nAmostra 3\nAmostra 4\nAmostra 5\nAmostra 6\nAmostra 7\nAmostra 8',
+      reps:6, neg:8, pos:0, blank:8,
+      negName:'Branco de substrato', posName:'Controle Positivo',
+      seed:55,
+      msg:'ELISA (RCBD-C): col. 1 = NC (8 poços), col. 12 = Branco (8 poços), amostras distribuídas por coluna-bloco (n=6).'
     },
     crd:{
       design:'CRD', edge:'normal',
@@ -1109,16 +1633,16 @@ function loadTemplate(name) {
     }
   };
   const cfg=T[name]; if(!cfg) return;
-  document.getElementById('selDesignLab').value = cfg.design;
-  document.getElementById('selEdge').value      = cfg.edge;
-  document.getElementById('txtTreatments').value = cfg.treats;
-  document.getElementById('numReps').value       = cfg.reps;
-  document.getElementById('numCtrlNeg').value    = cfg.neg;
-  document.getElementById('numCtrlPos').value    = cfg.pos;
-  document.getElementById('numBlank').value      = cfg.blank;
-  document.getElementById('txtCtrlNegName').value = cfg.negName;
-  document.getElementById('txtCtrlPosName').value = cfg.posName;
-  document.getElementById('numSeedLab').value    = cfg.seed;
+  document.getElementById('selDesignLab').value    = cfg.design;
+  document.getElementById('selEdge').value         = cfg.edge;
+  document.getElementById('txtTreatments').value   = cfg.treats;
+  document.getElementById('numReps').value         = cfg.reps;
+  document.getElementById('numCtrlNeg').value      = cfg.neg;
+  document.getElementById('numCtrlPos').value      = cfg.pos;
+  document.getElementById('numBlank').value        = cfg.blank;
+  document.getElementById('txtCtrlNegName').value  = cfg.negName;
+  document.getElementById('txtCtrlPosName').value  = cfg.posName;
+  document.getElementById('numSeedLab').value      = cfg.seed;
   onDesignChange(); updateWellCounter();
   toast(cfg.msg);
 }
