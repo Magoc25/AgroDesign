@@ -858,6 +858,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <button class="btn btn-ghost btn-sm" onclick="exportDataXLSX()">⬇ XLSX</button>
         <button class="btn btn-ghost btn-sm" onclick="exportDataCSV()">⬇ CSV</button>
         <button class="btn btn-ghost btn-sm" onclick="exportDataTXT()">⬇ TXT</button>
+        <button class="btn btn-ghost btn-sm" onclick="importDataCSV()" title="Importar dados de um arquivo CSV exportado pelo app">⬆ Importar</button>
         <span style="color:var(--border);font-size:.9rem">|</span>
         <button class="btn btn-secondary btn-sm" onclick="exportScriptR()"   title="Script R com ANOVA para o delineamento">⬇ R</button>
         <button class="btn btn-secondary btn-sm" onclick="exportScriptSAS()" title="Script SAS com PROC GLM">⬇ SAS</button>
@@ -1106,6 +1107,7 @@ df = pd.read_csv("AgroDesign_dados.csv",
     <div class="form-section-title" style="margin-top:1rem">Como citar o app</div>
     <textarea id="pubTextCitation" readonly rows="5" style="width:100%;font-size:.82rem;line-height:1.65;resize:vertical;border:1px solid var(--border);border-radius:var(--radius);padding:.5rem .75rem;background:#fafafa;color:var(--text);margin-bottom:.3rem"></textarea>
     <button class="btn btn-ghost btn-sm" onclick="copyPubText('citation')" id="btnCopyCitation">📋 Copiar Citação</button>
+    <p class="hint" style="margin-top:.5rem;font-size:.74rem;line-height:1.5">💡 <strong>Para obter DOI citável:</strong> deposite o software no <a href="https://zenodo.org" target="_blank" rel="noopener" style="color:var(--primary)">Zenodo (zenodo.org)</a> antes da submissão do manuscrito.</p>
     <p class="hint" style="margin-top:.85rem;font-size:.74rem;line-height:1.5">Substitua "Figura X" pelo número correto. Complemente com local, ano, variedade e outros detalhes específicos do seu experimento.</p>
   </div>
 </div>
@@ -4976,6 +4978,58 @@ function exportDataTXT() {
   a.href = url; a.download = `AgroDesign_dados_${design}.txt`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function importDataCSV() {
+  if (!units.length || !projectVariables.length) {
+    alert('Gere o croqui e adicione variáveis antes de importar.'); return;
+  }
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.csv,.txt';
+  inp.onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const allLines = ev.target.result.trim().split(/\r?\n/);
+        const lines = allLines.filter(l => !l.trim().startsWith('#') && l.trim());
+        if (!lines.length) { alert('Arquivo vazio ou sem dados.'); return; }
+        const sep = lines[0].includes(';') ? ';' : ',';
+        const hdr = lines[0].split(sep).map(h => h.trim().replace(/^["﻿]+|"+$/g, '').toLowerCase());
+        const idIdx = hdr.findIndex(h => /^(id|ue|unit(id)?)$/.test(h));
+        if (idIdx < 0) {
+          alert('Coluna "ID" não encontrada.\nColunas encontradas: ' + hdr.join(', ')); return;
+        }
+        const varIdxMap = projectVariables.map(v => ({
+          id: v.id,
+          idx: hdr.findIndex(h => h === v.name.toLowerCase() || h === v.name.toLowerCase().replace(/\s+\([^)]*\)/,'').trim())
+        })).filter(m => m.idx >= 0);
+        if (!varIdxMap.length) {
+          alert('Nenhuma coluna correspondeu às variáveis.\nVariáveis: ' + projectVariables.map(v => v.name).join(', ') + '\nColunas CSV: ' + hdr.join(', ')); return;
+        }
+        let count = 0;
+        lines.slice(1).forEach(line => {
+          const cols = line.split(sep).map(c => c.trim().replace(/^"+|"+$/g, ''));
+          const rawId = cols[idIdx]?.trim(); if (!rawId) return;
+          const unit = units.find(u => String(u.id) === rawId);
+          if (!unit) return;
+          varIdxMap.forEach(({id, idx}) => {
+            const val = (cols[idx] || '').replace(',', '.').trim();
+            if (val === '') return;
+            if (!collectionData[String(unit.id)]) collectionData[String(unit.id)] = {};
+            collectionData[String(unit.id)][id] = val;
+            count++;
+          });
+        });
+        renderDataTab();
+        if (currentProjectName) saveCurrentProject(true);
+        if (count) alert(`${count} valor(es) importado(s) com sucesso.`);
+        else alert('Nenhum dado correspondente.\nVerifique IDs de unidade e nomes das variáveis.');
+      } catch(err) { alert('Erro ao ler CSV: ' + err.message); }
+    };
+    reader.readAsText(f, 'utf-8');
+  };
+  inp.click();
 }
 
 /* ══ Fase 3 — Scripts para análise estatística ══ */

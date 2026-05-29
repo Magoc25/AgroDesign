@@ -232,6 +232,11 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
 <!-- ═══ CONFIG PANEL ═══ -->
 <div class="config-panel">
 
+  <div id="labProjectBadge" class="hidden" style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;padding:.4rem .7rem;background:var(--primary-pale);border:1.5px solid var(--accent);border-radius:6px;margin-bottom:.6rem;font-size:.78rem;color:var(--primary)">
+    <span>📂 <strong id="labProjectName" style="max-width:175px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block"></strong></span>
+    <button onclick="saveCurrentProjectLab(true)" style="background:var(--primary);border:none;cursor:pointer;font-size:.75rem;color:#fff;font-weight:600;padding:2px 8px;border-radius:4px" title="Salvar projeto agora">💾 Salvar</button>
+  </div>
+
   <div class="form-section">
     <div class="form-section-title">Templates</div>
     <div class="template-list">
@@ -390,12 +395,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
   </div>
 
   <div class="form-section">
-    <div class="form-section-title">Projeto</div>
-    <div style="display:flex;gap:.4rem">
-      <button class="btn btn-ghost btn-block" onclick="saveProjectLab()" title="Salvar placa + dados coletados em JSON">💾 Salvar</button>
-      <button class="btn btn-ghost btn-block" onclick="loadProjectLab()" title="Carregar projeto JSON salvo anteriormente">📂 Abrir</button>
-    </div>
-    <p class="hint" style="margin-top:.35rem;font-size:.74rem">Salva layout + dados coletados. Compartilhe o arquivo para colaboração.</p>
+    <button class="btn btn-secondary btn-block" onclick="openProjectsModalLab()">📂 Projetos</button>
   </div>
 
 </div><!-- /config-panel -->
@@ -480,6 +480,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
       <button class="btn btn-ghost btn-sm" onclick="exportXLSColeta()">⬇ XLSX</button>
       <button class="btn btn-ghost btn-sm" onclick="exportTXTColeta()">⬇ TXT</button>
       <button class="btn btn-ghost btn-sm" onclick="importColetaCSV()" title="Importar valores medidos de um arquivo CSV exportado pelo app">⬆ Importar</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportResultsXLSXLab()" title="Exportar dados + estatísticas + análises em planilha multi-abas">⬇ Resultados XLSX</button>
       <span style="color:var(--border);font-size:.9rem">|</span>
       <button class="btn btn-secondary btn-sm" onclick="exportScriptRLab()"   title="Script R (aov/drc/FICI conforme o modo)">⬇ R</button>
       <button class="btn btn-secondary btn-sm" onclick="exportScriptSASLab()" title="Script SAS (PROC GLM / PROC NLIN)">⬇ SAS</button>
@@ -511,6 +512,28 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
 </div><!-- /app-layout -->
 
 <!-- ═══ SOFTWARES MODAL ═══ -->
+<!-- ═══ PROJECTS MODAL (Lab) ═══ -->
+<div id="projectsModalLab" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeProjectsModalLab()"></div>
+  <div class="modal-content" style="max-width:500px">
+    <div class="modal-header">
+      <div class="modal-title">📂 Projetos</div>
+      <button class="modal-close-btn" type="button" onclick="closeProjectsModalLab()">✕</button>
+    </div>
+    <div style="display:flex;gap:.5rem;margin-bottom:.5rem">
+      <input type="text" id="labProjectSaveName" placeholder="Nome do projeto..." style="flex:1">
+      <button class="btn btn-primary btn-sm" onclick="saveCurrentProjectLab()">Salvar</button>
+    </div>
+    <p class="hint" style="margin-bottom:.75rem">Digite um nome e clique Salvar. O projeto fica salvo no navegador — exporte em JSON para compartilhar ou colaborar.</p>
+    <div style="margin-bottom:.75rem">
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('labProjectImportInput').click()">📥 Importar projeto (.json)</button>
+      <input type="file" id="labProjectImportInput" accept=".json" style="display:none">
+    </div>
+    <hr style="border-color:var(--border);margin:.5rem 0 .75rem">
+    <div id="labProjectList" style="display:flex;flex-direction:column;gap:.4rem;max-height:320px;overflow-y:auto"></div>
+  </div>
+</div>
+
 <div id="importHelpModalLab" class="modal hidden">
   <div class="modal-backdrop" onclick="closeImportHelpModalLab()"></div>
   <div class="modal-content" style="max-width:560px">
@@ -579,6 +602,7 @@ df = df[df["Tipo"] == "Amostra"]</code></div>
              border:1px solid var(--border);border-radius:var(--radius);
              padding:.5rem .75rem;background:var(--surface);color:var(--text)"></textarea>
     <button class="btn btn-ghost btn-sm" style="margin-top:.25rem" onclick="copyLabText('citation')">📋 Copiar Citação</button>
+    <p class="hint" style="margin-top:.5rem;font-size:.74rem;line-height:1.5">💡 <strong>Para obter DOI citável:</strong> deposite o software no <a href="https://zenodo.org" target="_blank" rel="noopener" style="color:var(--primary)">Zenodo (zenodo.org)</a> antes da submissão do manuscrito.</p>
     <p class="hint" style="margin-top:.75rem;font-size:.74rem;line-height:1.5">Substitua "Figura X" pelo número correto. Complemente com detalhes específicos do seu experimento.</p>
     <div class="info-box" style="font-size:.78rem;margin-top:.5rem">
       <strong>Replicatas biológicas vs. técnicas</strong><br>
@@ -661,6 +685,7 @@ df = df[df["Tipo"] == "Amostra"]</code></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 'use strict';
 
@@ -2144,18 +2169,116 @@ function _restoreLabConfig(cfg) {
   if(cfg.design) onDesignChange();
 }
 
-function saveProjectLab() {
+/* ══════════════════════════════════════════════════════════════
+   SISTEMA DE PROJETOS — localStorage (igual ao AgroDesign campo)
+══════════════════════════════════════════════════════════════ */
+const PROJECTS_KEY_LAB = 'agrodesignlab_projects';
+let currentProjectNameLab = null;
+
+function getProjectsLabFromStorage() {
+  try { return JSON.parse(localStorage.getItem(PROJECTS_KEY_LAB)||'[]'); } catch(e){ return []; }
+}
+function storeProjectsLab(p) {
+  try { localStorage.setItem(PROJECTS_KEY_LAB, JSON.stringify(p)); } catch(e){}
+}
+function updateProjectBadgeLab() {
+  const badge=document.getElementById('labProjectBadge');
+  const nameEl=document.getElementById('labProjectName');
+  if(currentProjectNameLab){ nameEl.textContent=currentProjectNameLab; badge.classList.remove('hidden'); badge.style.display='flex'; }
+  else badge.classList.add('hidden');
+}
+function saveCurrentProjectLab(silent=false) {
   if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
+  const input=document.getElementById('labProjectSaveName');
+  const name=(input?.value?.trim()||currentProjectNameLab||'').trim();
+  if(!name){ alert('Digite um nome para o projeto.'); return; }
   const valMap={};
   document.querySelectorAll('.val-input').forEach(inp=>{if(inp.value!=='')valMap[inp.dataset.well]=inp.value;});
-  const state={
-    appVersion:LAB_VERSION, savedAt:new Date().toISOString(),
-    config:_captureLabConfig(), plateLayout, collectedData:valMap
-  };
-  const mode=plateMode();
-  dlBlob(new Blob([JSON.stringify(state,null,2)],{type:'application/json;charset=utf-8'}),
-    `AgroDesignLab_${mode}_${new Date().toISOString().slice(0,10)}.json`);
+  const projects=getProjectsLabFromStorage();
+  const idx=projects.findIndex(p=>p.name===name);
+  const proj={name, savedAt:new Date().toISOString(), appVersion:LAB_VERSION, config:_captureLabConfig(), plateLayout, collectedData:valMap};
+  if(idx>=0) projects[idx]=proj; else projects.unshift(proj);
+  storeProjectsLab(projects);
+  currentProjectNameLab=name; updateProjectBadgeLab();
+  if(input) input.value='';
+  renderProjectListLab();
+  if(!silent) closeProjectsModalLab();
 }
+function loadProjectFromStorageLab(idx) {
+  const projects=getProjectsLabFromStorage();
+  const proj=projects[idx]; if(!proj) return;
+  _restoreLabConfig(proj.config);
+  if(Array.isArray(proj.plateLayout)&&proj.plateLayout.length){
+    plateLayout=proj.plateLayout;
+    renderPlate(); renderSummaryLab(); renderFieldBook(); renderColeta(); renderMM();
+    if(proj.collectedData){
+      Object.entries(proj.collectedData).forEach(([well,val])=>{
+        const inp=document.querySelector(`.val-input[data-well="${well}"]`);
+        if(inp) inp.value=val;
+      });
+    }
+  }
+  currentProjectNameLab=proj.name; updateProjectBadgeLab();
+  document.getElementById('labProjectSaveName').value=proj.name;
+  closeProjectsModalLab(); switchTab('placa');
+  toast('Projeto carregado — v'+(proj.appVersion||'?'));
+}
+function exportProjectJSONLab(idx) {
+  const proj=getProjectsLabFromStorage()[idx]; if(!proj) return;
+  dlBlob(new Blob([JSON.stringify(proj,null,2)],{type:'application/json'}),
+    'AgroDesignLab_'+proj.name.replace(/[^a-zA-Z0-9_\-]/g,'_')+'.json');
+}
+function deleteProjectLab(idx) {
+  const projects=getProjectsLabFromStorage();
+  const name=projects[idx]?.name; if(!name) return;
+  if(!confirm(`Excluir o projeto "${name}"?`)) return;
+  projects.splice(idx,1); storeProjectsLab(projects);
+  if(currentProjectNameLab===name){ currentProjectNameLab=null; updateProjectBadgeLab(); }
+  renderProjectListLab();
+}
+function renderProjectListLab() {
+  const projects=getProjectsLabFromStorage();
+  const el=document.getElementById('labProjectList'); if(!el) return;
+  if(!projects.length){ el.innerHTML='<p style="color:var(--text-muted);font-size:.82rem;text-align:center;padding:.75rem">Nenhum projeto salvo.</p>'; return; }
+  el.innerHTML=projects.map((p,i)=>`
+    <div style="display:flex;gap:.4rem;align-items:center;padding:.45rem .5rem;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis${p.name===currentProjectNameLab?';color:var(--primary)':''}">${esc(p.name)}</div>
+        <div style="font-size:.7rem;color:var(--text-muted)">${esc(new Date(p.savedAt).toLocaleString('pt-BR'))} · v${p.appVersion||'?'}</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="loadProjectFromStorageLab(${i})">Abrir</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportProjectJSONLab(${i})" title="Exportar JSON">⬇</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteProjectLab(${i})">✕</button>
+    </div>`).join('');
+}
+function openProjectsModalLab() {
+  if(currentProjectNameLab) document.getElementById('labProjectSaveName').value=currentProjectNameLab;
+  renderProjectListLab();
+  document.getElementById('projectsModalLab').classList.remove('hidden');
+}
+function closeProjectsModalLab() { document.getElementById('projectsModalLab').classList.add('hidden'); }
+
+// Importar projeto de arquivo JSON
+function _setupLabProjectImport() {
+  document.getElementById('labProjectImportInput').addEventListener('change', async e=>{
+    const file=e.target.files?.[0]; if(!file) return;
+    try {
+      const data=JSON.parse(await file.text());
+      if(!data?.name||!data?.config) throw new Error('Arquivo inválido ou corrompido.');
+      const projects=getProjectsLabFromStorage();
+      const idx=projects.findIndex(p=>p.name===data.name);
+      if(idx>=0){ if(!confirm(`Projeto "${data.name}" já existe. Sobrescrever?`)){ e.target.value=''; return; } projects[idx]=data; }
+      else projects.unshift(data);
+      storeProjectsLab(projects); renderProjectListLab();
+      if(confirm(`Projeto "${data.name}" importado. Abrir agora?`))
+        loadProjectFromStorageLab(projects.findIndex(p=>p.name===data.name));
+    } catch(err){ alert('Erro ao importar: '+err.message); }
+    e.target.value='';
+  });
+}
+
+// Legacy alias for old JSON files shared externally
+function saveProjectLab() { saveCurrentProjectLab(); }
 
 function loadProjectLab() {
   const inp=document.createElement('input');
@@ -3025,6 +3148,107 @@ function debounceGenerate() {
   _debTimer = setTimeout(() => generatePlate(true), 400);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   EXPORTAÇÃO DE RESULTADOS — XLSX multi-abas (SheetJS)
+══════════════════════════════════════════════════════════════ */
+function exportResultsXLSXLab() {
+  if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
+  if(typeof XLSX==='undefined'){ alert('Biblioteca XLSX não carregou. Verifique a conexão com a internet.'); return; }
+  const isEng=document.getElementById('chkEngLab').checked;
+  const valMap={};
+  document.querySelectorAll('.val-input').forEach(inp=>{valMap[inp.dataset.well]=inp.value;});
+  const typeMap={sample:isEng?'Sample':'Amostra',ctrl_neg:isEng?'Neg.Ctrl':'Ctrl.Neg.',ctrl_pos:isEng?'Pos.Ctrl':'Ctrl.Pos.',blank:isEng?'Blank':'Branco',buffer:'Buffer',empty:isEng?'Empty':'Vazio'};
+  const wb=XLSX.utils.book_new();
+  const meta=`AgroDesign Lab v${LAB_VERSION} — ${new Date().toLocaleString('pt-BR')}`;
+
+  /* ── Sheet 1: Dados brutos ── */
+  const h1=isEng?['Well','Row','Col','Type','Treatment','Tech.Rep','Block','Value']:['Poço','Linha','Coluna','Tipo','Tratamento','Rep.Técnica','Bloco','Valor'];
+  const r1=plateLayout.filter(w=>w.type!=='empty').map(w=>{
+    const raw=valMap[w.id]??''; const num=raw!==''?parseFloat(raw.replace(',','.')):null;
+    return [w.id,w.row,w.col,typeMap[w.type]||w.type,w.treatment||'',w.rep??'',w.block??'',num!==null&&!isNaN(num)?num:raw];
+  });
+  const ws1=XLSX.utils.aoa_to_sheet([[meta],[],h1,...r1]);
+  ws1['!cols']=h1.map((_,i)=>({wch:i===4?26:i===7?12:10}));
+  ws1['!merges']=[{s:{r:0,c:0},e:{r:0,c:h1.length-1}}];
+  XLSX.utils.book_append_sheet(wb,ws1,isEng?'Raw Data':'Dados Brutos');
+
+  /* ── Sheet 2: Resumo por tratamento ── */
+  const stats={};
+  plateLayout.filter(w=>w.type==='sample').forEach(w=>{
+    const v=parseFloat((valMap[w.id]||'').replace(',','.')); if(isNaN(v)) return;
+    const k=w.treatment||''; if(!stats[k]) stats[k]={n:0,sum:0,sq:0,vals:[]};
+    stats[k].n++; stats[k].sum+=v; stats[k].sq+=v*v; stats[k].vals.push(v);
+  });
+  const h2=isEng?['Treatment','N','Mean','SD','CV (%)','Min','Max']:['Tratamento','N','Média','DP','CV (%)','Mín','Máx'];
+  const r2=Object.entries(stats).map(([t,s])=>{
+    const m=s.sum/s.n; const sd=s.n>1?Math.sqrt((s.sq-s.n*m*m)/(s.n-1)):0;
+    return [t,s.n,+m.toFixed(4),+sd.toFixed(4),+(Math.abs(m)>0?Math.abs(sd/m*100):0).toFixed(2),+Math.min(...s.vals).toFixed(4),+Math.max(...s.vals).toFixed(4)];
+  });
+  const ws2=XLSX.utils.aoa_to_sheet([[meta],[],h2,...r2]);
+  ws2['!cols']=h2.map((_,i)=>({wch:i===0?26:10}));
+  ws2['!merges']=[{s:{r:0,c:0},e:{r:0,c:h2.length-1}}];
+  XLSX.utils.book_append_sheet(wb,ws2,isEng?'Summary':'Resumo');
+
+  const mode=plateMode();
+
+  /* ── Sheet 3 (Dose): 4PL por composto ── */
+  if(mode==='dose'){
+    const rawD={};
+    plateLayout.filter(w=>w.type==='sample'&&w.concentration!==undefined).forEach(w=>{
+      const v=parseFloat((valMap[w.id]||'').replace(',','.')); if(isNaN(v)) return;
+      if(!rawD[w.treatment]) rawD[w.treatment]=[];
+      rawD[w.treatment].push({conc:w.concentration,val:v});
+    });
+    const unit=plateLayout.find(w=>w.concUnit)?.concUnit||'';
+    const h3=isEng
+      ?['Compound',`IC₅₀${unit?' ('+unit+')':''}` ,'Hill b','Bottom','Top','R²','RMSE','Points','Converged']
+      :['Composto',`IC₅₀${unit?' ('+unit+')':''}` ,'Hill b','Bottom','Top','R²','RMSE','Pontos','Convergiu'];
+    const r3=Object.entries(rawD).map(([cmp,pts])=>{
+      const fit=fit4PL(pts.map(d=>d.conc),pts.map(d=>d.val));
+      if(fit) return [cmp,+fit.EC50.toPrecision(5),+fit.b.toFixed(4),+fit.Bottom.toFixed(4),+fit.Top.toFixed(4),+fit.r2.toFixed(4),+fit.rmse.toFixed(5),pts.length,isEng?'Yes':'Sim'];
+      return [cmp,isEng?'—':'—',isEng?'—':'—',isEng?'—':'—',isEng?'—':'—',isEng?'—':'—',isEng?'—':'—',pts.length,isEng?'No (< 4 pts)':'Não (< 4 pts)'];
+    });
+    const ws3=XLSX.utils.aoa_to_sheet([[meta],[],h3,...r3]);
+    ws3['!cols']=h3.map((_,i)=>({wch:i===0?26:12}));
+    ws3['!merges']=[{s:{r:0,c:0},e:{r:0,c:h3.length-1}}];
+    XLSX.utils.book_append_sheet(wb,ws3,isEng?'Dose-Response':'Dose-Resposta');
+  }
+
+  /* ── Sheet 3 (EcoPlate): CLPP ── */
+  if(mode==='ecoplate'){
+    const vm={};
+    document.querySelectorAll('.val-input').forEach(inp=>{const v=parseFloat(inp.value);if(!isNaN(v))vm[inp.dataset.well]=v;});
+    const wODs=[0,1,2].map(p=>vm[['A1','A5','A9'][p]]??NaN);
+    const svs=ECO_SUB.map(([row,off,guild,name])=>{
+      const reps=[0,1,2].map(p=>{
+        const id=`${row}${p*4+1+off}`;const v=vm[id];const w=wODs[p];
+        return(!isNaN(v)&&!isNaN(w))?Math.max(0,v-w):null;
+      });
+      const valid=reps.filter(v=>v!==null);
+      const mean=valid.length?valid.reduce((a,b)=>a+b,0)/valid.length:0;
+      return {name,guild,mean,reps};
+    });
+    const totAct=svs.reduce((a,d)=>a+d.mean,0)||1;
+    const AWCD=svs.reduce((a,d)=>a+d.mean,0)/31;
+    const ps=svs.map(d=>d.mean/totAct);
+    const Hp=-ps.filter(p=>p>0).reduce((s,p)=>s+p*Math.log(p),0);
+    const D=ps.reduce((s,p)=>s+p*p,0);
+    const U=Math.sqrt(D);
+    const gN={carbohydrate:isEng?'Carbohydrates':'Carboidratos',carboxylic:isEng?'Carboxylic acids':'Ácidos carboxílicos',aminoacid:isEng?'Amino acids':'Aminoácidos',polymer:isEng?'Polymers':'Polímeros',amine:isEng?'Amines/amides':'Aminas'};
+    const hIdx=isEng?['Index','Value','Reference']:['Índice','Valor','Referência'];
+    const rIdx=[[`AWCD${isEng?'':(': Average Well Colour Development')}`,+AWCD.toFixed(4),'Garland & Mills, 1991'],[`Shannon H'`,+Hp.toFixed(4),'Shannon & Weaver, 1949'],[`Simpson D`,+D.toFixed(4),'Simpson, 1949'],[`McIntosh U`,+U.toFixed(4),'McIntosh, 1967']];
+    const hSub=isEng?['Substrate','Guild','Mean Cᵢ−R','Sub-plate I','Sub-plate II','Sub-plate III']:['Substrato','Guilda','Méd Cᵢ−R','Sub-placa I','Sub-placa II','Sub-placa III'];
+    const rSub=svs.map(d=>[d.name,gN[d.guild]||d.guild,+d.mean.toFixed(4),...d.reps.map(v=>v!==null?+v.toFixed(4):'')]);
+    const ws3Data=[[meta],[],hIdx,...rIdx,[],hSub,...rSub];
+    const ws3=XLSX.utils.aoa_to_sheet(ws3Data);
+    ws3['!cols']=hSub.map((_,i)=>({wch:i===0?36:i===1?18:12}));
+    ws3['!merges']=[{s:{r:0,c:0},e:{r:0,c:hSub.length-1}}];
+    XLSX.utils.book_append_sheet(wb,ws3,'CLPP');
+  }
+
+  XLSX.writeFile(wb,`AgroDesignLab_resultados_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
 /* ── Init ── */
 onDesignChange();
 updateWellCounter();
@@ -3034,6 +3258,8 @@ updateWellCounter();
     document.documentElement.setAttribute('data-dark','');
     document.getElementById('btnDark').textContent='☀️';
   }
+
+  _setupLabProjectImport();
 
   /* Live-update: qualquer campo do painel lateral dispara regeneração */
   document.querySelector('.config-panel').addEventListener('change', e => {
