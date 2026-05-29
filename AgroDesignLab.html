@@ -435,9 +435,9 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
         <span>Legenda</span>
         <select id="selLegendPos" style="font-size:.78rem;padding:.2rem .4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" onchange="applyLegendPos()">
           <option value="none" selected>Na barra</option>
-          <option value="bottom">Abaixo (na imagem)</option>
-          <option value="right">Direita (na imagem)</option>
-          <option value="top">Acima (na imagem)</option>
+          <option value="bottom">Abaixo</option>
+          <option value="right">Direita</option>
+          <option value="top">Acima</option>
         </select>
       </label>
     </div>
@@ -1138,11 +1138,14 @@ function buildLabSvgLegend(colorMap, layout, mode, isPub, isEng, pos) {
 
   const SW=11,IH=16,GAP=4,IPAD=8,TITLE_H=16;
   const isVert=pos==='left'||pos==='right';
-  const cols=isVert?1:Math.min(4,Math.max(2,Math.ceil(items.length/4)));
-  const rows=Math.ceil(items.length/cols);
   const maxLen=Math.max(...items.map(x=>x.l.length));
   const fs=maxLen>30?7:maxLen>22?7.5:maxLen>16?8.5:9;
-  const textW=Math.min(200,maxLen*fs*0.62);
+  /* cols: reduz para 2 quando rótulos são longos (>16 chars) para evitar overflow */
+  const maxCols=maxLen>16?2:4;
+  const cols=isVert?1:Math.min(maxCols,Math.max(1,Math.ceil(items.length/Math.ceil(items.length/maxCols))));
+  const rows=Math.ceil(items.length/cols);
+  /* fator 0.72 (antes 0.62) + 4px de folga para acomodar texto real em SVG */
+  const textW=Math.min(240,maxLen*fs*0.72)+4;
   const colW=SW+GAP+textW+IPAD;
   const totalW=cols*colW+IPAD;
   const totalH=rows*IH+TITLE_H+IPAD*2;
@@ -1292,9 +1295,10 @@ function renderPlate() {
       plateY = leg.h + LPAD;
       legX = Math.max(8, (totalW - leg.w) / 2);
     } else if(legendPos==='right'){
-      totalW = svgW + LPAD + leg.w + 8;
+      totalW = svgW + LPAD + leg.w + 16;
+      totalH = Math.max(svgH, leg.h + 16);
       legX = svgW + LPAD;
-      legY = Math.max(8, (svgH - leg.h) / 2);
+      legY = Math.max(8, (totalH - leg.h) / 2);
     }
   }
 
