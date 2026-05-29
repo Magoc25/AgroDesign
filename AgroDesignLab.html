@@ -432,9 +432,15 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
       <button class="tab-btn"        id="btnMMen" onclick="setLabLang('en')">🇺🇸 EN</button>
       <button class="btn btn-ghost btn-sm" onclick="copyLabMM()">📋 Copiar</button>
     </div>
-    <div class="form-section-title">Material e Métodos</div>
-    <textarea id="labMMText" rows="10" readonly placeholder="Gere o layout da placa para visualizar o texto de Material e Métodos."></textarea>
-    <div class="hint">Texto pronto para a seção de M&amp;M do manuscrito. Cite a semente para reprodutibilidade.</div>
+    <div id="mmPlaceholder" class="info-box" style="font-size:.82rem">
+      Gere o layout da placa para visualizar o texto de <strong>Material e Métodos</strong> pronto para o manuscrito.<br>
+      <span class="hint">O texto inclui: delineamento, tratamentos, replicatas, política de borda, semente de randomização e método de análise. Disponível em PT e EN.</span>
+    </div>
+    <div id="mmContent" style="display:none;flex-direction:column;gap:.5rem">
+      <div class="form-section-title">Material e Métodos</div>
+      <textarea id="labMMText" rows="10" readonly></textarea>
+      <div class="hint">Texto pronto para a seção de M&amp;M do manuscrito. Cite a semente para reprodutibilidade.</div>
+    </div>
     <div class="info-box" style="font-size:.78rem">
       <strong>Replicatas biológicas vs. técnicas</strong><br>
       As replicatas configuradas acima são <em>técnicas</em> (mesmo material, mesma placa).
@@ -1108,7 +1114,10 @@ function renderFieldBook() {
    MATERIAL E MÉTODOS
 ══════════════════════════════════════════════ */
 function renderMM() {
-  document.getElementById('labMMText').value = buildMM(document.getElementById('chkEngLab').checked);
+  const hasLayout = plateLayout.length > 0;
+  document.getElementById('mmPlaceholder').style.display = hasLayout ? 'none' : '';
+  document.getElementById('mmContent').style.display     = hasLayout ? 'flex' : 'none';
+  if(hasLayout) document.getElementById('labMMText').value = buildMM(document.getElementById('chkEngLab').checked);
 }
 
 function buildMM(en) {
