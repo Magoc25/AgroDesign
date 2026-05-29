@@ -854,6 +854,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;flex-shrink:0">
         <button class="btn btn-secondary btn-sm" onclick="openVarsModal()">⚙ Variáveis</button>
         <button class="btn btn-ghost btn-sm" onclick="checkOutliers()" title="Verificar valores discrepantes (IQR)">🔍 Verificar</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleExploratoryPanel()" title="Resumo exploratório: média ± DP por tratamento">📊 Resumo</button>
         <button class="btn btn-ghost btn-sm" id="btnDecimalSep" onclick="toggleDecimalSep()" title="Separador decimal nos arquivos exportados">🔢 Dec: .</button>
         <span style="color:var(--border);font-size:.9rem">|</span>
         <button class="btn btn-ghost btn-sm" onclick="exportDataXLSX()">⬇ XLSX</button>
@@ -870,6 +871,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <div class="data-table-wrap">
         <table class="data-table"><thead id="dataHead"></thead><tbody id="dataBody"></tbody></table>
       </div>
+      <div id="exploratoryPanel" class="hidden" style="margin-top:.5rem;padding:.6rem .75rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;flex-shrink:0;overflow-x:auto"></div>
     </div>
   </div>
 </section>
@@ -4309,6 +4311,9 @@ function toggleExamples() {
 function clearAll() {
   units = []; treatmentColors = {};
   projectVariables = []; collectionData = {};
+  _exampleCampoKey = null;
+  const _ep = document.getElementById('exploratoryPanel');
+  if (_ep) { _ep.classList.add('hidden'); _ep.innerHTML = ''; }
   currentProjectName = null; updateProjectBadge();
   document.getElementById('emptyState').classList.remove('hidden');
   document.getElementById('summaryContent').classList.add('hidden');
@@ -4493,6 +4498,169 @@ const EXAMPLES = {
   }
 };
 
+/* ── Dados de exemplo — Campo ── */
+const EXAMPLE_DATA_CAMPO = {
+  milho_dbc: {
+    variables: [
+      { name: 'Produtividade', unit: 'kg/ha', type: 'numeric', decimals: 0 },
+      { name: 'Altura de planta', unit: 'cm', type: 'numeric', decimals: 1 }
+    ],
+    data: {
+      'Adubação 0 kg/ha':   { 'Produtividade': [3420, 3180, 3560, 3290], 'Altura de planta': [198.2, 195.6, 200.1, 197.4] },
+      'Adubação 60 kg/ha':  { 'Produtividade': [4780, 4620, 4910, 4700], 'Altura de planta': [213.5, 210.8, 215.2, 212.1] },
+      'Adubação 120 kg/ha': { 'Produtividade': [6230, 6050, 6410, 6180], 'Altura de planta': [228.4, 225.7, 230.9, 227.3] },
+      'Adubação 180 kg/ha': { 'Produtividade': [6890, 6720, 7050, 6960], 'Altura de planta': [235.1, 232.6, 237.8, 234.2] }
+    }
+  },
+  frango_dic: {
+    variables: [
+      { name: 'Peso vivo final', unit: 'g', type: 'numeric', decimals: 0 },
+      { name: 'Conversão alimentar', unit: 'g/g', type: 'numeric', decimals: 2 }
+    ],
+    data: {
+      'Dieta Controle': { 'Peso vivo final': [2780, 2820, 2810, 2830], 'Conversão alimentar': [1.96, 2.01, 1.98, 2.03] },
+      'Dieta 18% PB':   { 'Peso vivo final': [3020, 3080, 3060, 3045], 'Conversão alimentar': [1.83, 1.79, 1.84, 1.81] },
+      'Dieta 20% PB':   { 'Peso vivo final': [3150, 3180, 3120, 3165], 'Conversão alimentar': [1.74, 1.78, 1.76, 1.75] },
+      'Dieta 22% PB':   { 'Peso vivo final': [3090, 3100, 3070, 3095], 'Conversão alimentar': [1.80, 1.77, 1.82, 1.79] },
+      'Dieta 24% PB':   { 'Peso vivo final': [2970, 2990, 3010, 2975], 'Conversão alimentar': [1.87, 1.83, 1.86, 1.89] }
+    }
+  },
+  vacas_fat: {
+    variables: [
+      { name: 'Produção de leite', unit: 'L/dia', type: 'numeric', decimals: 1 }
+    ],
+    data: {
+      'Pastagem × Sem aditivo':         { 'Produção de leite': [18.2, 17.8, 18.6] },
+      'Pastagem × Monensina':           { 'Produção de leite': [20.1, 19.8, 20.5] },
+      'Pastagem × Levamisol':           { 'Produção de leite': [19.3, 18.9, 19.7] },
+      'Confinamento × Sem aditivo':     { 'Produção de leite': [24.5, 23.9, 25.1] },
+      'Confinamento × Monensina':       { 'Produção de leite': [27.2, 26.8, 27.7] },
+      'Confinamento × Levamisol':       { 'Produção de leite': [25.8, 25.3, 26.4] },
+      'Semiconfinamento × Sem aditivo': { 'Produção de leite': [21.3, 20.8, 21.9] },
+      'Semiconfinamento × Monensina':   { 'Produção de leite': [23.6, 23.1, 24.2] },
+      'Semiconfinamento × Levamisol':   { 'Produção de leite': [22.4, 21.9, 23.0] }
+    }
+  },
+  caes_dql: {
+    variables: [
+      { name: 'Frequência cardíaca', unit: 'bpm', type: 'numeric', decimals: 0 },
+      { name: 'Tempo de recuperação', unit: 'min', type: 'numeric', decimals: 1 }
+    ],
+    data: {
+      'Protocolo I':   { 'Frequência cardíaca': [72, 68, 75, 70], 'Tempo de recuperação': [12.5, 11.8, 13.2, 12.1] },
+      'Protocolo II':  { 'Frequência cardíaca': [85, 82, 88, 84], 'Tempo de recuperação': [18.3, 17.5, 19.1, 18.0] },
+      'Protocolo III': { 'Frequência cardíaca': [64, 61, 67, 63], 'Tempo de recuperação': [8.7, 8.2, 9.3, 8.5] },
+      'Protocolo IV':  { 'Frequência cardíaca': [78, 75, 81, 77], 'Tempo de recuperação': [15.2, 14.6, 16.0, 14.9] }
+    }
+  },
+  suinos_spl: {
+    variables: [
+      { name: 'Ganho de peso diário', unit: 'g/dia', type: 'numeric', decimals: 0 },
+      { name: 'Espessura de toucinho', unit: 'mm', type: 'numeric', decimals: 1 }
+    ],
+    data: {
+      'Intensivo × Ração A':     { 'Ganho de peso diário': [850, 830, 870], 'Espessura de toucinho': [18.2, 17.8, 18.6] },
+      'Intensivo × Ração B':     { 'Ganho de peso diário': [880, 860, 900], 'Espessura de toucinho': [17.5, 17.1, 17.9] },
+      'Intensivo × Ração C':     { 'Ganho de peso diário': [920, 900, 940], 'Espessura de toucinho': [16.8, 16.4, 17.2] },
+      'Intensivo × Ração D':     { 'Ganho de peso diário': [870, 850, 890], 'Espessura de toucinho': [17.8, 17.4, 18.2] },
+      'Semiintensivo × Ração A': { 'Ganho de peso diário': [750, 730, 770], 'Espessura de toucinho': [20.5, 20.1, 20.9] },
+      'Semiintensivo × Ração B': { 'Ganho de peso diário': [780, 760, 800], 'Espessura de toucinho': [19.8, 19.4, 20.2] },
+      'Semiintensivo × Ração C': { 'Ganho de peso diário': [810, 790, 830], 'Espessura de toucinho': [19.2, 18.8, 19.6] },
+      'Semiintensivo × Ração D': { 'Ganho de peso diário': [770, 750, 790], 'Espessura de toucinho': [19.9, 19.5, 20.3] },
+      'Extensivo × Ração A':     { 'Ganho de peso diário': [580, 560, 600], 'Espessura de toucinho': [23.8, 23.4, 24.2] },
+      'Extensivo × Ração B':     { 'Ganho de peso diário': [610, 590, 630], 'Espessura de toucinho': [23.1, 22.7, 23.5] },
+      'Extensivo × Ração C':     { 'Ganho de peso diário': [650, 630, 670], 'Espessura de toucinho': [22.4, 22.0, 22.8] },
+      'Extensivo × Ração D':     { 'Ganho de peso diário': [620, 600, 640], 'Espessura de toucinho': [22.9, 22.5, 23.3] }
+    }
+  },
+  cafe_strip: {
+    variables: [
+      { name: 'Produtividade', unit: 'sc/ha', type: 'numeric', decimals: 1 }
+    ],
+    data: {
+      'Catuaí Vermelho × Sem adubação': { 'Produtividade': [22.0, 20.5, 23.5] },
+      'Catuaí Vermelho × Foliar':       { 'Produtividade': [28.3, 26.8, 29.8] },
+      'Catuaí Vermelho × Solo':         { 'Produtividade': [32.1, 30.6, 33.6] },
+      'Catuaí Vermelho × Integrada':    { 'Produtividade': [38.4, 36.9, 39.9] },
+      'Araçá × Sem adubação':           { 'Produtividade': [18.2, 16.7, 19.7] },
+      'Araçá × Foliar':                 { 'Produtividade': [24.0, 22.5, 25.5] },
+      'Araçá × Solo':                   { 'Produtividade': [28.5, 27.0, 30.0] },
+      'Araçá × Integrada':              { 'Produtividade': [33.2, 31.7, 34.7] },
+      'Tupinambá × Sem adubação':       { 'Produtividade': [25.1, 23.6, 26.6] },
+      'Tupinambá × Foliar':             { 'Produtividade': [30.8, 29.3, 32.3] },
+      'Tupinambá × Solo':               { 'Produtividade': [35.3, 33.8, 36.8] },
+      'Tupinambá × Integrada':          { 'Produtividade': [41.0, 39.5, 42.5] }
+    }
+  },
+  soja_latice: {
+    variables: [
+      { name: 'Produtividade', unit: 'kg/ha', type: 'numeric', decimals: 0 }
+    ],
+    data: {
+      'BRS 317':  { 'Produtividade': [3520, 3480] },
+      'BRS 360':  { 'Produtividade': [3780, 3820] },
+      'BRS 370':  { 'Produtividade': [4020, 3950] },
+      'BRS 388':  { 'Produtividade': [3250, 3190] },
+      'BRS 391':  { 'Produtividade': [3650, 3710] },
+      'BRS 232':  { 'Produtividade': [2980, 3040] },
+      'BRS 257':  { 'Produtividade': [3820, 3760] },
+      'BRS 284':  { 'Produtividade': [3470, 3530] },
+      'BRS 295':  { 'Produtividade': [4150, 4080] },
+      'BRS 307':  { 'Produtividade': [3600, 3550] },
+      'CD 201':   { 'Produtividade': [3380, 3420] },
+      'CD 202':   { 'Produtividade': [3750, 3690] },
+      'CD 206':   { 'Produtividade': [4180, 4230] },
+      'CD 208':   { 'Produtividade': [2860, 2920] },
+      'CD 215':   { 'Produtividade': [3920, 3980] },
+      'NA 5909':  { 'Produtividade': [3680, 3630] },
+      'NA 7337':  { 'Produtividade': [3150, 3210] },
+      'NA 8015':  { 'Produtividade': [4050, 4110] },
+      'NA 8114':  { 'Produtividade': [3320, 3280] },
+      'NA 8419':  { 'Produtividade': [3870, 3910] },
+      'TMG 801':  { 'Produtividade': [3550, 3490] },
+      'TMG 803':  { 'Produtividade': [3990, 3940] },
+      'TMG 1176': { 'Produtividade': [3430, 3480] },
+      'TMG 1179': { 'Produtividade': [4200, 4140] },
+      'TMG 1180': { 'Produtividade': [3750, 3810] }
+    }
+  },
+  cerrado_quadrat: {
+    variables: [
+      { name: 'Cobertura vegetal', unit: '%', type: 'numeric', decimals: 1 },
+      { name: 'Riqueza de espécies', unit: 'nº spp', type: 'numeric', decimals: 0 }
+    ],
+    data: {
+      'Controle (sem intervenção)': { 'Cobertura vegetal': [12.0, 10.5, 13.8, 11.2, 12.9], 'Riqueza de espécies': [8, 7, 9, 8, 8] },
+      'Semeadura a lanço':          { 'Cobertura vegetal': [34.2, 31.5, 36.8, 33.0, 35.4], 'Riqueza de espécies': [14, 12, 15, 13, 14] },
+      'Semeadura + adubação NPK':   { 'Cobertura vegetal': [52.1, 48.3, 55.4, 50.2, 53.8], 'Riqueza de espécies': [18, 16, 20, 17, 19] },
+      'Transplante de mudas':       { 'Cobertura vegetal': [71.3, 68.0, 74.5, 70.1, 73.2], 'Riqueza de espécies': [22, 20, 25, 21, 24] }
+    }
+  },
+  mata_transecto: {
+    variables: [
+      { name: 'IVI', unit: '%', type: 'numeric', decimals: 1 },
+      { name: 'Altura média', unit: 'm', type: 'numeric', decimals: 1 }
+    ],
+    data: {
+      'Floresta primária':          { 'IVI': [42.5, 45.2, 41.8, 43.9], 'Altura média': [22.3, 24.1, 21.8, 23.5] },
+      'Capoeira antiga (>25 anos)': { 'IVI': [31.8, 33.5, 30.9, 32.7], 'Altura média': [16.4, 17.8, 15.9, 17.1] },
+      'Capoeira jovem (<10 anos)':  { 'IVI': [18.3, 20.1, 17.5, 19.2], 'Altura média': [8.7, 9.5, 8.2, 9.1] },
+      'Área degradada':             { 'IVI': [8.5, 10.2, 7.8, 9.4],    'Altura média': [3.2, 4.1, 2.8, 3.7] }
+    }
+  },
+  araucaria_permanente: {
+    variables: [
+      { name: 'DAP médio', unit: 'cm', type: 'numeric', decimals: 1 },
+      { name: 'Densidade', unit: 'ind/ha', type: 'numeric', decimals: 0 }
+    ],
+    data: {
+      'Floresta sem manejo':     { 'DAP médio': [38.2, 39.5, 37.8, 40.1], 'Densidade': [24, 22, 26, 23] },
+      'Manejo seletivo leve':    { 'DAP médio': [41.5, 43.2, 40.8, 44.0], 'Densidade': [20, 18, 22, 19] },
+      'Manejo seletivo intenso': { 'DAP médio': [45.8, 47.3, 44.9, 48.2], 'Densidade': [15, 13, 17, 14] }
+    }
+  }
+};
+
 function loadExample(key) {
   clearAll();
   EXAMPLES[key] && EXAMPLES[key]();
@@ -4500,6 +4668,86 @@ function loadExample(key) {
   document.querySelectorAll('.example-btn').forEach(b => b.classList.remove('active'));
   document.querySelector(`.example-btn[data-example="${key}"]`)?.classList.add('active');
   generateCroqui();
+  if (EXAMPLE_DATA_CAMPO[key] && units.length) {
+    _injectExampleCampoData(key);
+    showTab('coleta');
+    const panel = document.getElementById('exploratoryPanel');
+    if (panel && panel.classList.contains('hidden')) {
+      panel.classList.remove('hidden');
+      renderExploratoryPanel();
+    }
+  }
+}
+
+function _injectExampleCampoData(key) {
+  const ex = EXAMPLE_DATA_CAMPO[key];
+  if (!ex || !units.length) return;
+  projectVariables = ex.variables.map((v, i) => ({
+    id: 'exv' + i, name: v.name, unit: v.unit || '',
+    type: v.type || 'numeric', decimals: v.decimals ?? 2, options: []
+  }));
+  collectionData = {};
+  const counters = {};
+  units.forEach(u => {
+    const trtData = ex.data[u.treatment];
+    if (!trtData) return;
+    if (!counters[u.treatment]) counters[u.treatment] = {};
+    if (!collectionData[String(u.id)]) collectionData[String(u.id)] = {};
+    projectVariables.forEach(v => {
+      const vals = trtData[v.name];
+      if (!vals) return;
+      const idx = counters[u.treatment][v.name] || 0;
+      if (idx < vals.length) {
+        collectionData[String(u.id)][v.id] = String(vals[idx]);
+        counters[u.treatment][v.name] = idx + 1;
+      }
+    });
+  });
+  _exampleCampoKey = key;
+}
+
+function renderExploratoryPanel() {
+  const panel = document.getElementById('exploratoryPanel');
+  if (!panel) return;
+  const numVars = projectVariables.filter(v => v.type === 'numeric');
+  if (!numVars.length || !units.length) {
+    panel.innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;text-align:center;padding:1rem">Sem dados numéricos para sumarizar.</p>';
+    return;
+  }
+  const byTrt = {};
+  units.forEach(u => { if (!byTrt[u.treatment]) byTrt[u.treatment] = []; byTrt[u.treatment].push(u); });
+  const treatments = [...new Set(units.map(u => u.treatment))];
+  let html = '<div style="font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:.4rem">Resumo exploratório — Média ± DP por tratamento</div>';
+  html += '<div style="overflow-x:auto"><table class="data-table" style="font-size:.8rem"><thead><tr>';
+  html += '<th class="fix" style="min-width:160px">Tratamento</th><th class="fix" style="min-width:44px;text-align:center">n</th>';
+  numVars.forEach(v => {
+    html += `<th style="min-width:110px;text-align:center">${esc(v.name)}${v.unit ? '<br><small style="font-weight:400;opacity:.7">'+esc(v.unit)+'</small>' : ''}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+  treatments.forEach(trt => {
+    const trtUnits = byTrt[trt] || [];
+    html += `<tr><td style="white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis" title="${esc(trt)}">${esc(trt)}</td>`;
+    html += `<td style="text-align:center;color:var(--text-muted)">${trtUnits.length}</td>`;
+    numVars.forEach(v => {
+      const vals = trtUnits.map(u => collectionData[String(u.id)]?.[v.id]).filter(x => x !== undefined && x !== '').map(Number).filter(x => !isNaN(x));
+      if (!vals.length) { html += '<td style="text-align:center;color:var(--text-muted)">—</td>'; return; }
+      const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+      const sd = vals.length > 1 ? Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (vals.length - 1)) : 0;
+      const dec = v.decimals ?? 2;
+      html += `<td style="text-align:center">${mean.toFixed(dec)} ± ${sd.toFixed(dec)}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  html += '<p style="font-size:.72rem;color:var(--text-muted);margin-top:.35rem">Análise estatística formal disponível via ⬇ R / SAS / Python</p>';
+  panel.innerHTML = html;
+}
+
+function toggleExploratoryPanel() {
+  const panel = document.getElementById('exploratoryPanel');
+  if (!panel) return;
+  const hidden = panel.classList.toggle('hidden');
+  if (!hidden) renderExploratoryPanel();
 }
 
 /* ── Presets ── */
@@ -4671,6 +4919,7 @@ function closePresetsModal() { document.getElementById('presetsModal').classList
 /* ══ Fase 2 — Variáveis de Coleta ══ */
 let projectVariables = [];   // [{ id, name, type, unit, decimals, options }]
 let collectionData   = {};   // { unitId: { varId: value } }
+let _exampleCampoKey = null;
 
 /* ── Gerenciamento de variáveis ── */
 function onVarTypeChange() {
