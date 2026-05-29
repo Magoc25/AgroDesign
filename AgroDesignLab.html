@@ -1574,8 +1574,8 @@ function renderMM() { /* gerado sob demanda no modal — openMMModal() */ }
 function buildMM(en) {
   const mode = plateMode();
   if(mode==='ecoplate') {
-    if(en) return `Community-level physiological profiling (CLPP) was performed using Biolog EcoPlate™ (Biolog Inc., Hayward, CA, USA). Each EcoPlate contains 31 carbon substrates arranged in triplicate across three sub-plates (columns 1–4, 5–8 and 9–12), with a water control well (H₂O) at positions A1, A5 and A9. Plates were inoculated with [describe inoculum, e.g., 150 µL of soil suspension at OD₆₉₀ = 0.6] and incubated at [temperature, e.g., 25°C] in the dark. Absorbance at 590 nm (OD₆₉₀) was measured at [time point, e.g., 96 h] or at a standardized AWCD of ≈0.5–0.75, to normalize for differences in initial inoculum density (Insam, 1997). Average well color development (AWCD) was calculated as AWCD = Σ(Cᵢ − R)/31, where Cᵢ is the OD₆₉₀ of substrate well i and R is the OD₆₉₀ of the corresponding water control; negative values were set to zero (Garland & Mills, 1991). Functional diversity was assessed using the Shannon-Wiener diversity index H’ = −Σpᵢ ln pᵢ, Simpson’s dominance index D = Σpᵢ², and McIntosh index U = √(Σpᵢ²), where pᵢ = (Cᵢ − R)/Σ(Cᵢ − R) is the normalized substrate utilization (Zak et al., 1994). Statistical comparisons among samples were performed by [e.g., one-way ANOVA with Tukey’s HSD post-hoc test (p < 0.05)] on AWCD and diversity indices.`;
-    return `O perfil fisiológico comunitário (CLPP) foi determinado com EcoPlate™ Biolog (Biolog Inc., Hayward, CA, EUA). Cada EcoPlate contém 31 substratos de carbono dispostos em tríplice em três sub-placas (colunas 1–4, 5–8 e 9–12), com poço de controle de água (H₂O) nas posições A1, A5 e A9. As placas foram inoculadas com [descrever inóculo, ex.: 150 µL de suspensão de solo a OD₆₉₀ = 0,6] e incubadas a [temperatura, ex.: 25°C] no escuro. A absorbância a 590 nm (DO₆₉₀) foi medida em [ponto de tempo, ex.: 96 h] ou a um AWCD padronizado de ≈0,5–0,75, para normalizar diferenças na densidade inicial do inóculo (Insam, 1997). O desenvolvimento médio de cor dos poços (AWCD) foi calculado como AWCD = Σ(Cᵢ − R)/31, onde Cᵢ é a DO₆₉₀ do poço do substrato i e R é a DO₆₉₀ do poço de controle de água correspondente; valores negativos foram igualados a zero (Garland & Mills, 1991). A diversidade funcional foi avaliada pelo índice de diversidade de Shannon-Wiener H’ = −Σpᵢ ln pᵢ, índice de dominância de Simpson D = Σpᵢ² e índice de McIntosh U = √(Σpᵢ²), em que pᵢ = (Cᵢ − R)/Σ(Cᵢ − R) é a utilização normalizada do substrato (Zak et al., 1994). Comparações estatísticas entre amostras foram realizadas por [ex.: ANOVA unifatorial com teste de Tukey (p < 0,05)] sobre AWCD e índices de diversidade.`;
+    if(en) return `Community-level physiological profiling (CLPP) was performed using Biolog EcoPlate™ (Biolog Inc., Hayward, CA, USA). Each EcoPlate contains 31 carbon substrates arranged in triplicate across three sub-plates (columns 1–4, 5–8 and 9–12), with a water control well (H₂O) at positions A1, A5 and A9. Plates were inoculated with [describe inoculum, e.g., 150 µL of soil suspension at OD₆₉₀ = 0.6] and incubated at [temperature, e.g., 25°C] in the dark. Absorbance at 590 nm (OD₆₉₀) was measured at [time point, e.g., 96 h] or at a standardized AWCD of ≈0.5–0.75, to normalize for differences in initial inoculum density (Insam, 1997). Average well color development (AWCD) was calculated as AWCD = Σ(Cᵢ − R)/31, where Cᵢ is the OD₆₉₀ of substrate well i and R is the OD₆₉₀ of the corresponding water control; negative values were set to zero (Garland & Mills, 1991). Functional diversity was assessed using the Shannon-Wiener diversity index H’ = −Σpᵢ ln pᵢ, Simpson’s dominance index D = Σpᵢ², and McIntosh’s diversity index D_M = (N − √Σnᵢ²)/(N − √N), where nᵢ = Cᵢ − R, N = Σnᵢ, and pᵢ = nᵢ/N is the normalized substrate utilization (McIntosh, 1967; Zak et al., 1994). Statistical comparisons among samples were performed by [e.g., one-way ANOVA with Tukey’s HSD post-hoc test (p < 0.05)] on AWCD and diversity indices.`;
+    return `O perfil fisiológico comunitário (CLPP) foi determinado com EcoPlate™ Biolog (Biolog Inc., Hayward, CA, EUA). Cada EcoPlate contém 31 substratos de carbono dispostos em tríplice em três sub-placas (colunas 1–4, 5–8 e 9–12), com poço de controle de água (H₂O) nas posições A1, A5 e A9. As placas foram inoculadas com [descrever inóculo, ex.: 150 µL de suspensão de solo a OD₆₉₀ = 0,6] e incubadas a [temperatura, ex.: 25°C] no escuro. A absorbância a 590 nm (DO₆₉₀) foi medida em [ponto de tempo, ex.: 96 h] ou a um AWCD padronizado de ≈0,5–0,75, para normalizar diferenças na densidade inicial do inóculo (Insam, 1997). O desenvolvimento médio de cor dos poços (AWCD) foi calculado como AWCD = Σ(Cᵢ − R)/31, onde Cᵢ é a DO₆₉₀ do poço do substrato i e R é a DO₆₉₀ do poço de controle de água correspondente; valores negativos foram igualados a zero (Garland & Mills, 1991). A diversidade funcional foi avaliada pelo índice de diversidade de Shannon-Wiener H’ = −Σpᵢ ln pᵢ, índice de dominância de Simpson D = Σpᵢ² e índice de diversidade de McIntosh D_M = (N − √Σnᵢ²)/(N − √N), em que nᵢ = Cᵢ − R, N = Σnᵢ e pᵢ = nᵢ/N é a utilização normalizada do substrato (McIntosh, 1967; Zak et al., 1994). Comparações estatísticas entre amostras foram realizadas por [ex.: ANOVA unifatorial com teste de Tukey (p < 0,05)] sobre AWCD e índices de diversidade.`;
   }
   if(mode==='dose') {
     const compounds = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
@@ -1647,8 +1647,8 @@ function buildCaption(en) {
   const hasBlank   = plateLayout.some(w=>w.type==='blank');
 
   if(mode==='ecoplate') {
-    if(en) return `Figure X. Biolog EcoPlate™ layout for community-level physiological profiling (CLPP). The plate contains 31 carbon substrates arranged in triplicate (columns 1–4, sub-plate I; columns 5–8, sub-plate II; columns 9–12, sub-plate III). Wells A1, A5 and A9 are water controls (H₂O). Carbon source guilds are colour-coded. AWCD (average well colour development) and functional diversity indices (Shannon H', Simpson D, McIntosh U) were calculated after OD₅₉₀ reading. Design generated with AgroDesign Lab v${LAB_VERSION}.`;
-    return `Figura X. Layout da EcoPlate™ Biolog para perfil fisiológico comunitário (CLPP). A placa contém 31 substratos de carbono em tríplice (colunas 1–4, sub-placa I; colunas 5–8, sub-placa II; colunas 9–12, sub-placa III). Os poços A1, A5 e A9 são controles de água (H₂O). As guildas de fontes de carbono são codificadas por cor. AWCD e índices de diversidade funcional (Shannon H', Simpson D, McIntosh U) calculados após leitura a DO₅₉₀. Delineamento gerado com AgroDesign Lab v${LAB_VERSION}.`;
+    if(en) return `Figure X. Biolog EcoPlate™ layout for community-level physiological profiling (CLPP). The plate contains 31 carbon substrates arranged in triplicate (columns 1–4, sub-plate I; columns 5–8, sub-plate II; columns 9–12, sub-plate III). Wells A1, A5 and A9 are water controls (H₂O). Carbon source guilds are colour-coded. AWCD (average well colour development) and functional diversity indices (Shannon H', Simpson D, McIntosh D) were calculated after OD₅₉₀ reading. Design generated with AgroDesign Lab v${LAB_VERSION}.`;
+    return `Figura X. Layout da EcoPlate™ Biolog para perfil fisiológico comunitário (CLPP). A placa contém 31 substratos de carbono em tríplice (colunas 1–4, sub-placa I; colunas 5–8, sub-placa II; colunas 9–12, sub-placa III). Os poços A1, A5 e A9 são controles de água (H₂O). As guildas de fontes de carbono são codificadas por cor. AWCD e índices de diversidade funcional (Shannon H', Simpson D, McIntosh D) calculados após leitura a DO₅₉₀. Delineamento gerado com AgroDesign Lab v${LAB_VERSION}.`;
   }
   if(mode==='dose') {
     const compounds = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
@@ -2736,7 +2736,11 @@ function _calcEcoStats(isEng) {
   const ps=subVals.map(d=>d.mean/totAct);
   const Hp=-ps.filter(p=>p>0).reduce((s,p)=>s+p*Math.log(p),0);
   const D =ps.reduce((s,p)=>s+p*p,0);
-  const U =Math.sqrt(D);
+  // McIntosh D — calculado sobre atividades brutas (McIntosh, 1967):
+  // U = √Σnᵢ²   D_McI = (N − U) / (N − √N), com N = totAct
+  // Antes era U = √Σpᵢ² = √D (redundante com Simpson)
+  const U_raw = Math.sqrt(subVals.reduce((s,d)=>s+d.mean*d.mean,0));
+  const U = totAct > 1 ? (totAct - U_raw) / (totAct - Math.sqrt(totAct)) : 0;
 
   const gN={carbohydrate:isEng?'Carbohydrates':'Carboidratos',carboxylic:isEng?'Carboxylic acids':'Ácidos carboxílicos',aminoacid:isEng?'Amino acids':'Aminoácidos',polymer:isEng?'Polymers':'Polímeros',amine:isEng?'Amines/amides':'Aminas'};
   const guilds={};
@@ -2751,7 +2755,7 @@ function _calcEcoStats(isEng) {
   <div class="summary-card"><div class="lbl">AWCD</div><div class="val">${AWCD.toFixed(4)}</div></div>
   <div class="summary-card"><div class="lbl">Shannon H'</div><div class="val">${Hp.toFixed(3)}</div></div>
   <div class="summary-card"><div class="lbl">Simpson D</div><div class="val">${D.toFixed(3)}</div></div>
-  <div class="summary-card"><div class="lbl">McIntosh U</div><div class="val">${U.toFixed(3)}</div></div>
+  <div class="summary-card"><div class="lbl">McIntosh D</div><div class="val">${U.toFixed(3)}</div></div>
 </div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
   <div><div class="form-section-title" style="margin:.25rem 0">${isEng?'Activity by guild':'Atividade por guilda'}</div>
@@ -2761,7 +2765,7 @@ function _calcEcoStats(isEng) {
     <div class="table-wrap"><table><thead><tr><th>${isEng?'Substrate':'Substrato'}</th><th>Cᵢ−R</th><th>%</th></tr></thead><tbody>${tRows}</tbody></table></div>
   </div>
 </div>
-<div class="info-box hint" style="margin-top:.4rem;font-size:.78rem">AWCD = Σ(Cᵢ−R)/31 (neg→0) · H' = −Σpᵢ ln pᵢ · D = Σpᵢ² · U = √D<br>
+<div class="info-box hint" style="margin-top:.4rem;font-size:.78rem">AWCD = Σ(Cᵢ−R)/31 (neg→0) · H' = −Σpᵢ ln pᵢ · D = Σpᵢ² · D_M = (N−√Σnᵢ²)/(N−√N)<br>
 <em>Garland &amp; Mills, Soil Biol Biochem 23:213, 1991 · Zak et al., 1994 · McIntosh, Ecology 48:392, 1967</em></div>`;
 }
 
@@ -3534,7 +3538,7 @@ function exportResultsXLSXLab() {
     const U=Math.sqrt(D);
     const gN={carbohydrate:isEng?'Carbohydrates':'Carboidratos',carboxylic:isEng?'Carboxylic acids':'Ácidos carboxílicos',aminoacid:isEng?'Amino acids':'Aminoácidos',polymer:isEng?'Polymers':'Polímeros',amine:isEng?'Amines/amides':'Aminas'};
     const hIdx=isEng?['Index','Value','Reference']:['Índice','Valor','Referência'];
-    const rIdx=[[`AWCD${isEng?'':(': Average Well Colour Development')}`,+AWCD.toFixed(4),'Garland & Mills, 1991'],[`Shannon H'`,+Hp.toFixed(4),'Shannon & Weaver, 1949'],[`Simpson D`,+D.toFixed(4),'Simpson, 1949'],[`McIntosh U`,+U.toFixed(4),'McIntosh, 1967']];
+    const rIdx=[[`AWCD${isEng?'':(': Average Well Colour Development')}`,+AWCD.toFixed(4),'Garland & Mills, 1991'],[`Shannon H'`,+Hp.toFixed(4),'Shannon & Weaver, 1949'],[`Simpson D`,+D.toFixed(4),'Simpson, 1949'],[`McIntosh D`,+U.toFixed(4),'McIntosh, 1967']];
     const hSub=isEng?['Substrate','Guild','Mean Cᵢ−R','Sub-plate I','Sub-plate II','Sub-plate III']:['Substrato','Guilda','Méd Cᵢ−R','Sub-placa I','Sub-placa II','Sub-placa III'];
     const rSub=svs.map(d=>[d.name,gN[d.guild]||d.guild,+d.mean.toFixed(4),...d.reps.map(v=>v!==null?+v.toFixed(4):'')]);
     const ws3Data=[[meta],[],hIdx,...rIdx,[],hSub,...rSub];

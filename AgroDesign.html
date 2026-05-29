@@ -1347,16 +1347,22 @@ function generateFactorial(design) {
   const seed   = parseInt(document.getElementById('numFatSeed').value) || 42;
   const blocks = parseInt(document.getElementById('numFatBlocks').value) || 3;
   const fatTreats = buildFactorialTreatments();
-  const labels = fatTreats.map(t => t.label);
+  // Aleatorização por índice (não por rótulo) — evita colisão se o nome
+  // de um nível contiver o separador " × " e elimina lookup O(n²)
+  const indices = fatTreats.map((_, i) => i);
   let raw;
-  if (design === 'FAT_DIC') raw = generateDIC(labels, blocks, seed);
-  else raw = generateDBC(labels, blocks, seed);
-  return raw.map(u => ({
-    ...u,
-    factorA: fatTreats.find(t => t.label === u.treatment)?.factorA ?? null,
-    factorB: fatTreats.find(t => t.label === u.treatment)?.factorB ?? null,
-    factorC: fatTreats.find(t => t.label === u.treatment)?.factorC ?? null,
-  }));
+  if (design === 'FAT_DIC') raw = generateDIC(indices, blocks, seed);
+  else raw = generateDBC(indices, blocks, seed);
+  return raw.map(u => {
+    const t = fatTreats[u.treatment];
+    return {
+      ...u,
+      treatment: t.label,
+      factorA: t.factorA ?? null,
+      factorB: t.factorB ?? null,
+      factorC: t.factorC ?? null,
+    };
+  });
 }
 
 function generateSplitPlot(design) {
@@ -4339,6 +4345,22 @@ function clearAll() {
   document.getElementById('unidadeStats').innerHTML = '';
   document.getElementById('fbBody').innerHTML = '';
   document.getElementById('fbHead').innerHTML = '';
+  // Reset de campos que persistiam entre exemplos / Novo experimento
+  const _set = (id, val) => { const e = document.getElementById(id); if (e) e.value = val; };
+  const _chk = (id, val) => { const e = document.getElementById(id); if (e) e.checked = val; };
+  _set('txtSpecies', '');
+  _chk('chkLateralBorder', false);
+  _chk('chkBorders', false);
+  _chk('chkAlley', false);
+  _chk('chkFactorC', false);
+  document.getElementById('lateralBorderPlants').style.display = 'none';
+  document.getElementById('lblLateralUnit').style.display = 'none';
+  document.getElementById('borderRows').style.display = 'none';
+  document.getElementById('lblBorderUnit').style.display = 'none';
+  document.getElementById('secAlley').classList.add('hidden');
+  document.getElementById('secFactorC').classList.add('hidden');
+  // Limpa botão de exemplo ativo
+  document.querySelectorAll('.example-btn').forEach(b => b.classList.remove('active'));
   showTab('resumo');
 }
 
@@ -5745,7 +5767,8 @@ function getProjectsFromStorage() {
   try { return JSON.parse(localStorage.getItem(PROJECTS_KEY) || '[]'); } catch(e) { return []; }
 }
 function storeProjects(p) {
-  try { localStorage.setItem(PROJECTS_KEY, JSON.stringify(p)); } catch(e) {}
+  try { localStorage.setItem(PROJECTS_KEY, JSON.stringify(p)); return true; }
+  catch(e) { return false; }
 }
 
 function updateProjectBadge() {
@@ -5779,7 +5802,10 @@ function saveCurrentProject(silent = false) {
     collectionData: JSON.parse(JSON.stringify(collectionData))
   };
   if (idx >= 0) projects[idx] = proj; else projects.unshift(proj);
-  storeProjects(projects);
+  if (!storeProjects(projects)) {
+    alert('⚠ Não foi possível salvar — armazenamento do navegador cheio (cota excedida).\n\nExporte projetos antigos como JSON (botão ⬇) e exclua-os para liberar espaço.');
+    return;
+  }
 
   currentProjectName = name;
   updateProjectBadge();
