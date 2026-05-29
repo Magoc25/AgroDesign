@@ -2566,42 +2566,128 @@ const ECO_SUB=[
   ['H',3,'carboxylic','4-Hydroxy benzoic acid'],
 ];
 
-/* ── Dados de exemplo por template (OD brutos, leitura a 590 nm, 96 h) ── */
+/* ── Dados de exemplo por template ─────────────────────────────────────────
+   Modos:
+     'wells'     → data: {wellId: value}  — atribuição direta por poço
+     'treatment' → data: {tratamento: [val, …]}  — atribuição sequencial por tratamento
+     'dose'      → wells: {wellId: value}  +  controls: {tratamento: [val, …]}
+   Todos os valores são OD brutos fictícios para fins de demonstração.
+─────────────────────────────────────────────────────────────────────────── */
 const EXAMPLE_DATA = {
-  ecoplate: {
-    /* Comunidade microbiana de solo rizosférico fictícia (solo agrícola tropical, 96 h)
-       Placa 1 (cols 1-4): ctrl H₂O = A1
-       Placa 2 (cols 5-8): ctrl H₂O = A5
-       Placa 3 (cols 9-12): ctrl H₂O = A9
-       OD médio ≈ substrato + ctrl;  água ≈ 0.10-0.12 */
-    /* Placa 1 */
-    A1:0.11, A2:0.96, A3:0.53, A4:0.49,
-    B1:1.23, B2:0.39, B3:0.72, B4:0.26,
-    C1:0.85, C2:1.04, C3:1.29, C4:0.99,
-    D1:1.16, D2:0.66, D3:0.90, D4:0.79,
-    E1:1.34, E2:0.56, E3:0.33, E4:0.78,
-    F1:1.46, F2:0.62, F3:0.93, F4:0.84,
-    G1:1.05, G2:0.44, G3:0.87, G4:0.30,
-    H1:1.59, H2:0.52, H3:0.68, H4:0.37,
-    /* Placa 2 */
-    A5:0.10, A6:0.98, A7:0.54, A8:0.50,
-    B5:1.19, B6:0.37, B7:0.73, B8:0.27,
-    C5:0.81, C6:1.05, C7:1.32, C8:1.01,
-    D5:1.18, D6:0.63, D7:0.92, D8:0.75,
-    E5:1.36, E6:0.57, E7:0.34, E8:0.79,
-    F5:1.48, F6:0.59, F7:0.95, F8:0.81,
-    G5:1.07, G6:0.41, G7:0.88, G8:0.31,
-    H5:1.61, H6:0.49, H7:0.65, H8:0.38,
-    /* Placa 3 */
-    A9:0.12, A10:0.95, A11:0.52, A12:0.49,
-    B9:1.26, B10:0.42, B11:0.70, B12:0.26,
-    C9:0.88, C10:1.02, C11:1.27, C12:0.97,
-    D9:1.14, D10:0.69, D11:0.89, D12:0.82,
-    E9:1.32, E10:0.55, E11:0.32, E12:0.77,
-    F9:1.44, F10:0.65, F11:0.91, F12:0.87,
-    G9:1.04, G10:0.47, G11:0.86, G12:0.29,
-    H9:1.58, H10:0.55, H11:0.71, H12:0.36
-  }
+
+  /* EcoPlate: OD590 nm, 96 h — solo rizosférico tropical fictício */
+  ecoplate: { mode:'wells', data:{
+    A1:0.11,A2:0.96,A3:0.53,A4:0.49, B1:1.23,B2:0.39,B3:0.72,B4:0.26,
+    C1:0.85,C2:1.04,C3:1.29,C4:0.99, D1:1.16,D2:0.66,D3:0.90,D4:0.79,
+    E1:1.34,E2:0.56,E3:0.33,E4:0.78, F1:1.46,F2:0.62,F3:0.93,F4:0.84,
+    G1:1.05,G2:0.44,G3:0.87,G4:0.30, H1:1.59,H2:0.52,H3:0.68,H4:0.37,
+    A5:0.10,A6:0.98,A7:0.54,A8:0.50, B5:1.19,B6:0.37,B7:0.73,B8:0.27,
+    C5:0.81,C6:1.05,C7:1.32,C8:1.01, D5:1.18,D6:0.63,D7:0.92,D8:0.75,
+    E5:1.36,E6:0.57,E7:0.34,E8:0.79, F5:1.48,F6:0.59,F7:0.95,F8:0.81,
+    G5:1.07,G6:0.41,G7:0.88,G8:0.31, H5:1.61,H6:0.49,H7:0.65,H8:0.38,
+    A9:0.12,A10:0.95,A11:0.52,A12:0.49, B9:1.26,B10:0.42,B11:0.70,B12:0.26,
+    C9:0.88,C10:1.02,C11:1.27,C12:0.97, D9:1.14,D10:0.69,D11:0.89,D12:0.82,
+    E9:1.32,E10:0.55,E11:0.32,E12:0.77, F9:1.44,F10:0.65,F11:0.91,F12:0.87,
+    G9:1.04,G10:0.47,G11:0.86,G12:0.29, H9:1.58,H10:0.55,H11:0.71,H12:0.36
+  }},
+
+  /* MIC: OD600 — turbidimetria, E. coli ATCC 25922 fictício */
+  mic: { mode:'treatment', data:{
+    'Composto 1':                  [0.82],
+    'Composto 2':                  [0.13],
+    'Composto 3':                  [0.79],
+    'Composto 4':                  [0.08],
+    'Composto 5':                  [0.65],
+    'Composto 6':                  [0.41],
+    'Crescimento (sem droga)':     [0.91,0.88,0.93,0.90,0.87,0.92],
+    'Inibição total (referência)': [0.07,0.08,0.06,0.09,0.07,0.08],
+    'Branco':                      [0.05,0.04,0.06,0.05]
+  }},
+
+  /* MTT: OD570 nm — células Vero, borda sacrificial fictício */
+  mtt: { mode:'treatment', data:{
+    'Extrato 50 µg/mL':            [1.21,1.18,1.23,1.19,1.22,1.20],
+    'Extrato 100 µg/mL':           [0.99,1.02,0.97,1.01,0.98,1.00],
+    'Extrato 200 µg/mL':           [0.72,0.75,0.68,0.73,0.71,0.74],
+    'Extrato 400 µg/mL':           [0.38,0.41,0.36,0.39,0.40,0.37],
+    'Extrato 800 µg/mL':           [0.14,0.12,0.16,0.13,0.15,0.11],
+    'Células sem tratamento':      [1.28,1.31,1.25,1.30,1.27,1.32],
+    'Células + citotóxico padrão': [0.09,0.11,0.08,0.10,0.09,0.11],
+    'Branco':                      [0.05,0.06,0.04],
+    'Buffer (PBS)':                [0.04,0.05,0.03,0.05,0.04,0.06,0.04,0.05,0.03,0.04,
+                                    0.05,0.04,0.05,0.03,0.06,0.04,0.05,0.04,0.03,0.05,
+                                    0.04,0.06,0.04,0.05,0.04,0.03,0.05,0.04,0.06,0.05,
+                                    0.04,0.03,0.05,0.04,0.05,0.04]
+  }},
+
+  /* Fitotoxicidade: OD630 nm — OECD TG 208, Lactuca sativa fictício */
+  phyto: { mode:'treatment', data:{
+    'Extrato 0,1%':    [0.84,0.82,0.86,0.83],
+    'Extrato 0,5%':    [0.73,0.75,0.71,0.74],
+    'Extrato 1,0%':    [0.57,0.55,0.59,0.56],
+    'Extrato 2,5%':    [0.33,0.35,0.31,0.34],
+    'Extrato 5,0%':    [0.13,0.15,0.11,0.14],
+    'Água destilada':  [0.88,0.85,0.90,0.87,0.89,0.86,0.91,0.88],
+    'Herbicida padrão':[0.07,0.09,0.06,0.08],
+    'Branco':          [0.04,0.05,0.03,0.04]
+  }},
+
+  /* ELISA: OD450 nm — detecção IgG, RCBD-C fictício */
+  elisa: { mode:'treatment', data:{
+    'Amostra 1': [0.31,0.28,0.33,0.30,0.29,0.32],
+    'Amostra 2': [1.58,1.55,1.61,1.57,1.53,1.60],
+    'Amostra 3': [0.17,0.15,0.19,0.16,0.18,0.14],
+    'Amostra 4': [0.96,0.99,0.93,0.97,1.01,0.95],
+    'Amostra 5': [1.89,1.93,1.86,1.91,1.88,1.95],
+    'Amostra 6': [0.09,0.11,0.08,0.10,0.12,0.09],
+    'Amostra 7': [0.48,0.51,0.46,0.49,0.52,0.47],
+    'Amostra 8': [1.28,1.25,1.31,1.27,1.30,1.24],
+    'Branco de substrato': [0.07,0.08,0.06,0.07,0.09,0.08,0.07,0.06],
+    'Branco':              [0.05,0.04,0.06,0.05,0.04,0.05,0.06,0.04]
+  }},
+
+  /* CRD Genérico: OD600 — ensaio antimicrobiano fictício */
+  crd: { mode:'treatment', data:{
+    'Tratamento 1':      [0.45,0.48,0.43,0.46,0.50,0.44],
+    'Tratamento 2':      [0.81,0.84,0.79,0.82,0.86,0.80],
+    'Tratamento 3':      [1.16,1.19,1.13,1.17,1.21,1.15],
+    'Tratamento 4':      [0.68,0.71,0.65,0.69,0.73,0.67],
+    'Tratamento 5':      [0.38,0.41,0.36,0.39,0.43,0.37],
+    'Controle Negativo': [0.07,0.09,0.06,0.08],
+    'Controle Positivo': [1.48,1.51,1.45,1.50],
+    'Branco':            [0.04,0.05]
+  }},
+
+  /* Dose-Resposta: OD600 — 4 compostos × 10 concs (4PL fictício)
+     IC50: A=62.5, B=15, C=250, D=500 µg/mL  (Bottom=0.06, Top=1.30)
+     Poços de composto são sistemáticos (linhas A–D, cols 1–10) */
+  dose: { mode:'dose',
+    wells:{
+      A1:0.08,A2:0.11,A3:0.20,A4:0.38,A5:0.68,A6:0.98,A7:1.16,A8:1.25,A9:1.28,A10:1.29,
+      B1:0.06,B2:0.07,B3:0.08,B4:0.11,B5:0.19,B6:0.37,B7:0.66,B8:0.95,B9:1.15,B10:1.24,
+      C1:0.20,C2:0.38,C3:0.68,C4:0.98,C5:1.16,C6:1.25,C7:1.28,C8:1.29,C9:1.30,C10:1.30,
+      D1:0.38,D2:0.68,D3:0.98,D4:1.16,D5:1.25,D6:1.28,D7:1.29,D8:1.30,D9:1.30,D10:1.30
+    },
+    controls:{
+      'Crescimento (sem droga)': [1.30,1.28,1.31,1.29],
+      'Inibição total':          [0.06,0.07,0.06,0.07],
+      'Branco':                  [0.04,0.05]
+    }
+  },
+
+  /* Checkerboard: OD600 — Ampicilina × Gentamicina, sinergismo (FICI ≈ 0.25)
+     Linhas A–H = Ampi [64,32,16,8,4,2,1,0.5] µg/mL
+     Colunas 1–8 = Genta [64,32,16,8,4,2,1,0.5] µg/mL */
+  check: { mode:'wells', data:{
+    A1:0.06,A2:0.06,A3:0.06,A4:0.06,A5:0.06,A6:0.07,A7:0.08,A8:0.09,
+    B1:0.06,B2:0.06,B3:0.06,B4:0.06,B5:0.07,B6:0.08,B7:0.10,B8:0.12,
+    C1:0.06,C2:0.06,C3:0.06,C4:0.07,C5:0.08,C6:0.10,C7:0.16,C8:0.31,
+    D1:0.06,D2:0.06,D3:0.07,D4:0.08,D5:0.10,D6:0.18,D7:0.42,D8:0.71,
+    E1:0.06,E2:0.07,E3:0.08,E4:0.10,E5:0.18,E6:0.45,E7:0.91,E8:1.15,
+    F1:0.07,F2:0.08,F3:0.10,F4:0.18,F5:0.45,F6:0.89,F7:1.18,F8:1.25,
+    G1:0.08,G2:0.10,G3:0.16,G4:0.42,G5:0.91,G6:1.18,G7:1.24,G8:1.27,
+    H1:0.09,H2:0.12,H3:0.31,H4:0.71,H5:1.15,H6:1.25,H7:1.27,H8:1.29
+  }}
 };
 
 function generateEcoPlateLayout() {
@@ -3320,11 +3406,40 @@ function updateExampleBtn() {
 
 function loadExampleData() {
   if(!_activeTemplate || !EXAMPLE_DATA[_activeTemplate] || !_templatePristine) return;
-  const data = EXAMPLE_DATA[_activeTemplate];
-  Object.entries(data).forEach(([well, val]) => {
-    const inp = document.querySelector(`.val-input[data-well="${well}"]`);
+  const ex = EXAMPLE_DATA[_activeTemplate];
+
+  function setWell(id, val) {
+    const inp = document.querySelector(`.val-input[data-well="${id}"]`);
     if(inp) inp.value = val;
-  });
+  }
+
+  if(ex.mode === 'wells') {
+    Object.entries(ex.data).forEach(([id, val]) => setWell(id, val));
+  }
+  else if(ex.mode === 'treatment') {
+    const counters = {};
+    plateLayout.filter(w => w.type !== 'empty').forEach(w => {
+      const key = w.treatment || '';
+      const vals = ex.data[key];
+      if(!vals) return;
+      const idx = counters[key] || 0;
+      if(idx < vals.length) { setWell(w.id, vals[idx]); counters[key] = idx + 1; }
+    });
+  }
+  else if(ex.mode === 'dose') {
+    Object.entries(ex.wells).forEach(([id, val]) => setWell(id, val));
+    if(ex.controls) {
+      const counters = {};
+      plateLayout.filter(w => w.type !== 'empty' && w.concentration === undefined).forEach(w => {
+        const key = w.treatment || '';
+        const vals = ex.controls[key];
+        if(!vals) return;
+        const idx = counters[key] || 0;
+        if(idx < vals.length) { setWell(w.id, vals[idx]); counters[key] = idx + 1; }
+      });
+    }
+  }
+
   _exampleDataLoaded = true;
   switchTab('coleta');
   const isEng = document.getElementById('chkEngLab')?.checked;
