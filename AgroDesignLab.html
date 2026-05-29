@@ -242,6 +242,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
       <button class="template-btn" onclick="loadTemplate('dose')">📈 Dose-Resposta (Diluição Seriada)</button>
       <button class="template-btn" onclick="loadTemplate('check')">♟ Checkerboard (Sinergismo)</button>
       <button class="template-btn" onclick="loadTemplate('crd')">🎲 CRD Genérico</button>
+      <button class="template-btn" onclick="loadTemplate('ecoplate')">🌱 EcoPlate (Biolog CLPP)</button>
     </div>
   </div>
 
@@ -451,6 +452,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
   <div id="tabFieldbook" class="tab-content">
     <div class="action-row">
       <button class="btn btn-ghost btn-sm" onclick="exportCSVLab()">⬇ CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportJSONLab()" title="Exportar layout em JSON (Schema.org/bioschemas)">⬇ JSON</button>
       <span class="hint" id="fbCount"></span>
     </div>
     <div class="table-wrap">
@@ -474,6 +476,16 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
       <button class="btn btn-secondary btn-sm" onclick="exportScriptPyLab()"  title="Script Python (scipy/pingouin)">⬇ Python</button>
       <button class="btn btn-ghost btn-sm" onclick="openImportHelpModalLab()" title="Como analisar em outros softwares">📖 Softwares</button>
       <span class="hint" id="coletaHint"></span>
+    </div>
+    <div class="action-row" id="normRow" style="display:none;flex-wrap:wrap;gap:.35rem">
+      <span style="font-size:.8rem;color:var(--text-muted);white-space:nowrap">Normalizar:</span>
+      <select id="selNorm" style="font-size:.8rem;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:2px 8px">
+        <option value="pct">% Inibição</option>
+        <option value="zscore">Z-score Robusto</option>
+        <option value="bscore">B-score</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="applyNormalization()">Aplicar</button>
+      <span class="hint" id="normHint"></span>
     </div>
     <div id="coletaPlaceholder" class="info-box" style="font-size:.82rem">
       Gere o layout da placa para habilitar a entrada de dados de leitura.
@@ -565,7 +577,7 @@ df = df[df["Tipo"] == "Amostra"]</code></div>
   <button class="footer-btn" onclick="window.open('https://github.com/Magoc25/AgroDesign','_blank')" title="GitHub"><svg aria-hidden="true" viewBox="0 0 16 16" width="13" height="13" fill="currentColor" style="vertical-align:-.15em;margin-right:3px"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</button>
   <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
   <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
-  <span id="appVersion">© MGC · Lab v1.1.0</span>
+  <span id="appVersion">© MGC · Lab v1.2.0</span>
 </footer>
 
 <!-- ═══ PIX MODAL ═══ -->
@@ -637,7 +649,7 @@ df = df[df["Tipo"] == "Amostra"]</code></div>
 'use strict';
 
 /* ── Constantes ── */
-const LAB_VERSION = '1.1.0';
+const LAB_VERSION = '1.2.0';
 const ROWS = ['A','B','C','D','E','F','G','H'];
 const COLS = [1,2,3,4,5,6,7,8,9,10,11,12];
 
@@ -1198,7 +1210,8 @@ function renderPlate() {
 }
 
 function plateMode() {
-  if(plateLayout.some(w=>w.concentration!==undefined)) return 'dose';
+  if(plateLayout.some(w=>w.ecoplate))                   return 'ecoplate';
+  if(plateLayout.some(w=>w.concentration!==undefined))  return 'dose';
   if(plateLayout.some(w=>w.concA!==undefined))          return 'check';
   return 'standard';
 }
@@ -1356,6 +1369,20 @@ function renderSummaryLab() {
   const nFree    = 96 - nUsed;
 
   const mode = plateMode();
+  if(mode==='ecoplate') {
+    const nUsedE = plateLayout.filter(w=>w.type!=='empty').length;
+    const cards=[
+      {lbl:'Delineamento',val:'EcoPlate (Biolog)'},
+      {lbl:'Substratos de carbono',val:31},
+      {lbl:'Tríplices',val:3},
+      {lbl:'Poços — amostras',val:93},
+      {lbl:'Controles de água',val:3},
+      {lbl:'Poços usados',val:nUsedE},
+    ];
+    document.getElementById('labSummaryCards').innerHTML=cards.map(c=>`<div class="summary-card"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div></div>`).join('');
+    document.getElementById('labQualityBox').innerHTML=`<div class="info-box"><strong>EcoPlate — CLPP (Community-Level Physiological Profile)</strong><br><span class="hint">31 substratos de carbono × 3 tríplices · Calcule AWCD e índices de diversidade na aba <strong>Coleta</strong> após inserir as leituras de OD.<br><em>Garland &amp; Mills, Soil Biol Biochem, 1991</em></span></div>`;
+    return;
+  }
   if(mode==='dose'||mode==='check') {
     const nSample = plateLayout.filter(w=>w.type==='sample').length;
     const nUsed   = plateLayout.filter(w=>w.type!=='empty').length;
@@ -1717,6 +1744,10 @@ function renderColeta() {
   const n = usedWells.length;
   document.getElementById('coletaHint').textContent = isEng ? `${n} wells` : `${n} poços`;
   document.getElementById('coletaStats').innerHTML='';
+  const hasCtrlNeg = plateLayout.some(w=>w.type==='ctrl_neg');
+  const hasCtrlPos = plateLayout.some(w=>w.type==='ctrl_pos');
+  const normRow = document.getElementById('normRow');
+  if(normRow) normRow.style.display = (hasCtrlNeg&&hasCtrlPos) ? '' : 'none';
 }
 
 function calcStats() {
@@ -1786,6 +1817,11 @@ function calcStats() {
        <table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
        <tbody>${rows}</tbody></table>
      </div>${zpBox}`;
+
+  /* Fase 3 — extensões por modo */
+  const mode3 = plateMode();
+  if(mode3==='dose')     _renderDoseResponse(isEng);
+  if(mode3==='ecoplate') document.getElementById('coletaStats').innerHTML += _calcEcoStats(isEng);
 }
 
 /* ── Separador decimal (Coleta) ── */
@@ -1829,6 +1865,466 @@ function checkOutliersLab() {
   });
   if(count===0) alert('✅ Nenhuma irregularidade detectada.');
   else alert(`⚠ ${count} valor(es) discrepante(s) encontrado(s) — destacado(s) em amarelo.\n\nCritério: Tukey IQR (Q1 − 1,5×IQR ou Q3 + 1,5×IQR). Mínimo 4 observações por grupo.`);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FASE 3 — 4PL IN-BROWSER
+   Levenberg-Marquardt em espaço log-concentração.
+   Ref: Ritz et al., PLOS ONE, 2015 (pacote drc); Sebaugh, Pharm Stat, 2011
+══════════════════════════════════════════════════════════════ */
+function solveLinear4x4(A, b) {
+  const n=4;
+  const M=A.map((row,i)=>[...row, b[i]]);
+  for(let col=0;col<n;col++){
+    let mx=col, mv=Math.abs(M[col][col]);
+    for(let r=col+1;r<n;r++) if(Math.abs(M[r][col])>mv){mv=Math.abs(M[r][col]);mx=r;}
+    [M[col],M[mx]]=[M[mx],M[col]];
+    if(Math.abs(M[col][col])<1e-15) return null;
+    for(let r=col+1;r<n;r++){
+      const f=M[r][col]/M[col][col];
+      for(let k=col;k<=n;k++) M[r][k]-=f*M[col][k];
+    }
+  }
+  const x=new Array(n).fill(0);
+  for(let i=n-1;i>=0;i--){
+    x[i]=M[i][n];
+    for(let j=i+1;j<n;j++) x[i]-=M[i][j]*x[j];
+    x[i]/=M[i][i];
+  }
+  return x;
+}
+
+function fit4PL(concList, yList) {
+  /* Parâmetros: p = [b (Hill slope), Bottom, Top, logEC50]
+     Modelo (conv. Prism/AAC): f(x) = Bottom + (Top−Bottom)/(1+(EC50/x)^b)
+     Em log-espaço: f = Bottom + span/(1+10^(b*(logEC50−log10(x)))) */
+  const pairs=concList.map((c,i)=>[c,yList[i]]).filter(([c])=>c>0);
+  if(pairs.length<4) return null;
+  const lx=pairs.map(([c])=>Math.log10(c));
+  const y =pairs.map(([,v])=>v);
+  const nn=lx.length;
+
+  const yMin=Math.min(...y), yMax=Math.max(...y), yMid=(yMin+yMax)/2;
+  const sorted=lx.map((l,i)=>[l,y[i]]).sort((a,b2)=>a[0]-b2[0]);
+  let le0=sorted[Math.floor(nn/2)][0];
+  for(let i=0;i<sorted.length-1;i++){
+    const [l1,y1]=sorted[i],[l2,y2]=sorted[i+1];
+    if((y1-yMid)*(y2-yMid)<=0&&Math.abs(y2-y1)>1e-15){le0=l1+(yMid-y1)*(l2-l1)/(y2-y1);break;}
+  }
+  let p=[1,yMin,yMax,le0]; /* [b, Bottom, Top, logEC50] */
+
+  const model=(lxi,[b,bot,top,le])=>{ const u=Math.pow(10,b*(le-lxi)); return bot+(top-bot)/(1+u); };
+  const jac  =(lxi,[b,bot,top,le])=>{
+    const u=Math.pow(10,b*(le-lxi)),S=1+u,S2=S*S,sp=top-bot,L=Math.LN10;
+    return [-sp*u*L*(le-lxi)/S2, u/S, 1/S, -sp*b*u*L/S2];
+  };
+
+  let lambda=0.01, prevSSR=Infinity;
+  for(let iter=0;iter<300;iter++){
+    const r=lx.map((l,i)=>y[i]-model(l,p));
+    const ssr=r.reduce((s,ri)=>s+ri*ri,0);
+    if(Math.abs(ssr-prevSSR)<1e-14*ssr+1e-20) break;
+    prevSSR=ssr;
+    const JtJ=Array.from({length:4},()=>new Array(4).fill(0));
+    const Jtr=new Array(4).fill(0);
+    lx.forEach((l,i)=>{
+      const ji=jac(l,p);
+      for(let a=0;a<4;a++){Jtr[a]+=ji[a]*r[i];for(let bb=0;bb<4;bb++) JtJ[a][bb]+=ji[a]*ji[bb];}
+    });
+    const JtJd=JtJ.map((row,i)=>row.map((v,j)=>j===i?v*(1+lambda):v));
+    const dp=solveLinear4x4(JtJd,Jtr);
+    if(!dp){lambda*=10;continue;}
+    const pN=p.map((pi,i)=>pi+dp[i]);
+    if(pN[2]<=pN[1]+1e-10){lambda*=10;continue;}
+    const ssrN=lx.reduce((s,l,i)=>{const ri=y[i]-model(l,pN);return s+ri*ri;},0);
+    if(ssrN<ssr){p=pN;lambda=Math.max(lambda/5,1e-10);}else{lambda=Math.min(lambda*5,1e10);}
+    if(lambda>1e9) break;
+  }
+
+  const yBar=y.reduce((a,b2)=>a+b2,0)/nn;
+  const ssTot=y.reduce((s,yi)=>s+(yi-yBar)**2,0);
+  const ssRes=lx.reduce((s,l,i)=>{const ri=y[i]-model(l,p);return s+ri*ri;},0);
+  return {
+    b:p[0], Bottom:p[1], Top:p[2], EC50:Math.pow(10,p[3]), logEC50:p[3],
+    r2: ssTot>0 ? Math.max(0,1-ssRes/ssTot) : 0,
+    rmse: Math.sqrt(ssRes/Math.max(nn-4,1))
+  };
+}
+
+function drawDoseResponseChart(container, fitsMap, rawData, unit) {
+  const W=520,H=270,ml=55,mr=20,mt=22,mb=42,pw=W-ml-mr,ph=H-mt-mb;
+  const allC=Object.values(rawData).flat().map(d=>d.conc).filter(c=>c>0);
+  if(!allC.length) return;
+  const logMin=Math.floor(Math.log10(Math.min(...allC)));
+  const logMax=Math.ceil(Math.log10(Math.max(...allC)));
+  const allY=Object.values(rawData).flat().map(d=>d.val);
+  let yMn=Math.min(...allY),yMx=Math.max(...allY);
+  const yPad=(yMx-yMn)*0.12||5; yMn-=yPad; yMx+=yPad;
+  const toX=lx=>ml+(lx-logMin)/(logMax-logMin||1)*pw;
+  const toY=yv=>mt+ph-(yv-yMn)/(yMx-yMn||1)*ph;
+  const PAL=['#3b82f6','#ef4444','#10b981','#f59e0b','#8b5cf6','#ec4899','#14b8a6'];
+  const cpds=Object.keys(fitsMap);
+
+  let grid='';
+  for(let lx=logMin;lx<=logMax;lx++){
+    const x=toX(lx).toFixed(1);
+    const lbl=lx===0?'1':lx>0?`10${lx>1?lx:''}`:`10⁻${-lx}`;
+    grid+=`<line x1="${x}" y1="${mt}" x2="${x}" y2="${mt+ph}" stroke="#e5e7eb" stroke-width="0.5"/>`;
+    grid+=`<text x="${x}" y="${mt+ph+13}" text-anchor="middle" font-size="9" fill="#6b7280">${lbl}</text>`;
+  }
+  const rawSt=(yMx-yMn)/5;
+  const mag=Math.pow(10,Math.floor(Math.log10(rawSt||1)));
+  const nSt=Math.ceil(rawSt/mag)*mag||1;
+  for(let yi=Math.ceil(yMn/nSt)*nSt;yi<=yMx+nSt*0.01;yi+=nSt){
+    const yy=toY(yi);
+    if(yy<mt-2||yy>mt+ph+2) continue;
+    grid+=`<line x1="${ml}" y1="${yy.toFixed(1)}" x2="${ml+pw}" y2="${yy.toFixed(1)}" stroke="#e5e7eb" stroke-width="0.5"/>`;
+    const dec=Math.max(0,1-Math.floor(Math.log10(nSt||1)));
+    grid+=`<text x="${ml-5}" y="${(yy+3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="#6b7280">${yi.toFixed(dec)}</text>`;
+  }
+
+  let curves='',pts='',ec50s='';
+  cpds.forEach((cmp,ci)=>{
+    const col=PAL[ci%PAL.length],fit=fitsMap[cmp];
+    if(fit){
+      const pts2=[];
+      for(let k=0;k<=200;k++){
+        const lx2=logMin+(logMax-logMin)*k/200;
+        const u=Math.pow(10,fit.b*(fit.logEC50-lx2));
+        const fy=fit.Bottom+(fit.Top-fit.Bottom)/(1+u);
+        if(fy>=yMn-yPad*2&&fy<=yMx+yPad*2) pts2.push(`${toX(lx2).toFixed(1)},${toY(fy).toFixed(1)}`);
+        else if(pts2.length>1){curves+=`<polyline points="${pts2.join(' ')}" fill="none" stroke="${col}" stroke-width="2" opacity="0.85"/>`;pts2.length=0;}
+      }
+      if(pts2.length>1) curves+=`<polyline points="${pts2.join(' ')}" fill="none" stroke="${col}" stroke-width="2" opacity="0.85"/>`;
+      const ex=toX(fit.logEC50).toFixed(1);
+      ec50s+=`<line x1="${ex}" y1="${mt}" x2="${ex}" y2="${mt+ph}" stroke="${col}" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>`;
+    }
+    rawData[cmp].filter(d=>d.conc>0).forEach(d=>{
+      const cx=toX(Math.log10(d.conc)).toFixed(1),cy=toY(d.val).toFixed(1);
+      pts+=`<circle cx="${cx}" cy="${cy}" r="3.5" fill="${col}" opacity="0.8" stroke="white" stroke-width="0.8"><title>${esc(cmp)}: ${d.conc} → ${d.val}</title></circle>`;
+    });
+  });
+
+  const unitLbl=unit?` (${unit})`:'';
+  let leg='';
+  cpds.forEach((cmp,ci)=>{
+    const col=PAL[ci%PAL.length],fit=fitsMap[cmp];
+    const lbl=(cmp.length>20?cmp.slice(0,18)+'…':cmp)+(fit?` — IC₅₀ ${fit.EC50>=1?fit.EC50.toFixed(2):fit.EC50.toPrecision(3)}${unit?' '+unit:''}; R²=${fit.r2.toFixed(3)}`:'');
+    leg+=`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:10px;font-size:.78rem;color:#374151"><svg width="10" height="10"><rect width="10" height="10" rx="2" fill="${col}"/></svg>${esc(lbl)}</span>`;
+  });
+
+  container.innerHTML=`<div style="overflow-x:auto">
+<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;display:block;font-family:Arial,sans-serif">
+  ${grid}${curves}${ec50s}${pts}
+  <line x1="${ml}" y1="${mt}" x2="${ml}" y2="${mt+ph}" stroke="#374151" stroke-width="1.5"/>
+  <line x1="${ml}" y1="${mt+ph}" x2="${ml+pw}" y2="${mt+ph}" stroke="#374151" stroke-width="1.5"/>
+  <rect x="${ml}" y="${mt}" width="${pw}" height="${ph}" fill="none" stroke="#d1d5db" stroke-width="0.5"/>
+  <text x="${ml+pw/2}" y="${H-3}" text-anchor="middle" font-size="10" fill="#374151">log Concentração${esc(unitLbl)}</text>
+  <text transform="rotate(-90)" x="${-(mt+ph/2)}" y="13" text-anchor="middle" font-size="10" fill="#374151">Resposta</text>
+</svg>
+<div style="margin-top:.25rem;line-height:1.6">${leg}</div></div>`;
+}
+
+function _renderDoseResponse(isEng) {
+  const rawData={};
+  document.querySelectorAll('.val-input').forEach(inp=>{
+    const v=parseFloat(inp.value); if(isNaN(v)) return;
+    const w=plateLayout.find(x=>x.id===inp.dataset.well);
+    if(!w||w.type!=='sample'||w.concentration===undefined) return;
+    if(!rawData[w.treatment]) rawData[w.treatment]=[];
+    rawData[w.treatment].push({conc:w.concentration,val:v});
+  });
+  if(!Object.keys(rawData).length) return;
+
+  const unit=plateLayout.find(w=>w.concUnit)?.concUnit||'';
+  const fitsMap={};
+  const tableRows=[];
+  const heads=isEng
+    ?['Compound','IC₅₀','Hill b','Bottom','Top','R²','RMSE']
+    :['Composto','IC₅₀','Hill b','Bottom','Top','R²','RMSE'];
+
+  Object.entries(rawData).forEach(([cmp,pts])=>{
+    const fit=fit4PL(pts.map(d=>d.conc),pts.map(d=>d.val));
+    fitsMap[cmp]=fit;
+    if(fit){
+      const ec50fmt=fit.EC50>=1?fit.EC50.toFixed(3):fit.EC50.toPrecision(4);
+      tableRows.push(`<tr><td>${esc(cmp)}</td><td><strong>${ec50fmt}</strong>${unit?' '+esc(unit):''}</td><td>${fit.b.toFixed(3)}</td><td>${fit.Bottom.toFixed(4)}</td><td>${fit.Top.toFixed(4)}</td><td>${fit.r2.toFixed(3)}</td><td>${fit.rmse.toFixed(4)}</td></tr>`);
+    } else {
+      tableRows.push(`<tr><td>${esc(cmp)}</td><td colspan="6" style="color:var(--text-muted)">${isEng?'< 4 data points':'< 4 pontos'}</td></tr>`);
+    }
+  });
+
+  const cs=document.getElementById('coletaStats');
+  cs.innerHTML+=`
+<div class="form-section-title" style="margin-top:.75rem">${isEng?'4PL Dose-Response Fit (Levenberg-Marquardt)':'Ajuste 4PL Dose-Resposta (Levenberg-Marquardt)'}</div>
+<div class="table-wrap"><table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${tableRows.join('')}</tbody></table></div>
+<div id="doseChart" style="margin-top:.5rem"></div>
+<div class="hint" style="font-size:.78rem;margin:.25rem 0">f(x) = Bottom + (Top−Bottom) / (1+(IC₅₀/x)ᵇ) &nbsp;·&nbsp; <em>Ritz et al., PLOS ONE 10:e0146021, 2015</em></div>`;
+  drawDoseResponseChart(document.getElementById('doseChart'),fitsMap,rawData,unit);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FASE 3 — NORMALIZAÇÃO
+   % Inibição: Zhang et al., J Biomol Screen, 1999
+   Robust Z-score: Birmingham et al., Nature Methods, 2009
+   B-score (Tukey median polish): Brideau et al., J Biomol Screen, 2003
+══════════════════════════════════════════════════════════════ */
+function applyNormalization() {
+  const m=document.getElementById('selNorm')?.value||'pct';
+  if(m==='pct')    normPctInhibition();
+  else if(m==='zscore') normRobustZscore();
+  else if(m==='bscore') normBscore();
+}
+
+function _wellValues() {
+  const m={};
+  document.querySelectorAll('.val-input').forEach(inp=>{const v=parseFloat(inp.value);if(!isNaN(v))m[inp.dataset.well]=v;});
+  return m;
+}
+
+function _arrMedian(arr) {
+  if(!arr.length) return 0;
+  const s=[...arr].sort((a,b)=>a-b);
+  return s.length%2?s[Math.floor(s.length/2)]:(s[s.length/2-1]+s[s.length/2])/2;
+}
+
+function _applyNormToTable(normMap, label) {
+  const head=document.getElementById('coletaHead');
+  const body=document.getElementById('coletaBody');
+  if(!head||!body) return;
+  if(!head.querySelector('th[data-norm]')){
+    const th=document.createElement('th'); th.dataset.norm='1'; th.textContent=label;
+    head.querySelector('tr').appendChild(th);
+  } else { head.querySelector('th[data-norm]').textContent=label; }
+  body.querySelectorAll('tr').forEach(tr=>{
+    const inp=tr.querySelector('.val-input'); if(!inp) return;
+    const existing=tr.querySelector('td[data-norm]'); if(existing) existing.remove();
+    const td=document.createElement('td'); td.dataset.norm='1';
+    if(normMap.hasOwnProperty(inp.dataset.well)){
+      td.textContent=normMap[inp.dataset.well].toFixed(4); td.style.color='var(--primary)';
+    } else { td.textContent='—'; td.style.color='var(--text-muted)'; }
+    tr.appendChild(td);
+  });
+  const hint=document.getElementById('normHint');
+  if(hint) hint.textContent=label+' aplicado';
+}
+
+function normPctInhibition() {
+  /* % Inibição = (µ_neg − x)/(µ_neg − µ_pos) × 100
+     Zhang et al., J Biomol Screen 4:67-73, 1999 */
+  const vals=_wellValues(), negV=[], posV=[];
+  plateLayout.forEach(w=>{
+    if(vals[w.id]===undefined) return;
+    if(w.type==='ctrl_neg') negV.push(vals[w.id]);
+    if(w.type==='ctrl_pos') posV.push(vals[w.id]);
+  });
+  if(!negV.length||!posV.length){alert('Necessário: controles negativo e positivo com valores inseridos.');return;}
+  const negM=negV.reduce((a,b)=>a+b,0)/negV.length;
+  const posM=posV.reduce((a,b)=>a+b,0)/posV.length;
+  const dyn=negM-posM;
+  if(Math.abs(dyn)<1e-15){alert('Janela dinâmica ≈ 0 (µ₋ ≈ µ₊).');return;}
+  const normMap={};
+  plateLayout.filter(w=>w.type==='sample').forEach(w=>{
+    if(vals[w.id]!==undefined) normMap[w.id]=(negM-vals[w.id])/dyn*100;
+  });
+  _applyNormToTable(normMap,'% Inib.');
+}
+
+function normRobustZscore() {
+  /* Robust Z-score = (x − median) / (1.4826 × MAD)
+     Birmingham et al., Nature Methods 6:569-575, 2009 */
+  const vals=_wellValues();
+  const allV=plateLayout.filter(w=>w.type!=='empty'&&w.type!=='buffer'&&vals[w.id]!==undefined).map(w=>vals[w.id]);
+  if(allV.length<4){alert('Mínimo 4 poços com valores.');return;}
+  const med=_arrMedian(allV);
+  const absD=allV.map(v=>Math.abs(v-med));
+  const mad=_arrMedian(absD);
+  if(mad<1e-15){alert('MAD = 0 — sem variação suficiente.');return;}
+  const normMap={};
+  plateLayout.filter(w=>w.type==='sample'&&vals[w.id]!==undefined).forEach(w=>{
+    normMap[w.id]=(vals[w.id]-med)/(1.4826*mad);
+  });
+  _applyNormToTable(normMap,'Z-score R.');
+}
+
+function normBscore() {
+  /* B-score: Tukey median polish para remover efeitos de linha e coluna.
+     Brideau et al., J Biomol Screen 8:634-647, 2003 */
+  const vals=_wellValues();
+  const R8=['A','B','C','D','E','F','G','H'];
+  const M=Array.from({length:8},()=>new Array(12).fill(NaN));
+  const wIdx={};
+  plateLayout.forEach(w=>{
+    if(w.type==='empty'||w.type==='buffer') return;
+    const r=R8.indexOf(w.row),c=w.col-1;
+    if(r<0||c<0||c>11) return;
+    wIdx[w.id]={r,c};
+    M[r][c]=vals[w.id]??NaN;
+  });
+  for(let iter=0;iter<10;iter++){
+    for(let r=0;r<8;r++){
+      const m=_arrMedian(M[r].filter(v=>!isNaN(v)));
+      for(let c=0;c<12;c++) if(!isNaN(M[r][c])) M[r][c]-=m;
+    }
+    for(let c=0;c<12;c++){
+      const col=M.map(row=>row[c]).filter(v=>!isNaN(v));
+      const m=_arrMedian(col);
+      for(let r=0;r<8;r++) if(!isNaN(M[r][c])) M[r][c]-=m;
+    }
+  }
+  const resids=M.flat().filter(v=>!isNaN(v));
+  if(!resids.length){alert('Sem dados.');return;}
+  const madV=_arrMedian(resids.map(v=>Math.abs(v-_arrMedian(resids))));
+  if(madV<1e-15){alert('MAD = 0 — sem variação suficiente.');return;}
+  const scale=1.4826*madV;
+  const normMap={};
+  plateLayout.filter(w=>w.type==='sample').forEach(w=>{
+    const idx=wIdx[w.id]; if(!idx) return;
+    const res=M[idx.r][idx.c]; if(isNaN(res)) return;
+    normMap[w.id]=res/scale;
+  });
+  _applyNormToTable(normMap,'B-score');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FASE 3 — ECOPLATE (Biolog EcoPlate — CLPP)
+   Garland & Mills, Soil Biol Biochem 23:213-221, 1991
+   Zak et al., Soil Biol Biochem 26:1101-1106, 1994
+══════════════════════════════════════════════════════════════ */
+const ECO_SUB=[
+  /* [row, colOffset(0-3), guild, substrate] — 31 substratos de carbono */
+  ['A',1,'carboxylic','Pyruvic acid methyl ester'],
+  ['A',2,'polymer','Tween 40'],
+  ['A',3,'polymer','Tween 80'],
+  ['B',0,'carbohydrate','D-Cellobiose'],
+  ['B',1,'carbohydrate','α-Cyclodextrin'],
+  ['B',2,'carboxylic','D-Galactonic acid-γ-lactone'],
+  ['B',3,'carboxylic','2-Hydroxy benzoic acid'],
+  ['C',0,'carbohydrate','i-Erythritol'],
+  ['C',1,'carboxylic','D-Malic acid'],
+  ['C',2,'aminoacid','L-Arginine'],
+  ['C',3,'aminoacid','L-Asparagine'],
+  ['D',0,'carbohydrate','N-Acetyl-D-Glucosamine'],
+  ['D',1,'carboxylic','D-Glucosaminic acid'],
+  ['D',2,'carbohydrate','Glucose-1-phosphate'],
+  ['D',3,'carbohydrate','D,L-α-Glycerol phosphate'],
+  ['E',0,'carbohydrate','D-Xylose'],
+  ['E',1,'carboxylic','D-Galacturonic acid'],
+  ['E',2,'amine','Putrescine'],
+  ['E',3,'aminoacid','L-Phenylalanine'],
+  ['F',0,'carbohydrate','D-Mannitol'],
+  ['F',1,'carboxylic','γ-Hydroxybutyric acid'],
+  ['F',2,'aminoacid','L-Serine'],
+  ['F',3,'aminoacid','L-Threonine'],
+  ['G',0,'carbohydrate','α-D-Lactose'],
+  ['G',1,'carboxylic','Itaconic acid'],
+  ['G',2,'aminoacid','Glycyl-L-Glutamic acid'],
+  ['G',3,'amine','Phenylethylamine'],
+  ['H',0,'carbohydrate','α-D-Glucose'],
+  ['H',1,'carboxylic','α-Ketobutyric acid'],
+  ['H',2,'polymer','Glycogen'],
+  ['H',3,'carboxylic','4-Hydroxy benzoic acid'],
+];
+
+function generateEcoPlateLayout() {
+  const wm={};
+  ALL_WELLS.forEach(id=>{
+    wm[id]={id,row:id[0],col:parseInt(id.slice(1)),type:'empty',treatment:'',rep:null,block:null,ecoplate:true};
+  });
+  [0,1,2].forEach(plate=>{
+    const cb=plate*4+1; /* colBase: 1, 5, 9 */
+    const blk=plate+1;
+    const wcId=`A${cb}`;
+    wm[wcId]={...wm[wcId],type:'ctrl_neg',treatment:'H₂O (ctrl.)',rep:plate+1,block:blk};
+    ECO_SUB.forEach(([row,off,guild,name])=>{
+      const id=`${row}${cb+off}`;
+      wm[id]={...wm[id],type:'sample',treatment:name,guild,rep:plate+1,block:blk};
+    });
+  });
+  plateLayout=ROWS.flatMap(r=>COLS.map(c=>wm[`${r}${c}`]));
+  renderPlate(); renderSummaryLab(); renderFieldBook(); renderColeta(); renderMM();
+  switchTab('placa');
+  toast('EcoPlate Biolog: 31 substratos de carbono × 3 tríplices | A1/A5/A9 = H₂O | Garland & Mills, 1991');
+}
+
+function _calcEcoStats(isEng) {
+  const valMap={};
+  document.querySelectorAll('.val-input').forEach(inp=>{
+    const v=parseFloat(inp.value); if(!isNaN(v)) valMap[inp.dataset.well]=v;
+  });
+  const waterODs=[0,1,2].map(p=>valMap[['A1','A5','A9'][p]]??NaN);
+  if(waterODs.every(isNaN)) return `<div class="info-box">${isEng?'Enter H₂O control readings (A1, A5, A9) to calculate AWCD and diversity indices.':'Insira as leituras dos controles de água (A1, A5, A9) para calcular AWCD e índices de diversidade.'}</div>`;
+
+  const subVals=ECO_SUB.map(([row,off,guild,name])=>{
+    const vs=[0,1,2].map(p=>{
+      const id=`${row}${p*4+1+off}`;
+      const v=valMap[id]; const w=waterODs[p];
+      return (!isNaN(v)&&!isNaN(w)) ? Math.max(0,v-w) : null;
+    }).filter(v=>v!==null);
+    const mean=vs.length?vs.reduce((a,b)=>a+b,0)/vs.length:0;
+    return {name,guild,mean};
+  });
+
+  const totAct=subVals.reduce((s,d)=>s+d.mean,0);
+  if(totAct===0) return `<div class="info-box">${isEng?'All substrate OD values ≤ water control.':'Todos os valores OD ≤ controle de água.'}</div>`;
+
+  const AWCD=totAct/31;
+  const ps=subVals.map(d=>d.mean/totAct);
+  const Hp=-ps.filter(p=>p>0).reduce((s,p)=>s+p*Math.log(p),0);
+  const D =ps.reduce((s,p)=>s+p*p,0);
+  const U =Math.sqrt(D);
+
+  const gN={carbohydrate:isEng?'Carbohydrates':'Carboidratos',carboxylic:isEng?'Carboxylic acids':'Ácidos carboxílicos',aminoacid:isEng?'Amino acids':'Aminoácidos',polymer:isEng?'Polymers':'Polímeros',amine:isEng?'Amines/amides':'Aminas'};
+  const guilds={};
+  subVals.forEach(d=>{if(!guilds[d.guild])guilds[d.guild]={total:0};guilds[d.guild].total+=d.mean;});
+  const gRows=Object.entries(guilds).map(([g,v])=>`<tr><td>${gN[g]||g}</td><td>${(v.total/totAct*100).toFixed(1)}%</td></tr>`).join('');
+  const top5=[...subVals].sort((a,b)=>b.mean-a.mean).slice(0,5);
+  const tRows=top5.map(d=>`<tr><td>${esc(d.name)}</td><td>${d.mean.toFixed(4)}</td><td>${(d.mean/totAct*100).toFixed(1)}%</td></tr>`).join('');
+
+  return `
+<div class="form-section-title" style="margin-top:.75rem">${isEng?'EcoPlate — Community-Level Physiological Profile (CLPP)':'EcoPlate — Perfil Fisiológico da Comunidade (CLPP)'}</div>
+<div class="summary-grid" style="margin-bottom:.5rem">
+  <div class="summary-card"><div class="lbl">AWCD</div><div class="val">${AWCD.toFixed(4)}</div></div>
+  <div class="summary-card"><div class="lbl">Shannon H'</div><div class="val">${Hp.toFixed(3)}</div></div>
+  <div class="summary-card"><div class="lbl">Simpson D</div><div class="val">${D.toFixed(3)}</div></div>
+  <div class="summary-card"><div class="lbl">McIntosh U</div><div class="val">${U.toFixed(3)}</div></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+  <div><div class="form-section-title" style="margin:.25rem 0">${isEng?'Activity by guild':'Atividade por guilda'}</div>
+    <div class="table-wrap"><table><thead><tr><th>${isEng?'Guild':'Guilda'}</th><th>${isEng?'% Activity':'% Atividade'}</th></tr></thead><tbody>${gRows}</tbody></table></div>
+  </div>
+  <div><div class="form-section-title" style="margin:.25rem 0">${isEng?'Top 5 substrates':'Top 5 substratos'}</div>
+    <div class="table-wrap"><table><thead><tr><th>${isEng?'Substrate':'Substrato'}</th><th>Cᵢ−R</th><th>%</th></tr></thead><tbody>${tRows}</tbody></table></div>
+  </div>
+</div>
+<div class="info-box hint" style="margin-top:.4rem;font-size:.78rem">AWCD = Σ(Cᵢ−R)/31 (neg→0) · H' = −Σpᵢ ln pᵢ · D = Σpᵢ² · U = √D<br>
+<em>Garland &amp; Mills, Soil Biol Biochem 23:213, 1991 · Zak et al., 1994 · McIntosh, Ecology 48:392, 1967</em></div>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FASE 3 — JSON EXPORT (bioschemas-inspired)
+══════════════════════════════════════════════════════════════ */
+function exportJSONLab() {
+  if(!plateLayout.length){alert('Gere o layout primeiro.');return;}
+  const valMap={};
+  document.querySelectorAll('.val-input').forEach(inp=>{if(inp.value!=='')valMap[inp.dataset.well]=parseFloat(inp.value);});
+  const obj={
+    '@context':'https://schema.org','@type':'Dataset',
+    name:'AgroDesign Lab — 96-Well Plate Layout',
+    description:`Mode: ${plateMode().toUpperCase()} | AgroDesign Lab v${LAB_VERSION}`,
+    dateCreated:new Date().toISOString(),
+    plateFormat:'ANSI/SLAS 96-well (8×12)',
+    appVersion:LAB_VERSION,
+    wells:plateLayout.filter(w=>w.type!=='empty').map(w=>({
+      wellId:w.id, row:w.row, column:w.col, type:w.type,
+      treatment:w.treatment||null, technicalRep:w.rep??null, block:w.block??null,
+      ...(w.concentration!==undefined?{concentration:w.concentration,concUnit:w.concUnit||''}:{}),
+      ...(w.concA!==undefined?{concA:w.concA,concB:w.concB,drugA:w.drugA,drugB:w.drugB,unitA:w.unitA,unitB:w.unitB}:{}),
+      ...(w.guild!==undefined?{guild:w.guild}:{}),
+      ...(valMap[w.id]!==undefined?{measuredValue:valMap[w.id]}:{})
+    }))
+  };
+  dlBlob(new Blob([JSON.stringify(obj,null,2)],{type:'application/json;charset=utf-8'}),'agrodesign-lab.json');
 }
 
 function exportCSVColeta() {
@@ -2008,6 +2504,13 @@ function generateCheckLayout(autoUpdate=false) {
    TEMPLATES
 ══════════════════════════════════════════════ */
 function loadTemplate(name) {
+  /* EcoPlate — layout fixo, geração própria */
+  if(name==='ecoplate') {
+    document.getElementById('selDesignLab').value='CRD';
+    onDesignChange();
+    generateEcoPlateLayout();
+    return;
+  }
   /* Templates DOSE e CHECK têm lógica própria */
   if(name==='dose') {
     document.getElementById('selDesignLab').value = 'DOSE';
