@@ -1,0 +1,101 @@
+# Dados simulados — EcoPlate Biolog CLPP — Solo Cerrado (amostra fictícia)
+# Leitura OD590 a 96h de incubação a 25°C
+# Gerado por AgroDesign Lab para fins de teste e demonstração
+# Para importar: aba Coleta → botão ⬆ Importar CSV
+Poço,Linha,Coluna,Tipo,Tratamento,Replicata_Técnica,Bloco,Valor
+A1,A,1,Ctrl. Negativo,"H₂O (ctrl.)",1,1,0.082
+A2,A,2,Amostra,"Pyruvic acid methyl ester",1,1,0.778
+A3,A,3,Amostra,"Tween 40",1,1,0.635
+A4,A,4,Amostra,"Tween 80",1,1,0.592
+A5,A,5,Ctrl. Negativo,"H₂O (ctrl.)",2,2,0.079
+A6,A,6,Amostra,"Pyruvic acid methyl ester",2,2,0.717
+A7,A,7,Amostra,"Tween 40",2,2,0.586
+A8,A,8,Amostra,"Tween 80",2,2,0.563
+A9,A,9,Ctrl. Negativo,"H₂O (ctrl.)",3,3,0.085
+A10,A,10,Amostra,"Pyruvic acid methyl ester",3,3,0.727
+A11,A,11,Amostra,"Tween 40",3,3,0.576
+A12,A,12,Amostra,"Tween 80",3,3,0.548
+B1,B,1,Amostra,"D-Cellobiose",1,1,1.061
+B2,B,2,Amostra,"α-Cyclodextrin",1,1,0.456
+B3,B,3,Amostra,"D-Galactonic acid-γ-lactone",1,1,0.418
+B4,B,4,Amostra,"2-Hydroxy benzoic acid",1,1,0.198
+B5,B,5,Amostra,"D-Cellobiose",2,2,1.067
+B6,B,6,Amostra,"α-Cyclodextrin",2,2,0.486
+B7,B,7,Amostra,"D-Galactonic acid-γ-lactone",2,2,0.384
+B8,B,8,Amostra,"2-Hydroxy benzoic acid",2,2,0.209
+B9,B,9,Amostra,"D-Cellobiose",3,3,0.996
+B10,B,10,Amostra,"α-Cyclodextrin",3,3,0.437
+B11,B,11,Amostra,"D-Galactonic acid-γ-lactone",3,3,0.439
+B12,B,12,Amostra,"2-Hydroxy benzoic acid",3,3,0.214
+C1,C,1,Amostra,"i-Erythritol",1,1,0.46
+C2,C,2,Amostra,"D-Malic acid",1,1,0.857
+C3,C,3,Amostra,"L-Arginine",1,1,0.915
+C4,C,4,Amostra,"L-Asparagine",1,1,0.961
+C5,C,5,Amostra,"i-Erythritol",2,2,0.522
+C6,C,6,Amostra,"D-Malic acid",2,2,0.783
+C7,C,7,Amostra,"L-Arginine",2,2,0.942
+C8,C,8,Amostra,"L-Asparagine",2,2,0.886
+C9,C,9,Amostra,"i-Erythritol",3,3,0.461
+C10,C,10,Amostra,"D-Malic acid",3,3,0.869
+C11,C,11,Amostra,"L-Arginine",3,3,0.981
+C12,C,12,Amostra,"L-Asparagine",3,3,0.953
+D1,D,1,Amostra,"N-Acetyl-D-Glucosamine",1,1,1.09
+D2,D,2,Amostra,"D-Glucosaminic acid",1,1,0.546
+D3,D,3,Amostra,"Glucose-1-phosphate",1,1,0.97
+D4,D,4,Amostra,"D,L-α-Glycerol phosphate",1,1,0.503
+D5,D,5,Amostra,"N-Acetyl-D-Glucosamine",2,2,1.048
+D6,D,6,Amostra,"D-Glucosaminic acid",2,2,0.513
+D7,D,7,Amostra,"Glucose-1-phosphate",2,2,1.01
+D8,D,8,Amostra,"D,L-α-Glycerol phosphate",2,2,0.552
+D9,D,9,Amostra,"N-Acetyl-D-Glucosamine",3,3,0.999
+D10,D,10,Amostra,"D-Glucosaminic acid",3,3,0.577
+D11,D,11,Amostra,"Glucose-1-phosphate",3,3,0.936
+D12,D,12,Amostra,"D,L-α-Glycerol phosphate",3,3,0.519
+E1,E,1,Amostra,"D-Xylose",1,1,1.139
+E2,E,2,Amostra,"D-Galacturonic acid",1,1,0.396
+E3,E,3,Amostra,"Putrescine",1,1,0.257
+E4,E,4,Amostra,"L-Phenylalanine",1,1,0.508
+E5,E,5,Amostra,"D-Xylose",2,2,1.254
+E6,E,6,Amostra,"D-Galacturonic acid",2,2,0.405
+E7,E,7,Amostra,"Putrescine",2,2,0.283
+E8,E,8,Amostra,"L-Phenylalanine",2,2,0.447
+E9,E,9,Amostra,"D-Xylose",3,3,1.234
+E10,E,10,Amostra,"D-Galacturonic acid",3,3,0.374
+E11,E,11,Amostra,"Putrescine",3,3,0.287
+E12,E,12,Amostra,"L-Phenylalanine",3,3,0.482
+F1,F,1,Amostra,"D-Mannitol",1,1,1.061
+F2,F,2,Amostra,"γ-Hydroxybutyric acid",1,1,0.437
+F3,F,3,Amostra,"L-Serine",1,1,0.862
+F4,F,4,Amostra,"L-Threonine",1,1,0.821
+F5,F,5,Amostra,"D-Mannitol",2,2,1.061
+F6,F,6,Amostra,"γ-Hydroxybutyric acid",2,2,0.407
+F7,F,7,Amostra,"L-Serine",2,2,0.87
+F8,F,8,Amostra,"L-Threonine",2,2,0.737
+F9,F,9,Amostra,"D-Mannitol",3,3,1.115
+F10,F,10,Amostra,"γ-Hydroxybutyric acid",3,3,0.401
+F11,F,11,Amostra,"L-Serine",3,3,0.929
+F12,F,12,Amostra,"L-Threonine",3,3,0.761
+G1,G,1,Amostra,"α-D-Lactose",1,1,1.023
+G2,G,2,Amostra,"Itaconic acid",1,1,0.484
+G3,G,3,Amostra,"Glycyl-L-Glutamic acid",1,1,0.659
+G4,G,4,Amostra,"Phenylethylamine",1,1,0.228
+G5,G,5,Amostra,"α-D-Lactose",2,2,1.075
+G6,G,6,Amostra,"Itaconic acid",2,2,0.457
+G7,G,7,Amostra,"Glycyl-L-Glutamic acid",2,2,0.682
+G8,G,8,Amostra,"Phenylethylamine",2,2,0.229
+G9,G,9,Amostra,"α-D-Lactose",3,3,1.008
+G10,G,10,Amostra,"Itaconic acid",3,3,0.458
+G11,G,11,Amostra,"Glycyl-L-Glutamic acid",3,3,0.691
+G12,G,12,Amostra,"Phenylethylamine",3,3,0.257
+H1,H,1,Amostra,"α-D-Glucose",1,1,1.294
+H2,H,2,Amostra,"α-Ketobutyric acid",1,1,0.353
+H3,H,3,Amostra,"Glycogen",1,1,0.721
+H4,H,4,Amostra,"4-Hydroxy benzoic acid",1,1,0.197
+H5,H,5,Amostra,"α-D-Glucose",2,2,1.29
+H6,H,6,Amostra,"α-Ketobutyric acid",2,2,0.329
+H7,H,7,Amostra,"Glycogen",2,2,0.781
+H8,H,8,Amostra,"4-Hydroxy benzoic acid",2,2,0.185
+H9,H,9,Amostra,"α-D-Glucose",3,3,1.28
+H10,H,10,Amostra,"α-Ketobutyric acid",3,3,0.356
+H11,H,11,Amostra,"Glycogen",3,3,0.774
+H12,H,12,Amostra,"4-Hydroxy benzoic acid",3,3,0.198

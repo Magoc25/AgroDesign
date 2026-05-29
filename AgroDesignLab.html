@@ -389,6 +389,15 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
     </button>
   </div>
 
+  <div class="form-section">
+    <div class="form-section-title">Projeto</div>
+    <div style="display:flex;gap:.4rem">
+      <button class="btn btn-ghost btn-block" onclick="saveProjectLab()" title="Salvar placa + dados coletados em JSON">💾 Salvar</button>
+      <button class="btn btn-ghost btn-block" onclick="loadProjectLab()" title="Carregar projeto JSON salvo anteriormente">📂 Abrir</button>
+    </div>
+    <p class="hint" style="margin-top:.35rem;font-size:.74rem">Salva layout + dados coletados. Compartilhe o arquivo para colaboração.</p>
+  </div>
+
 </div><!-- /config-panel -->
 
 <!-- ═══ RESULT PANEL ═══ -->
@@ -470,6 +479,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
       <button class="btn btn-ghost btn-sm" onclick="exportCSVColeta()">⬇ CSV</button>
       <button class="btn btn-ghost btn-sm" onclick="exportXLSColeta()">⬇ XLSX</button>
       <button class="btn btn-ghost btn-sm" onclick="exportTXTColeta()">⬇ TXT</button>
+      <button class="btn btn-ghost btn-sm" onclick="importColetaCSV()" title="Importar valores medidos de um arquivo CSV exportado pelo app">⬆ Importar</button>
       <span style="color:var(--border);font-size:.9rem">|</span>
       <button class="btn btn-secondary btn-sm" onclick="exportScriptRLab()"   title="Script R (aov/drc/FICI conforme o modo)">⬇ R</button>
       <button class="btn btn-secondary btn-sm" onclick="exportScriptSASLab()" title="Script SAS (PROC GLM / PROC NLIN)">⬇ SAS</button>
@@ -563,6 +573,12 @@ df = df[df["Tipo"] == "Amostra"]</code></div>
              border:1px solid var(--border);border-radius:var(--radius);
              padding:.5rem .75rem;background:var(--surface);color:var(--text)"></textarea>
     <button class="btn btn-ghost btn-sm" style="margin-top:.25rem" onclick="copyLabText('caption')">📋 Copiar Legenda</button>
+    <div class="form-section-title" style="margin-top:1rem">Como citar o app</div>
+    <textarea id="labCitationText" rows="5" readonly
+      style="width:100%;font-size:.78rem;line-height:1.65;resize:vertical;
+             border:1px solid var(--border);border-radius:var(--radius);
+             padding:.5rem .75rem;background:var(--surface);color:var(--text)"></textarea>
+    <button class="btn btn-ghost btn-sm" style="margin-top:.25rem" onclick="copyLabText('citation')">📋 Copiar Citação</button>
     <p class="hint" style="margin-top:.75rem;font-size:.74rem;line-height:1.5">Substitua "Figura X" pelo número correto. Complemente com detalhes específicos do seu experimento.</p>
     <div class="info-box" style="font-size:.78rem;margin-top:.5rem">
       <strong>Replicatas biológicas vs. técnicas</strong><br>
@@ -1480,6 +1496,10 @@ function renderMM() { /* gerado sob demanda no modal — openMMModal() */ }
 
 function buildMM(en) {
   const mode = plateMode();
+  if(mode==='ecoplate') {
+    if(en) return `Community-level physiological profiling (CLPP) was performed using Biolog EcoPlate™ (Biolog Inc., Hayward, CA, USA). Each EcoPlate contains 31 carbon substrates arranged in triplicate across three sub-plates (columns 1–4, 5–8 and 9–12), with a water control well (H₂O) at positions A1, A5 and A9. Plates were inoculated with [describe inoculum, e.g., 150 µL of soil suspension at OD₆₉₀ = 0.6] and incubated at [temperature, e.g., 25°C] in the dark. Absorbance at 590 nm (OD₆₉₀) was measured at [time point, e.g., 96 h] or at a standardized AWCD of ≈0.5–0.75, to normalize for differences in initial inoculum density (Insam, 1997). Average well color development (AWCD) was calculated as AWCD = Σ(Cᵢ − R)/31, where Cᵢ is the OD₆₉₀ of substrate well i and R is the OD₆₉₀ of the corresponding water control; negative values were set to zero (Garland & Mills, 1991). Functional diversity was assessed using the Shannon-Wiener diversity index H’ = −Σpᵢ ln pᵢ, Simpson’s dominance index D = Σpᵢ², and McIntosh index U = √(Σpᵢ²), where pᵢ = (Cᵢ − R)/Σ(Cᵢ − R) is the normalized substrate utilization (Zak et al., 1994). Statistical comparisons among samples were performed by [e.g., one-way ANOVA with Tukey’s HSD post-hoc test (p < 0.05)] on AWCD and diversity indices.`;
+    return `O perfil fisiológico comunitário (CLPP) foi determinado com EcoPlate™ Biolog (Biolog Inc., Hayward, CA, EUA). Cada EcoPlate contém 31 substratos de carbono dispostos em tríplice em três sub-placas (colunas 1–4, 5–8 e 9–12), com poço de controle de água (H₂O) nas posições A1, A5 e A9. As placas foram inoculadas com [descrever inóculo, ex.: 150 µL de suspensão de solo a OD₆₉₀ = 0,6] e incubadas a [temperatura, ex.: 25°C] no escuro. A absorbância a 590 nm (DO₆₉₀) foi medida em [ponto de tempo, ex.: 96 h] ou a um AWCD padronizado de ≈0,5–0,75, para normalizar diferenças na densidade inicial do inóculo (Insam, 1997). O desenvolvimento médio de cor dos poços (AWCD) foi calculado como AWCD = Σ(Cᵢ − R)/31, onde Cᵢ é a DO₆₉₀ do poço do substrato i e R é a DO₆₉₀ do poço de controle de água correspondente; valores negativos foram igualados a zero (Garland & Mills, 1991). A diversidade funcional foi avaliada pelo índice de diversidade de Shannon-Wiener H’ = −Σpᵢ ln pᵢ, índice de dominância de Simpson D = Σpᵢ² e índice de McIntosh U = √(Σpᵢ²), em que pᵢ = (Cᵢ − R)/Σ(Cᵢ − R) é a utilização normalizada do substrato (Zak et al., 1994). Comparações estatísticas entre amostras foram realizadas por [ex.: ANOVA unifatorial com teste de Tukey (p < 0,05)] sobre AWCD e índices de diversidade.`;
+  }
   if(mode==='dose') {
     const compounds = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
     const seed      = document.getElementById('numSeedLab').value;
@@ -1549,6 +1569,10 @@ function buildCaption(en) {
   const hasCtrlPos = plateLayout.some(w=>w.type==='ctrl_pos');
   const hasBlank   = plateLayout.some(w=>w.type==='blank');
 
+  if(mode==='ecoplate') {
+    if(en) return `Figure X. Biolog EcoPlate™ layout for community-level physiological profiling (CLPP). The plate contains 31 carbon substrates arranged in triplicate (columns 1–4, sub-plate I; columns 5–8, sub-plate II; columns 9–12, sub-plate III). Wells A1, A5 and A9 are water controls (H₂O). Carbon source guilds are colour-coded. AWCD (average well colour development) and functional diversity indices (Shannon H', Simpson D, McIntosh U) were calculated after OD₅₉₀ reading. Design generated with AgroDesign Lab v${LAB_VERSION}.`;
+    return `Figura X. Layout da EcoPlate™ Biolog para perfil fisiológico comunitário (CLPP). A placa contém 31 substratos de carbono em tríplice (colunas 1–4, sub-placa I; colunas 5–8, sub-placa II; colunas 9–12, sub-placa III). Os poços A1, A5 e A9 são controles de água (H₂O). As guildas de fontes de carbono são codificadas por cor. AWCD e índices de diversidade funcional (Shannon H', Simpson D, McIntosh U) calculados após leitura a DO₅₉₀. Delineamento gerado com AgroDesign Lab v${LAB_VERSION}.`;
+  }
   if(mode==='dose') {
     const compounds = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
     const unit  = plateLayout.find(w=>w.concUnit)?.concUnit || document.getElementById('doseUnit').value || '';
@@ -1597,13 +1621,35 @@ function _refreshMMModal() {
   const en = _mmLang==='en';
   document.getElementById('labMMText').value      = buildMM(en);
   document.getElementById('labCaptionText').value = buildCaption(en);
+  document.getElementById('labCitationText').value= buildCitation(en);
   document.getElementById('btnMMLangPT').className = `btn btn-sm ${_mmLang==='pt'?'btn-primary':'btn-ghost'}`;
   document.getElementById('btnMMLangEN').className = `btn btn-sm ${_mmLang==='en'?'btn-primary':'btn-ghost'}`;
 }
 function copyLabText(which) {
-  const id = which==='caption' ? 'labCaptionText' : 'labMMText';
+  const id = which==='caption'?'labCaptionText':which==='citation'?'labCitationText':'labMMText';
   navigator.clipboard.writeText(document.getElementById(id).value)
     .then(()=>toast('Texto copiado!')).catch(()=>{});
+}
+
+function buildCitation(en) {
+  const yr = new Date().getFullYear();
+  const url = 'https://github.com/Magoc25/AgroDesign';
+  const ver = `v${LAB_VERSION}`;
+  const accessed = new Date().toLocaleDateString(en?'en-US':'pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+  if(en) return (
+    `APA (7th ed.)\n` +
+    `[Author Name]. (${yr}). AgroDesign Lab: Microplate experimental design tool (${ver}) [Web application]. GitHub. ${url}\n\n` +
+    `Vancouver\n` +
+    `[Author Name]. AgroDesign Lab [Internet]. ${yr} [cited ${accessed}]. ${ver}. Available from: ${url}\n\n` +
+    `Note: fill in author name. To obtain a citable DOI, deposit the software on Zenodo (zenodo.org) before journal submission.`
+  );
+  return (
+    `APA (7ª ed.)\n` +
+    `[Nome do Autor]. (${yr}). AgroDesign Lab: Ferramenta de delineamento experimental em microplacas (${ver}) [Aplicativo web]. GitHub. ${url}\n\n` +
+    `ABNT NBR 6023:2018\n` +
+    `[SOBRENOME, Nome]. AgroDesign Lab: ferramenta de delineamento experimental em microplacas. ${ver}. [S.l.]: [s.n.], ${yr}. Disponível em: <${url}>. Acesso em: ${accessed}.\n\n` +
+    `Nota: preencha o nome do autor. Para obter DOI citável, deposite o software no Zenodo (zenodo.org) antes da submissão.`
+  );
 }
 function copyMMModal() { copyLabText('mm'); }
 
@@ -2061,6 +2107,124 @@ function _renderDoseResponse(isEng) {
 <div id="doseChart" style="margin-top:.5rem"></div>
 <div class="hint" style="font-size:.78rem;margin:.25rem 0">f(x) = Bottom + (Top−Bottom) / (1+(IC₅₀/x)ᵇ) &nbsp;·&nbsp; <em>Ritz et al., PLOS ONE 10:e0146021, 2015</em></div>`;
   drawDoseResponseChart(document.getElementById('doseChart'),fitsMap,rawData,unit);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PROJETO — SAVE / LOAD
+══════════════════════════════════════════════════════════════ */
+function _captureLabConfig() {
+  const g=id=>document.getElementById(id)?.value??'';
+  const gc=id=>document.getElementById(id)?.checked??false;
+  return {
+    design:g('selDesignLab'), edge:g('selEdge'),
+    treatments:g('txtTreatments'), reps:g('numReps'),
+    ctrlNeg:g('numCtrlNeg'), ctrlPos:g('numCtrlPos'), blank:g('numBlank'),
+    ctrlNegName:g('txtCtrlNegName'), ctrlPosName:g('txtCtrlPosName'),
+    seed:g('numSeedLab'), eng:gc('chkEngLab'),
+    doseCompounds:g('doseCompounds'), doseC0:g('doseC0'), doseUnit:g('doseUnit'),
+    doseFactor:g('doseFactor'), doseNCon:g('doseNCon'), doseReps:g('doseReps'),
+    checkDrugA:g('checkDrugA'), checkConcA:g('checkConcA'), checkUnitA:g('checkUnitA'),
+    checkDrugB:g('checkDrugB'), checkConcB:g('checkConcB'), checkUnitB:g('checkUnitB'),
+  };
+}
+
+function _restoreLabConfig(cfg) {
+  if(!cfg) return;
+  const s=(id,v)=>{const el=document.getElementById(id);if(el&&v!==undefined&&v!==null)el.value=v;};
+  const sc=(id,v)=>{const el=document.getElementById(id);if(el&&v!==undefined)el.checked=!!v;};
+  s('selDesignLab',cfg.design); s('selEdge',cfg.edge);
+  s('txtTreatments',cfg.treatments); s('numReps',cfg.reps);
+  s('numCtrlNeg',cfg.ctrlNeg); s('numCtrlPos',cfg.ctrlPos); s('numBlank',cfg.blank);
+  s('txtCtrlNegName',cfg.ctrlNegName); s('txtCtrlPosName',cfg.ctrlPosName);
+  s('numSeedLab',cfg.seed); sc('chkEngLab',cfg.eng);
+  s('doseCompounds',cfg.doseCompounds); s('doseC0',cfg.doseC0); s('doseUnit',cfg.doseUnit);
+  s('doseFactor',cfg.doseFactor); s('doseNCon',cfg.doseNCon); s('doseReps',cfg.doseReps);
+  s('checkDrugA',cfg.checkDrugA); s('checkConcA',cfg.checkConcA); s('checkUnitA',cfg.checkUnitA);
+  s('checkDrugB',cfg.checkDrugB); s('checkConcB',cfg.checkConcB); s('checkUnitB',cfg.checkUnitB);
+  if(cfg.design) onDesignChange();
+}
+
+function saveProjectLab() {
+  if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
+  const valMap={};
+  document.querySelectorAll('.val-input').forEach(inp=>{if(inp.value!=='')valMap[inp.dataset.well]=inp.value;});
+  const state={
+    appVersion:LAB_VERSION, savedAt:new Date().toISOString(),
+    config:_captureLabConfig(), plateLayout, collectedData:valMap
+  };
+  const mode=plateMode();
+  dlBlob(new Blob([JSON.stringify(state,null,2)],{type:'application/json;charset=utf-8'}),
+    `AgroDesignLab_${mode}_${new Date().toISOString().slice(0,10)}.json`);
+}
+
+function loadProjectLab() {
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='.json';
+  inp.onchange=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try {
+        const state=JSON.parse(ev.target.result);
+        _restoreLabConfig(state.config);
+        if(Array.isArray(state.plateLayout)&&state.plateLayout.length){
+          plateLayout=state.plateLayout;
+          renderPlate(); renderSummaryLab(); renderFieldBook(); renderColeta(); renderMM();
+          if(state.collectedData){
+            Object.entries(state.collectedData).forEach(([well,val])=>{
+              const inp2=document.querySelector(`.val-input[data-well="${well}"]`);
+              if(inp2) inp2.value=val;
+            });
+          }
+          switchTab('placa');
+        }
+        toast('Projeto carregado — v'+( state.appVersion||'?'));
+      } catch(err){ alert('Erro ao ler JSON: '+err.message); }
+    };
+    reader.readAsText(f,'utf-8');
+  };
+  inp.click();
+}
+
+/* ──────────────────────────────────────────────
+   IMPORTAÇÃO CSV — Coleta (valores medidos)
+────────────────────────────────────────────── */
+function importColetaCSV() {
+  if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
+  const inp=document.createElement('input');
+  inp.type='file'; inp.accept='.csv,.txt';
+  inp.onchange=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try {
+        const lines=ev.target.result.trim().split(/\r?\n/);
+        const sep=lines[0].includes(';')?';':',';
+        const hdr=lines[0].split(sep).map(h=>h.trim().replace(/^["﻿]+|"+$/g,'').toLowerCase());
+        /* Aceita: Poço/poco/well/wellid  e  Valor/value/measuredvalue */
+        const wc=hdr.findIndex(h=>/^(po[çc]o|well(id)?)$/i.test(h));
+        const vc=hdr.findIndex(h=>/^(valor|value|measuredvalue)$/i.test(h));
+        if(wc<0||vc<0){
+          alert(`Colunas necessárias: "Poço" e "Valor" (ou "Well" e "Value").\nEncontradas: ${hdr.join(', ')}`);
+          return;
+        }
+        let count=0;
+        lines.slice(1).forEach(line=>{
+          const cols=line.split(sep).map(c=>c.trim().replace(/^"+|"+$/g,''));
+          const well=cols[wc]?.toUpperCase().trim();
+          const rawV=(cols[vc]||'').replace(',','.');
+          const val=parseFloat(rawV);
+          if(!well||isNaN(val)) return;
+          const inp2=document.querySelector(`.val-input[data-well="${well}"]`);
+          if(inp2){inp2.value=String(val);count++;}
+        });
+        if(count) toast(`${count} valor(es) importado(s) do CSV.`);
+        else alert('Nenhum poço correspondente encontrado.\nVerifique que os IDs (A1, B3, …) existem no layout atual.');
+      } catch(err){ alert('Erro ao ler CSV: '+err.message); }
+    };
+    reader.readAsText(f,'utf-8');
+  };
+  inp.click();
 }
 
 /* ══════════════════════════════════════════════════════════════
