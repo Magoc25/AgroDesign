@@ -854,7 +854,8 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
       <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;flex-shrink:0">
         <button class="btn btn-secondary btn-sm" onclick="openVarsModal()">⚙ Variáveis</button>
         <button class="btn btn-ghost btn-sm" onclick="checkOutliers()" title="Verificar valores discrepantes (IQR)">🔍 Verificar</button>
-        <button class="btn btn-ghost btn-sm" onclick="toggleExploratoryPanel()" title="Resumo exploratório: média ± DP por tratamento">📊 Resumo</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleExploratoryPanel()" title="Resumo exploratório: média ± DP por tratamento">📊 Resumo Stat</button>
+        <button id="btnLoadExampleCampo" class="btn btn-primary btn-sm" onclick="loadExampleCampoData()" style="display:none" title="Carregar dados fictícios do exemplo na tabela de coleta">📋 Carregar Exemplo</button>
         <button class="btn btn-ghost btn-sm" id="btnDecimalSep" onclick="toggleDecimalSep()" title="Separador decimal nos arquivos exportados">🔢 Dec: .</button>
         <span style="color:var(--border);font-size:.9rem">|</span>
         <button class="btn btn-ghost btn-sm" onclick="exportDataXLSX()">⬇ XLSX</button>
@@ -4312,6 +4313,8 @@ function clearAll() {
   units = []; treatmentColors = {};
   projectVariables = []; collectionData = {};
   _exampleCampoKey = null;
+  _exampleDataCampoLoaded = false;
+  updateExampleCampoBtn();
   const _ep = document.getElementById('exploratoryPanel');
   if (_ep) { _ep.classList.add('hidden'); _ep.innerHTML = ''; }
   currentProjectName = null; updateProjectBadge();
@@ -4669,14 +4672,34 @@ function loadExample(key) {
   document.querySelector(`.example-btn[data-example="${key}"]`)?.classList.add('active');
   generateCroqui();
   if (EXAMPLE_DATA_CAMPO[key] && units.length) {
-    _injectExampleCampoData(key);
-    showTab('coleta');
-    const panel = document.getElementById('exploratoryPanel');
-    if (panel && panel.classList.contains('hidden')) {
-      panel.classList.remove('hidden');
-      renderExploratoryPanel();
-    }
+    _exampleCampoKey = key;
+    _exampleDataCampoLoaded = false;
+    updateExampleCampoBtn();
   }
+}
+
+function updateExampleCampoBtn() {
+  const btn = document.getElementById('btnLoadExampleCampo');
+  if (!btn) return;
+  if (!_exampleCampoKey || !EXAMPLE_DATA_CAMPO[_exampleCampoKey]) { btn.style.display = 'none'; return; }
+  btn.style.display = '';
+  if (_exampleDataCampoLoaded) {
+    btn.disabled = true;
+    btn.classList.remove('btn-primary'); btn.classList.add('btn-ghost');
+    btn.title = 'Dados de exemplo já carregados';
+  } else {
+    btn.disabled = false;
+    btn.classList.remove('btn-ghost'); btn.classList.add('btn-primary');
+    btn.title = 'Carregar dados fictícios do exemplo na tabela de coleta';
+  }
+}
+
+function loadExampleCampoData() {
+  if (!_exampleCampoKey || _exampleDataCampoLoaded) return;
+  _injectExampleCampoData(_exampleCampoKey);
+  _exampleDataCampoLoaded = true;
+  renderDataTab();
+  updateExampleCampoBtn();
 }
 
 function _injectExampleCampoData(key) {
@@ -4703,7 +4726,6 @@ function _injectExampleCampoData(key) {
       }
     });
   });
-  _exampleCampoKey = key;
 }
 
 function renderExploratoryPanel() {
@@ -4920,6 +4942,7 @@ function closePresetsModal() { document.getElementById('presetsModal').classList
 let projectVariables = [];   // [{ id, name, type, unit, decimals, options }]
 let collectionData   = {};   // { unitId: { varId: value } }
 let _exampleCampoKey = null;
+let _exampleDataCampoLoaded = false;
 
 /* ── Gerenciamento de variáveis ── */
 function onVarTypeChange() {
