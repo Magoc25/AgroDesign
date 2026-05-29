@@ -158,6 +158,15 @@ tr:hover td{background:var(--primary-pale)}
   border:1px solid var(--border);border-radius:var(--radius);
   padding:.5rem .75rem;background:var(--surface);color:var(--text)}
 
+/* Modal */
+.modal{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center}
+.modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.45)}
+.modal-content{position:relative;background:var(--surface);border-radius:12px;padding:1.5rem;
+  max-width:640px;width:92%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.modal-title{font-weight:700;font-size:1rem}
+.modal-close-btn{background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--text-muted);padding:2px 6px}
+
 /* Coleta value input */
 .val-input{width:100px;border:1px solid var(--border);border-radius:4px;
   padding:.2rem .4rem;background:var(--surface);color:var(--text);font-size:.8rem}
@@ -356,12 +365,12 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
     <button class="tab-btn"        data-tab="resumo"    onclick="switchTab('resumo')">📊 Resumo</button>
     <button class="tab-btn"        data-tab="fieldbook" onclick="switchTab('fieldbook')">📋 Field Book</button>
     <button class="tab-btn"        data-tab="coleta"    onclick="switchTab('coleta')">🧮 Coleta</button>
-    <button class="tab-btn"        data-tab="mm"        onclick="switchTab('mm')">📝 M&amp;M</button>
   </div>
 
   <!-- Placa -->
   <div id="tabPlaca" class="tab-content active">
     <div class="action-row">
+      <button class="btn btn-ghost btn-sm" onclick="openMMModal()">📄 Texto</button>
       <button class="btn btn-ghost btn-sm" onclick="exportSVGLab()">⬇ SVG</button>
       <button class="btn btn-ghost btn-sm" onclick="exportPNGLab()">⬇ PNG</button>
       <button class="btn btn-ghost btn-sm" onclick="exportCSVLab()">⬇ CSV</button>
@@ -425,34 +434,38 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
     <div id="coletaStats"></div>
   </div>
 
-  <!-- M&M -->
-  <div id="tabMM" class="tab-content">
-    <div class="action-row">
-      <button class="tab-btn active" id="btnMMpt" onclick="setLabLang('pt')">🇧🇷 PT</button>
-      <button class="tab-btn"        id="btnMMen" onclick="setLabLang('en')">🇺🇸 EN</button>
-      <button class="btn btn-ghost btn-sm" onclick="copyLabMM()">📋 Copiar</button>
-    </div>
-    <div id="mmPlaceholder" class="info-box" style="font-size:.82rem">
-      Gere o layout da placa para visualizar o texto de <strong>Material e Métodos</strong> pronto para o manuscrito.<br>
-      <span class="hint">O texto inclui: delineamento, tratamentos, replicatas, política de borda, semente de randomização e método de análise. Disponível em PT e EN.</span>
-    </div>
-    <div id="mmContent" style="display:none;flex-direction:column;gap:.5rem">
-      <div class="form-section-title">Material e Métodos</div>
-      <textarea id="labMMText" rows="10" readonly></textarea>
-      <div class="hint">Texto pronto para a seção de M&amp;M do manuscrito. Cite a semente para reprodutibilidade.</div>
-    </div>
-    <div class="info-box" style="font-size:.78rem">
-      <strong>Replicatas biológicas vs. técnicas</strong><br>
-      As replicatas configuradas acima são <em>técnicas</em> (mesmo material, mesma placa).
-      Para publicações de alto impacto (<em>Nature</em>, <em>PNAS</em>, <em>Frontiers</em>),
-      repita o experimento em ≥ 3 placas independentes (replicatas biológicas) e declare ambos os n no manuscrito.
-    </div>
-  </div>
 
 </div><!-- /result-panel -->
 </div><!-- /app-layout -->
 
 <div class="well-tooltip" id="wellTooltip"></div>
+
+<!-- ═══ MODAL M&M ═══ -->
+<div id="modalMM" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeMMModal()"></div>
+  <div class="modal-content" style="max-width:660px">
+    <div class="modal-header">
+      <span class="modal-title">📄 Material e Métodos</span>
+      <button class="modal-close-btn" onclick="closeMMModal()">✕</button>
+    </div>
+    <div style="display:flex;gap:.4rem;margin-bottom:.75rem;align-items:center">
+      <button id="btnMMLangPT" class="btn btn-primary btn-sm" onclick="setMMModalLang('pt')">🇧🇷 Português</button>
+      <button id="btnMMLangEN" class="btn btn-ghost  btn-sm" onclick="setMMModalLang('en')">🇺🇸 English</button>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="copyMMModal()">📋 Copiar</button>
+    </div>
+    <textarea id="labMMText" rows="12" readonly
+      style="width:100%;font-size:.82rem;line-height:1.65;resize:vertical;
+             border:1px solid var(--border);border-radius:var(--radius);
+             padding:.5rem .75rem;background:var(--surface);color:var(--text)"></textarea>
+    <p class="hint" style="margin-top:.4rem">Cite a semente de randomização para reprodutibilidade.</p>
+    <div class="info-box" style="font-size:.78rem;margin-top:.5rem">
+      <strong>Replicatas biológicas vs. técnicas</strong><br>
+      As replicatas configuradas são <em>técnicas</em> (mesma placa).
+      Para publicações de alto impacto (<em>Nature</em>, <em>PNAS</em>), repita em ≥ 3 placas independentes
+      e declare ambos os <em>n</em> no manuscrito.
+    </div>
+  </div>
+</div>
 
 <footer>
   <button class="footer-btn" onclick="window.open('https://github.com/Magoc25/AgroDesign','_blank')">⭐ GitHub</button>
@@ -1113,12 +1126,7 @@ function renderFieldBook() {
 /* ══════════════════════════════════════════════
    MATERIAL E MÉTODOS
 ══════════════════════════════════════════════ */
-function renderMM() {
-  const hasLayout = plateLayout.length > 0;
-  document.getElementById('mmPlaceholder').style.display = hasLayout ? 'none' : '';
-  document.getElementById('mmContent').style.display     = hasLayout ? 'flex' : 'none';
-  if(hasLayout) document.getElementById('labMMText').value = buildMM(document.getElementById('chkEngLab').checked);
-}
+function renderMM() { /* gerado sob demanda no modal — openMMModal() */ }
 
 function buildMM(en) {
   const mode = plateMode();
@@ -1185,23 +1193,27 @@ function buildMM(en) {
   }
 }
 
-function setLabLang(lang) {
-  labLang = lang;
-  ['pt','en'].forEach(l => {
-    const btn = document.getElementById(`btnMM${l}`);
-    btn.classList.toggle('active', l===lang);
-  });
-  renderMM();
-  if(plateLayout.length) renderFieldBook();
-}
+let _mmLang = 'pt';
 
-function copyLabMM() {
+function openMMModal() {
+  if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
+  _mmLang = document.getElementById('chkEngLab').checked ? 'en' : 'pt';
+  _refreshMMModal();
+  document.getElementById('modalMM').classList.remove('hidden');
+}
+function closeMMModal() { document.getElementById('modalMM').classList.add('hidden'); }
+function setMMModalLang(lang) { _mmLang = lang; _refreshMMModal(); }
+function _refreshMMModal() {
+  document.getElementById('labMMText').value = buildMM(_mmLang==='en');
+  document.getElementById('btnMMLangPT').className = `btn btn-sm ${_mmLang==='pt'?'btn-primary':'btn-ghost'}`;
+  document.getElementById('btnMMLangEN').className = `btn btn-sm ${_mmLang==='en'?'btn-primary':'btn-ghost'}`;
+}
+function copyMMModal() {
   navigator.clipboard.writeText(document.getElementById('labMMText').value)
-    .then(()=>toast('Texto copiado!'))
-    .catch(()=>{});
+    .then(()=>toast('Texto copiado!')).catch(()=>{});
 }
 
-function onEngChange() { if(plateLayout.length){ renderPlate(); renderFieldBook(); renderColeta(); renderMM(); } }
+function onEngChange() { if(plateLayout.length){ renderPlate(); renderFieldBook(); renderColeta(); } }
 
 /* ══════════════════════════════════════════════
    EXPORTAÇÕES
