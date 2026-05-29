@@ -677,15 +677,15 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 <!-- ═══ RESULTS PANEL ═══ -->
 <section class="result-panel">
   <div class="tab-nav">
-    <button class="tab-btn" onclick="showTab('croqui')">🗺 Croqui</button>
-    <button class="tab-btn active" onclick="showTab('resumo')">📊 Resumo</button>
+    <button class="tab-btn active" onclick="showTab('croqui')">🗺 Croqui</button>
+    <button class="tab-btn" onclick="showTab('resumo')">📊 Resumo</button>
     <button class="tab-btn" onclick="showTab('fieldbook')">📋 Field Book</button>
     <button class="tab-btn" onclick="showTab('unidade')">📐 Unidade</button>
     <button class="tab-btn" onclick="showTab('coleta')">📝 Coleta</button>
   </div>
 
   <!-- Resumo Tab -->
-  <div id="tabResumo" class="tab-content active">
+  <div id="tabResumo" class="tab-content">
     <div id="emptyState" class="empty-state">
       <span class="icon">🌱</span>
       <strong>Configure o experimento e clique em Gerar Croqui</strong>
@@ -698,7 +698,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
   </div>
 
   <!-- Croqui Tab -->
-  <div id="tabCroqui" class="tab-content">
+  <div id="tabCroqui" class="tab-content active">
     <div id="emptyCroqui" class="empty-state">
       <span class="icon">🗺</span>
       <span class="hint">Gere o croqui para visualizá-lo aqui.</span>
@@ -4034,7 +4034,7 @@ function fitUnidade() {
 /* ── UI helpers ── */
 function showTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const tabs = ['resumo','croqui','fieldbook','unidade','coleta'];
+    const tabs = ['croqui','resumo','fieldbook','unidade','coleta'];
     b.classList.toggle('active', tabs[i] === name);
   });
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
