@@ -1250,7 +1250,8 @@ function updateLaticeInfo() {
   const el = document.getElementById('laticeInfo');
   if (!el) return;
   const t     = k * k;
-  const glRes = (k - 1) * (k - 2);
+  // Erro intrablocos do látice simples (r=2): (k-1)(rk-k-1) = (k-1)²
+  const glRes = (k - 1) * (k - 1);
   let msg = `k = ${k} → t = k² = ${t} tratamentos · 2 repetições · ${k} blocos/rep · ${2 * t} UEs totais · ${glRes} GL do resíduo`;
   if (k < 4) msg += ` — ⚠ k < 4: apenas ${glRes} GL do resíduo (DBC pode ser preferível)`;
   el.textContent = msg;
@@ -1682,7 +1683,8 @@ function renderSummary() {
     html += card('UE totais', total);
   } else if (design === 'LATICE') {
     const { k, t } = getLaticeConfig();
-    const glRes = (k - 1) * (k - 2);
+    // Erro intrablocos do látice simples (r=2): (k-1)(rk-k-1) = (k-1)²
+    const glRes = (k - 1) * (k - 1);
     html += card('k (bloco)', k);
     html += card('Tratamentos (k²)', t);
     html += card('Repetições', '2 (Rep I + Rep II)');
@@ -3515,7 +3517,8 @@ function buildPublicationText(lang) {
     }
   } else if (design === 'LATICE') {
     const { k, t } = getLaticeConfig();
-    const glRes = (k - 1) * (k - 2);
+    // Erro intrablocos do látice simples (r=2): (k-1)(rk-k-1) = (k-1)²
+    const glRes = (k - 1) * (k - 1);
     if (isEng) {
       mm = `The experiment was conducted in a simple square lattice design (k = ${k}, t = k² = ${t} treatments) with two replications (Rep I — Group X, blocks by rows; Rep II — Group Y, blocks by columns) and ${k} incomplete blocks of ${k} plots each per replication, totaling ${units.length} experimental units. The design is a partially balanced incomplete block design with ${glRes} residual degrees of freedom. ${unitDimText}${gradText} Data were analyzed by intra-block analysis; if the block efficiency factor was not greater than 1, the data were analyzed as a randomized complete block design (RCBD).`;
     } else {
@@ -5186,16 +5189,32 @@ function renderDataTab() {
 
 /* ── Exportação de dados ── */
 function _buildDataRows() {
-  const design = document.getElementById('selDesign').value;
-  const isFat  = design.startsWith('FAT');
-  const isSpl  = design.startsWith('SPL');
-  const headers = ['ID','Bloco','Tratamento'];
-  if (isFat || isSpl) headers.push('Fator A','Fator B');
-  projectVariables.forEach(v => headers.push(v.name + (v.unit ? ' (' + v.unit + ')' : '')));
+  const design   = document.getElementById('selDesign').value;
+  const isFat    = design.startsWith('FAT');
+  const isSpl    = design.startsWith('SPL');
+  const isStrip  = design === 'STRIP';
+  const isDQL    = design === 'DQL';
+  const isLatice = design === 'LATICE';
+
+  // Cabeçalho com TODAS as colunas estruturais que os scripts R/SAS/Python precisam.
+  // Variável-resposta: apenas o nome (sem unidade) para garantir que o nome bata
+  // exatamente com o que os scripts referenciam.
+  const headers = ['ID'];
+  if (isLatice) headers.push('Rep');
+  headers.push('Bloco','Tratamento');
+  if (isFat || isSpl || isStrip) headers.push('Fator A','Fator B');
+  if (isDQL) headers.push(
+    _safeName(dqlRowFactorName || 'Linha_DQL'),
+    _safeName(dqlColFactorName || 'Coluna_DQL')
+  );
+  projectVariables.forEach(v => headers.push(v.name));
 
   const rows = units.map(u => {
-    const r = [u.id, u.block ?? '', u.treatment];
-    if (isFat || isSpl) r.push(u.factorA ?? '', u.factorB ?? '');
+    const r = [u.id];
+    if (isLatice) r.push(u.rep ?? '');
+    r.push(u.block ?? '', u.treatment);
+    if (isFat || isSpl || isStrip) r.push(u.factorA ?? '', u.factorB ?? '');
+    if (isDQL) r.push(u.rowLabel ?? '', u.colLabel ?? '');
     projectVariables.forEach(v => {
       const raw = collectionData[String(u.id)]?.[v.id] ?? '';
       r.push(v.type === 'numeric' && raw !== '' ? parseFloat(raw) : raw);
@@ -5367,19 +5386,20 @@ function exportScriptR() {
   s += `# 2. Importar dados ─────────────────────────────────────────\n`;
   s += `# Exporte na aba Coleta (botão CSV) e ajuste o caminho:\n`;
   s += `dados <- read.csv("${csvFile}",\n`;
-  s += `                  skip = 4,          # pula linhas de metadados\n`;
+  s += `                  skip = 4,           # pula linhas de metadados\n`;
   s += `                  header = TRUE,\n`;
   s += `                  sep   = ",",\n`;
-  s += `                  dec   = "${decimalSep}")\n`;
+  s += `                  dec   = "${decimalSep}",\n`;
+  s += `                  check.names = FALSE) # preserva nomes originais\n`;
   s += `str(dados)\n\n`;
 
   s += `# 3. Fatores ────────────────────────────────────────────────\n`;
   if (hasBloco)    s += `dados$Bloco      <- factor(dados$Bloco)\n`;
-  if (isLatice)    s += `dados$Rep        <- factor(dados$rep)\n`;
+  if (isLatice)    s += `dados$Rep        <- factor(dados$Rep)\n`;
   s += `dados$Tratamento <- factor(dados$Tratamento)\n`;
-  if (isFat || isSplit) {
-    s += `dados$Fator_A    <- factor(dados$Fator.A)\n`;
-    s += `dados$Fator_B    <- factor(dados$Fator.B)\n`;
+  if (isFat || isSplit || isStrip) {
+    s += `dados$Fator_A    <- factor(dados[["Fator A"]])\n`;
+    s += `dados$Fator_B    <- factor(dados[["Fator B"]])\n`;
   }
   if (isDQL) {
     const rVarR = _safeName(dqlRowFactorName || 'Linha_DQL');
@@ -5392,7 +5412,8 @@ function exportScriptR() {
   const respVars = numVars.length ? numVars : [{ name:'Variavel1', _template:true }];
   respVars.forEach((v, i) => {
     const vn = _safeName(v.name);
-    const csvCol = v._template ? 'Variavel1' : v.name.replace(/[^a-zA-Z0-9.]/g, '.');
+    // check.names=FALSE preserva o nome original → referencia exata
+    const csvCol = v._template ? 'Variavel1' : v.name;
     s += `# ${4+i}. ANOVA — ${v.name} `;
     s += v._template ? '(substitua pelo nome real)\n' : '\n';
 
@@ -5478,13 +5499,16 @@ function exportScriptSAS() {
   s += `/* Gerado em       : ${dt}                           */\n`;
   s += `/* ═══════════════════════════════════════════════════════════ */\n\n`;
 
-  s += `/* 1. Importar dados */\n`;
+  s += `/* 1. Importar dados — DBMS=DLM permite NAMEROW (DBMS=CSV não permite) */\n`;
   s += `PROC IMPORT DATAFILE = "${csvFile}"\n`;
   s += `           OUT     = dados\n`;
-  s += `           DBMS    = CSV\n`;
+  s += `           DBMS    = DLM\n`;
   s += `           REPLACE;\n`;
-  s += `    GETNAMES = YES;\n`;
-  s += `    DATAROW  = 6;    /* pula 4 linhas de metadados + linha em branco */\n`;
+  s += `    DELIMITER    = ',';\n`;
+  s += `    GETNAMES     = YES;\n`;
+  s += `    NAMEROW      = 5;   /* linha 5 = nomes das colunas (após 4 linhas de #metadados) */\n`;
+  s += `    DATAROW      = 6;   /* linha 6 em diante = dados */\n`;
+  s += `    GUESSINGROWS = MAX;\n`;
   s += `RUN;\n\n`;
 
   const respVars = numVars.length ? numVars : [{ name:'Variavel1', _template:true }];
@@ -5586,8 +5610,8 @@ function exportScriptPy() {
   s += `import pandas as pd\n`;
   s += `import pingouin as pg\n`;
   s += `from scipy import stats\n`;
-  if (isSplit || isStrip || isLatice) s += `import statsmodels.formula.api as smf\n`;
-  if (isLatice) s += `from statsmodels.stats.anova import anova_lm\n`;
+  if (isSplit || isStrip || isLatice || isFat) s += `import statsmodels.formula.api as smf\n`;
+  if (isLatice || isFat) s += `from statsmodels.stats.anova import anova_lm\n`;
   s += `\n`;
 
   s += `# 1. Importar dados ─────────────────────────────────────────\n`;
@@ -5598,9 +5622,9 @@ function exportScriptPy() {
 
   s += `# 2. Tipos de dados ─────────────────────────────────────────\n`;
   if (hasBloco)    s += `df["Bloco"]      = df["Bloco"].astype(str)\n`;
-  if (isLatice)    s += `df["rep"]        = df["rep"].astype(str)\n`;
+  if (isLatice)    s += `df["Rep"]        = df["Rep"].astype(str)\n`;
   s += `df["Tratamento"] = df["Tratamento"].astype(str)\n`;
-  if (isFat || isStrip) { s += `df["Fator A"]    = df["Fator A"].astype(str)\n`; s += `df["Fator B"]    = df["Fator B"].astype(str)\n`; }
+  if (isFat || isSplit || isStrip) { s += `df["Fator A"]    = df["Fator A"].astype(str)\n`; s += `df["Fator B"]    = df["Fator B"].astype(str)\n`; }
   s += `print(df.head())\n\n`;
 
   const respVars = numVars.length ? numVars : [{ name:'Variavel1', _template:true }];
@@ -5614,8 +5638,8 @@ function exportScriptPy() {
       s += `# Látice simples — modelo misto: blocos incompletos aninhados em repetições\n`;
       s += `from statsmodels.regression.mixed_linear_model import MixedLM\n`;
       s += `# Cria identificador de bloco dentro de rep\n`;
-      s += `df["bloco_rep"] = df["rep"].astype(str) + "_" + df["bloco"].astype(str)\n`;
-      s += `modelo = smf.mixedlm('Q("${colName}") ~ C(Tratamento) + C(rep)',\n`;
+      s += `df["bloco_rep"] = df["Rep"].astype(str) + "_" + df["Bloco"].astype(str)\n`;
+      s += `modelo = smf.mixedlm('Q("${colName}") ~ C(Tratamento) + C(Rep)',\n`;
       s += `                      groups=df["bloco_rep"], data=df).fit()\n`;
       s += `print(modelo.summary())\n\n`;
       s += `# Tukey aproximado (via pairwise)\n`;
@@ -5626,8 +5650,9 @@ function exportScriptPy() {
     } else if (!isSplit && !isFat) {
       // DIC / DBC / DQL
       if (isDQL) {
-        const rPy = dqlRowFactorName || 'Linha_DQL';
-        const cPy = dqlColFactorName || 'Coluna_DQL';
+        // _safeName garante que o nome bate com a coluna exportada no CSV
+        const rPy = _safeName(dqlRowFactorName || 'Linha_DQL');
+        const cPy = _safeName(dqlColFactorName || 'Coluna_DQL');
         s += `import statsmodels.formula.api as smf\n`;
         s += `from statsmodels.stats.anova import anova_lm\n`;
         s += `modelo = smf.ols('Q("${colName}") ~ C(Tratamento) + C(Q("${rPy}")) + C(Q("${cPy}"))', data=df).fit()\n`;
