@@ -1,6 +1,6 @@
 /* AgroDesign — Service Worker v1.0.0 — cache v24 */
 
-const CACHE_NAME = 'agrodesign-v46';
+const CACHE_NAME = 'agrodesign-v47';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

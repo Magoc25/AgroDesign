@@ -127,6 +127,7 @@ textarea { resize: vertical; min-height: 70px; }
 .btn-secondary:hover { background: #b7e4c7; }
 .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
 .btn-ghost:hover { background: var(--bg); }
+.example-btn.active { background: var(--primary-pale); border-color: var(--primary); color: var(--primary); font-weight: 600; }
 .btn-danger { background: #fde8e8; color: var(--danger); border: 1px solid #f5c6c6; }
 .btn-sm { padding: .3rem .65rem; font-size: .78rem; }
 .btn-block { width: 100%; }
@@ -660,17 +661,17 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     <button class="btn btn-ghost btn-sm" onclick="openPresetsModal()">💾 Presets</button>
   </div>
   <div id="examplesMenu" class="hidden" style="border:1px solid var(--border);border-radius:var(--radius);margin-top:.4rem;overflow:hidden">
-    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('milho_dbc')">🌽 Milho em DBC (4 tratamentos, 4 blocos)</button>
-    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('frango_dic')">🐔 Frangos em DIC (5 dietas, 4 reps)</button>
-    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('vacas_fat')">🐄 Vacas — Fatorial 3×3 em DBC</button>
-    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('caes_dql')">🐕 Cães — DQL (4 protocolos)</button>
-    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('suinos_spl')">🐖 Suínos — Parcelas Subdivididas em DBC</button>
-    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('cafe_strip')">☕ Café — Strip-plot em Blocos (3×4)</button>
-    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('soja_latice')">🌱 Soja — Látice Simples 5×5 (25 cultivares)</button>
+    <button class="btn btn-ghost example-btn" data-example="milho_dbc"         style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('milho_dbc')">🌽 Milho em DBC (4 tratamentos, 4 blocos)</button>
+    <button class="btn btn-ghost example-btn" data-example="frango_dic"         style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('frango_dic')">🐔 Frangos em DIC (5 dietas, 4 reps)</button>
+    <button class="btn btn-ghost example-btn" data-example="vacas_fat"          style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('vacas_fat')">🐄 Vacas — Fatorial 3×3 em DBC</button>
+    <button class="btn btn-ghost example-btn" data-example="caes_dql"           style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('caes_dql')">🐕 Cães — DQL (4 protocolos)</button>
+    <button class="btn btn-ghost example-btn" data-example="suinos_spl"         style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('suinos_spl')">🐖 Suínos — Parcelas Subdivididas em DBC</button>
+    <button class="btn btn-ghost example-btn" data-example="cafe_strip"         style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('cafe_strip')">☕ Café — Strip-plot em Blocos (3×4)</button>
+    <button class="btn btn-ghost example-btn" data-example="soja_latice"        style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('soja_latice')">🌱 Soja — Látice Simples 5×5 (25 cultivares)</button>
     <div style="border-top:1px solid var(--border);margin:.15rem 0;opacity:.5"></div>
-    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('cerrado_quadrat')">🌿 Cerrado — Restauração em DBC (Quadrats)</button>
-    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('mata_transecto')">🌳 Mata Atlântica — Fitossanidade em DIC (Transectos)</button>
-    <button class="btn btn-ghost" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('araucaria_permanente')">🌲 Araucária — Dinâmica Florestal em DBC (Parcelas Permanentes)</button>
+    <button class="btn btn-ghost example-btn" data-example="cerrado_quadrat"    style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('cerrado_quadrat')">🌿 Cerrado — Restauração em DBC (Quadrats)</button>
+    <button class="btn btn-ghost example-btn" data-example="mata_transecto"      style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('mata_transecto')">🌳 Mata Atlântica — Fitossanidade em DIC (Transectos)</button>
+    <button class="btn btn-ghost example-btn" data-example="araucaria_permanente" style="width:100%;border-radius:0;justify-content:flex-start;font-size:.82rem" onclick="loadExample('araucaria_permanente')">🌲 Araucária — Dinâmica Florestal em DBC (Parcelas Permanentes)</button>
   </div>
 </aside>
 
@@ -4494,7 +4495,8 @@ function loadExample(key) {
   clearAll();
   EXAMPLES[key] && EXAMPLES[key]();
   onAreaChange();
-  document.getElementById('examplesMenu').classList.add('hidden');
+  document.querySelectorAll('.example-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.example-btn[data-example="${key}"]`)?.classList.add('active');
   generateCroqui();
 }
 
