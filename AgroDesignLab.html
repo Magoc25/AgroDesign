@@ -1103,7 +1103,70 @@ function generatePlate(autoUpdate=false) {
 }
 
 /* ══════════════════════════════════════════════
-   RENDERIZAR PLACA (SVG)
+   LEGENDA SVG EMBUTIDA (igual ao AgroDesign campo)
+══════════════════════════════════════════════ */
+function buildLabSvgLegend(colorMap, layout, mode, isPub, isEng, pos) {
+  if(pos==='none') return {svg:'',w:0,h:0};
+  const items=[];
+  if(mode==='check'){
+    const drugAName=layout.find(w=>w.concA!==undefined)?.drugA||'A';
+    const unitA=layout.find(w=>w.concA!==undefined)?.unitA||'';
+    const seen=new Set();
+    layout.filter(w=>w.type==='sample'&&w.concA!==undefined).forEach(w=>{
+      if(!seen.has(w.concA)){seen.add(w.concA);items.push({c:colorMap[w.treatment]||'#ccc',l:`${drugAName} ${w.concA}${unitA?' '+unitA:''}`});}
+    });
+  } else if(mode==='dose'){
+    const seen=new Set();
+    layout.filter(w=>w.type==='sample').forEach(w=>{
+      if(!seen.has(w.treatment)){seen.add(w.treatment);items.push({c:colorMap[w.treatment]||'#ccc',l:w.treatment});}
+    });
+  } else {
+    Object.entries(colorMap).forEach(([t,c])=>items.push({c,l:t}));
+  }
+  const ctrlDefs=[
+    {type:'ctrl_neg',labelPt:'Ctrl. Negativo',labelEn:'Neg. Control'},
+    {type:'ctrl_pos',labelPt:'Ctrl. Positivo',labelEn:'Pos. Control'},
+    {type:'blank',   labelPt:'Branco',         labelEn:'Blank'},
+    {type:'buffer',  labelPt:'Buffer (PBS)',    labelEn:'Buffer (PBS)'},
+  ];
+  ctrlDefs.forEach(({type,labelPt,labelEn})=>{
+    if(layout.some(w=>w.type===type)){
+      items.push({c:isPub?CTRL_PUB[type]:CTRL_COLOR[type],l:isEng?labelEn:labelPt,ctrl:true});
+    }
+  });
+  if(!items.length) return {svg:'',w:0,h:0};
+
+  const SW=11,IH=16,GAP=4,IPAD=8,TITLE_H=16;
+  const isVert=pos==='left'||pos==='right';
+  const cols=isVert?1:Math.min(4,Math.max(2,Math.ceil(items.length/4)));
+  const rows=Math.ceil(items.length/cols);
+  const maxLen=Math.max(...items.map(x=>x.l.length));
+  const fs=maxLen>30?7:maxLen>22?7.5:maxLen>16?8.5:9;
+  const textW=Math.min(200,maxLen*fs*0.62);
+  const colW=SW+GAP+textW+IPAD;
+  const totalW=cols*colW+IPAD;
+  const totalH=rows*IH+TITLE_H+IPAD*2;
+
+  const titleColor=isPub?'#111':'#2d6a4f';
+  const textColor =isPub?'#111':'#374151';
+  const bgFill    =isPub?'#fff':'rgba(255,255,255,.93)';
+  const bgStroke  =isPub?'#111':'#cde0d3';
+  const bgRx      =isPub?'':'rx="5"';
+
+  let inner=`<text x="${IPAD}" y="${IPAD+11}" font-size="9" fill="${titleColor}" font-weight="700">${isEng?'Legend':'Legenda'}</text>`;
+  items.forEach((item,i)=>{
+    const c=i%cols,r=Math.floor(i/cols);
+    const ix=IPAD+c*colW, iy=IPAD+TITLE_H+r*IH;
+    const sqStroke=item.ctrl?'#999':(isPub?'#333':'rgba(0,0,0,.15)');
+    inner+=`<rect x="${ix}" y="${iy}" width="${SW}" height="${SW}" fill="${esc(item.c)}" rx="2" stroke="${sqStroke}" stroke-width="${isPub?'0.8':'0.5'}"/>`;
+    inner+=`<text x="${ix+SW+GAP}" y="${iy+SW/2+3.5}" font-size="${fs}" fill="${textColor}">${esc(item.l)}</text>`;
+  });
+  const bg=`<rect x="0" y="0" width="${totalW}" height="${totalH}" fill="${bgFill}" stroke="${bgStroke}" stroke-width="${isPub?'0.8':'1'}" ${bgRx}/>`;
+  return {svg:bg+inner,w:totalW,h:totalH};
+}
+
+/* ══════════════════════════════════════════════
+   RENDERIZAR PLACA (SVG) — legenda embutida no SVG
 ══════════════════════════════════════════════ */
 function renderPlate() {
   if(!plateLayout.length) return;
@@ -1114,7 +1177,6 @@ function renderPlate() {
   const mode = plateMode();
   let treats, colorMap;
   if(mode==='check') {
-    /* CHECK: cor por linha (Drug A conc) */
     treats = [...new Set(plateLayout.filter(w=>w.type==='sample'&&w.concA!==undefined).map(w=>w.concA))];
     colorMap = {};
     plateLayout.filter(w=>w.type==='sample'&&w.concA!==undefined).forEach(w=>{
@@ -1123,7 +1185,6 @@ function renderPlate() {
     });
     treats = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
   } else if(mode==='dose') {
-    /* DOSE: cor por composto */
     const compounds = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
     colorMap = {};
     compounds.forEach((t,i) => { colorMap[t] = isPub ? PUB_FILLS[i%PUB_FILLS.length] : TREAT_COLORS[i%TREAT_COLORS.length]; });
@@ -1134,73 +1195,59 @@ function renderPlate() {
     treats.forEach((t,i) => { colorMap[t] = isPub ? PUB_FILLS[i%PUB_FILLS.length] : TREAT_COLORS[i%TREAT_COLORS.length]; });
   }
 
-  /* Dimensões — margens maiores para DOSE/CHECK */
+  /* Dimensões base da placa */
   const WS = 29, R = 11;
   const PL = mode==='check' ? 56 : mode==='dose' ? 46 : 38;
   const PT = mode==='check' ? 46 : 32;
   const PR = 10, PB = 10;
   const svgW = PL + 12*WS + PR;
   const svgH = PT + 8*WS  + PB;
-
   const tc = isPub?'#333':'#6b7c6e';
 
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgW} ${svgH}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" id="plateSvg">`;
-  s += `<rect width="${svgW}" height="${svgH}" fill="${isPub?'#fff':'#f8fafb'}" rx="6"/>`;
+  /* Conteúdo interno da placa (sem tag <svg> externa) */
+  let p = `<rect width="${svgW}" height="${svgH}" fill="${isPub?'#fff':'#f8fafb'}" rx="6"/>`;
 
   if(mode==='check') {
-    /* Eixos CHECK — título dos fármacos + concentrações */
     const drugBName = plateLayout.find(w=>w.concB!==undefined)?.drugB||'B';
     const drugAName = plateLayout.find(w=>w.concA!==undefined)?.drugA||'A';
-    s += `<text x="${PL + 12*WS/2}" y="10" text-anchor="middle" font-size="8" font-weight="700" fill="${tc}" font-style="italic">${esc(drugBName)} →</text>`;
-    s += `<text x="8" y="${PT + 8*WS/2}" text-anchor="middle" font-size="8" font-weight="700" fill="${tc}" font-style="italic" transform="rotate(-90,8,${PT+8*WS/2})">${esc(drugAName)} →</text>`;
-    /* Concentrações B no cabeçalho de coluna */
+    p += `<text x="${PL + 12*WS/2}" y="10" text-anchor="middle" font-size="8" font-weight="700" fill="${tc}" font-style="italic">${esc(drugBName)} →</text>`;
+    p += `<text x="8" y="${PT + 8*WS/2}" text-anchor="middle" font-size="8" font-weight="700" fill="${tc}" font-style="italic" transform="rotate(-90,8,${PT+8*WS/2})">${esc(drugAName)} →</text>`;
     const concBByCol = {};
     plateLayout.filter(w=>w.concB!==undefined).forEach(w=>{ concBByCol[w.col-1]=w.concB; });
     COLS.forEach((_,ci) => {
       const cx = PL + ci*WS + WS/2;
-      const lbl = concBByCol[ci]||String(ci+1);
-      s += `<text x="${cx}" y="${PT-18}" text-anchor="middle" font-size="7" fill="${tc}" font-weight="600">${esc(lbl)}</text>`;
+      p += `<text x="${cx}" y="${PT-18}" text-anchor="middle" font-size="7" fill="${tc}" font-weight="600">${esc(concBByCol[ci]||String(ci+1))}</text>`;
     });
-    /* Concentrações A nos rótulos de linha */
     const concAByRow = {};
     plateLayout.filter(w=>w.concA!==undefined).forEach(w=>{ concAByRow[ROWS.indexOf(w.row)]=w.concA; });
     ROWS.forEach((_,ri) => {
       const cy = PT + ri*WS + WS/2;
-      const lbl = concAByRow[ri]||ROWS[ri];
-      s += `<text x="${PL-6}" y="${cy+3.5}" text-anchor="end" font-size="7" fill="${tc}" font-weight="600">${esc(lbl)}</text>`;
+      p += `<text x="${PL-6}" y="${cy+3.5}" text-anchor="end" font-size="7" fill="${tc}" font-weight="600">${esc(concAByRow[ri]||ROWS[ri])}</text>`;
     });
   } else if(mode==='dose') {
-    /* Eixos DOSE — nomes de compostos + concentrações */
     const compByRow = {};
     plateLayout.filter(w=>w.type==='sample'&&w.concentration!==undefined).forEach(w=>{
-      const ri=ROWS.indexOf(w.row);
-      if(!compByRow[ri]) compByRow[ri]=w.treatment;
+      const ri=ROWS.indexOf(w.row); if(!compByRow[ri]) compByRow[ri]=w.treatment;
     });
     const concByCol = {};
     plateLayout.filter(w=>w.type==='sample'&&w.concentration!==undefined).forEach(w=>{
-      const ci=w.col-1;
-      if(concByCol[ci]===undefined) concByCol[ci]=w.concentration;
+      const ci=w.col-1; if(concByCol[ci]===undefined) concByCol[ci]=w.concentration;
     });
     COLS.forEach((_,ci) => {
       const cx = PL + ci*WS + WS/2;
-      const lbl = concByCol[ci]!==undefined ? fmtConc(concByCol[ci]) : String(ci+1);
-      s += `<text x="${cx}" y="${PT-9}" text-anchor="middle" font-size="8" fill="${tc}" font-weight="700">${esc(lbl)}</text>`;
+      p += `<text x="${cx}" y="${PT-9}" text-anchor="middle" font-size="8" fill="${tc}" font-weight="700">${esc(concByCol[ci]!==undefined?fmtConc(concByCol[ci]):String(ci+1))}</text>`;
     });
     ROWS.forEach((_,ri) => {
       const cy = PT + ri*WS + WS/2;
       const name = compByRow[ri]||ROWS[ri];
-      const truncated = name.length>6 ? name.slice(0,5)+'…' : name;
-      s += `<text x="${PL-6}" y="${cy+3.5}" text-anchor="end" font-size="7.5" fill="${tc}" font-weight="600">${esc(truncated)}</text>`;
+      p += `<text x="${PL-6}" y="${cy+3.5}" text-anchor="end" font-size="7.5" fill="${tc}" font-weight="600">${esc(name.length>6?name.slice(0,5)+'…':name)}</text>`;
     });
   } else {
-    /* Eixos standard */
     COLS.forEach((c,ci) => {
-      const cx = PL + ci*WS + WS/2;
-      s += `<text x="${cx}" y="${PT-9}" text-anchor="middle" font-size="9" fill="${tc}" font-weight="700">${c}</text>`;
+      p += `<text x="${PL+ci*WS+WS/2}" y="${PT-9}" text-anchor="middle" font-size="9" fill="${tc}" font-weight="700">${c}</text>`;
     });
     ROWS.forEach((r,ri) => {
-      const cy = PT + ri*WS + WS/2;
-      s += `<text x="${PL-12}" y="${cy+3.5}" text-anchor="middle" font-size="9" fill="${tc}" font-weight="700">${r}</text>`;
+      p += `<text x="${PL-12}" y="${PT+ri*WS+WS/2+3.5}" text-anchor="middle" font-size="9" fill="${tc}" font-weight="700">${r}</text>`;
     });
   }
 
@@ -1208,30 +1255,50 @@ function renderPlate() {
   plateLayout.forEach(w => {
     const ri = ROWS.indexOf(w.row), ci = w.col - 1;
     const cx = PL + ci*WS + WS/2, cy = PT + ri*WS + WS/2;
-
     let fill, stroke;
-    if(w.type==='sample') {
-      fill = colorMap[w.treatment]||'#e5e7eb';
-      stroke = isPub ? '#333' : 'rgba(0,0,0,.25)';
-    } else if(w.type==='empty') {
+    if(w.type==='sample'){
+      fill = colorMap[w.treatment]||'#e5e7eb'; stroke = isPub?'#333':'rgba(0,0,0,.25)';
+    } else if(w.type==='empty'){
       fill = '#f3f4f6'; stroke = '#d1d5db';
     } else {
-      fill = isPub ? CTRL_PUB[w.type]||'#e5e5e5' : CTRL_COLOR[w.type]||'#e5e7eb';
-      stroke = isPub ? '#555' : 'rgba(0,0,0,.3)';
+      fill = isPub?CTRL_PUB[w.type]||'#e5e5e5':CTRL_COLOR[w.type]||'#e5e7eb';
+      stroke = isPub?'#555':'rgba(0,0,0,.3)';
     }
-
-    const lum = hexLum(fill);
-    const textFill = lum < 130 ? '#fff' : (isPub ? '#111' : '#1b2a1e');
-
-    s += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${fill}" stroke="${stroke}" stroke-width="${isPub?'0.9':'0.6'}" data-well="${w.id}" style="cursor:${w.type!=='empty'?'pointer':'default'}"/>`;
-
+    const textFill = hexLum(fill)<130?'#fff':(isPub?'#111':'#1b2a1e');
+    p += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${fill}" stroke="${stroke}" stroke-width="${isPub?'0.9':'0.6'}" data-well="${w.id}" style="cursor:${w.type!=='empty'?'pointer':'default'}"/>`;
     const lbl = shortLabel(w, treats, isEng);
-    if(lbl) {
-      const fs = lbl.length > 3 ? 5 : lbl.length > 2 ? 6 : 7;
-      s += `<text x="${cx}" y="${cy+fs*0.4}" text-anchor="middle" font-size="${fs}" fill="${textFill}" font-weight="700" pointer-events="none">${esc(lbl)}</text>`;
+    if(lbl){
+      const fs = lbl.length>3?5:lbl.length>2?6:7;
+      p += `<text x="${cx}" y="${cy+fs*0.4}" text-anchor="middle" font-size="${fs}" fill="${textFill}" font-weight="700" pointer-events="none">${esc(lbl)}</text>`;
     }
   });
 
+  /* Legenda SVG embutida — expande dimensões do SVG conforme posição */
+  const legendPos = document.getElementById('selLegendPos')?.value || 'bottom';
+  const leg = buildLabSvgLegend(colorMap, plateLayout, mode, isPub, isEng, legendPos);
+  const LPAD = 12;
+  let totalW=svgW, totalH=svgH, plateX=0, plateY=0, legX=0, legY=0;
+  if(leg.h > 0) {
+    if(legendPos==='bottom'){
+      totalH = svgH + LPAD + leg.h;
+      legX = Math.max(8, (svgW-leg.w)/2);
+      legY = svgH + LPAD/2;
+    } else if(legendPos==='top'){
+      totalH = svgH + LPAD + leg.h;
+      plateY = leg.h + LPAD;
+      legX = Math.max(8, (svgW-leg.w)/2);
+    } else if(legendPos==='right'){
+      totalW = svgW + LPAD + leg.w + 16;
+      legX = svgW + LPAD;
+      legY = Math.max(8, (svgH-leg.h)/2);
+    }
+  }
+
+  /* Montar SVG final */
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" id="plateSvg">`;
+  s += `<rect width="${totalW}" height="${totalH}" fill="${isPub?'#fff':'#f8fafb'}" rx="6"/>`;
+  s += `<g transform="translate(${plateX},${plateY})">${p}</g>`;
+  if(leg.h > 0) s += `<g transform="translate(${legX.toFixed(1)},${legY.toFixed(1)})">${leg.svg}</g>`;
   s += '</svg>';
 
   const wrap = document.getElementById('plateWrap');
@@ -1246,7 +1313,8 @@ function renderPlate() {
     }
   });
 
-  renderLegend(colorMap, isPub, isEng);
+  /* HTML legend div obsoleto — legenda agora está no SVG */
+  document.getElementById('plateLegend').innerHTML = '';
 }
 
 function plateMode() {
@@ -1338,32 +1406,8 @@ function renderLegend(colorMap, isPub, isEng) {
 }
 
 function applyLegendPos() {
-  const pos = document.getElementById('selLegendPos')?.value || 'bottom';
-  const container = document.getElementById('plateContainer');
-  const legend    = document.getElementById('plateLegend');
-  const wrap      = document.getElementById('plateWrap');
-  if(!container || !legend) return;
-
-  legend.style.display = pos === 'none' ? 'none' : '';
-  legend.style.order   = '';
-  legend.style.flexDirection = '';
-  legend.style.maxWidth = '';
-  wrap.style.flex = '';
-
-  if(pos === 'right') {
-    container.style.flexDirection = 'row';
-    container.style.alignItems    = 'flex-start';
-    legend.style.flexDirection    = 'column';
-    legend.style.maxWidth         = '180px';
-    wrap.style.flex               = '1';
-  } else if(pos === 'top') {
-    container.style.flexDirection = 'column';
-    container.style.alignItems    = '';
-    legend.style.order            = '-1';
-  } else {
-    container.style.flexDirection = 'column';
-    container.style.alignItems    = '';
-  }
+  /* Legenda agora está embutida no SVG — basta re-renderizar */
+  if(plateLayout.length) renderPlate();
 }
 
 /* ── Tooltip ── */
