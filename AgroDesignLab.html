@@ -669,13 +669,13 @@ function blockOf(design, row, col) {
 /* ══════════════════════════════════════════════
    GERAR LAYOUT
 ══════════════════════════════════════════════ */
-function generatePlate() {
+function generatePlate(autoUpdate=false) {
   const d = document.getElementById('selDesignLab').value;
-  if(d==='DOSE')  { generateDoseLayout();  return; }
-  if(d==='CHECK') { generateCheckLayout(); return; }
+  if(d==='DOSE')  { generateDoseLayout(autoUpdate);  return; }
+  if(d==='CHECK') { generateCheckLayout(autoUpdate); return; }
 
   const treats   = parseTreatments(document.getElementById('txtTreatments').value);
-  if(!treats.length){ alert('Informe ao menos um tratamento.'); return; }
+  if(!treats.length){ if(!autoUpdate) alert('Informe ao menos um tratamento.'); return; }
 
   const reps     = parseInt(document.getElementById('numReps').value)||1;
   const neg      = parseInt(document.getElementById('numCtrlNeg').value)||0;
@@ -766,7 +766,7 @@ function generatePlate() {
   renderFieldBook();
   renderColeta();
   renderMM();
-  switchTab('placa');
+  if(!autoUpdate) switchTab('placa');
 }
 
 /* ══════════════════════════════════════════════
@@ -1512,17 +1512,17 @@ function updateDosePreview() {
   document.getElementById('wellCounter').innerHTML = '';
 }
 
-function generateDoseLayout() {
+function generateDoseLayout(autoUpdate=false) {
   const compounds = parseTreatments(document.getElementById('doseCompounds').value);
-  if(!compounds.length){ alert('Informe ao menos um composto.'); return; }
+  if(!compounds.length){ if(!autoUpdate) alert('Informe ao menos um composto.'); return; }
   const c0     = parseFloat(document.getElementById('doseC0').value)||1000;
   const unit   = document.getElementById('doseUnit').value.trim()||'µg/mL';
   const factor = getDoseFactor();
   const nConc  = parseInt(document.getElementById('doseNCon').value)||8;
   const reps   = parseInt(document.getElementById('doseReps').value)||1;
   const nRows  = compounds.length * reps;
-  if(nRows>8)  { alert(`${compounds.length} compostos × ${reps} rep = ${nRows} linhas (máx 8).`); return; }
-  if(nConc>12) { alert('Máximo 12 concentrações (colunas).'); return; }
+  if(nRows>8)  { if(!autoUpdate) alert(`${compounds.length} compostos × ${reps} rep = ${nRows} linhas (máx 8).`); return; }
+  if(nConc>12) { if(!autoUpdate) alert('Máximo 12 concentrações (colunas).'); return; }
 
   const concs = Array.from({length:nConc}, (_,i) => c0/Math.pow(factor,i));
 
@@ -1559,7 +1559,7 @@ function generateDoseLayout() {
 
   plateLayout = ROWS.flatMap(r => COLS.map(c => wm[`${r}${c}`]));
   renderPlate(); renderSummaryLab(); renderFieldBook(); renderColeta(); renderMM();
-  switchTab('placa');
+  if(!autoUpdate) switchTab('placa');
 }
 
 /* ══════════════════════════════════════════════
@@ -1580,16 +1580,16 @@ function updateCheckPreview() {
   document.getElementById('wellCounter').innerHTML='';
 }
 
-function generateCheckLayout() {
+function generateCheckLayout(autoUpdate=false) {
   const drugAName = document.getElementById('checkDrugA').value.trim()||'Fármaco A';
   const drugBName = document.getElementById('checkDrugB').value.trim()||'Fármaco B';
   const concAList = parseTreatments(document.getElementById('checkConcA').value);
   const concBList = parseTreatments(document.getElementById('checkConcB').value);
   const unitA = document.getElementById('checkUnitA').value.trim()||'µg/mL';
   const unitB = document.getElementById('checkUnitB').value.trim()||'µg/mL';
-  if(!concAList.length||!concBList.length){ alert('Informe as concentrações de ambos os fármacos.'); return; }
-  if(concAList.length>8)  { alert('Fármaco A: máximo 8 concentrações (linhas A–H).'); return; }
-  if(concBList.length>12) { alert('Fármaco B: máximo 12 concentrações (colunas 1–12).'); return; }
+  if(!concAList.length||!concBList.length){ if(!autoUpdate) alert('Informe as concentrações de ambos os fármacos.'); return; }
+  if(concAList.length>8)  { if(!autoUpdate) alert('Fármaco A: máximo 8 concentrações (linhas A–H).'); return; }
+  if(concBList.length>12) { if(!autoUpdate) alert('Fármaco B: máximo 12 concentrações (colunas 1–12).'); return; }
 
   const wm = {};
   ALL_WELLS.forEach(id => {
@@ -1632,6 +1632,7 @@ function loadTemplate(name) {
     document.getElementById('txtCtrlPosName').value = 'Inibição total';
     document.getElementById('numSeedLab').value  = '42';
     updateDosePreview();
+    generatePlate(false);
     toast('Template Dose-Resposta: 4 compostos × 10 concentrações (1000→1,95 µg/mL, fator 2×). Controles nos poços livres.');
     return;
   }
@@ -1645,6 +1646,7 @@ function loadTemplate(name) {
     document.getElementById('checkConcB').value = '64\n32\n16\n8\n4\n2\n1\n0,5';
     document.getElementById('checkUnitB').value = 'µg/mL';
     updateCheckPreview();
+    generatePlate(false);
     toast('Template Checkerboard: Ampicilina × Gentamicina, 8×8 = 64 combinações. Análise de sinergismo por FICI.');
     return;
   }
@@ -1703,6 +1705,7 @@ function loadTemplate(name) {
   document.getElementById('txtCtrlPosName').value  = cfg.posName;
   document.getElementById('numSeedLab').value      = cfg.seed;
   onDesignChange(); updateWellCounter();
+  generatePlate(false);
   toast(cfg.msg);
 }
 
@@ -1740,6 +1743,13 @@ function toggleDark() {
   if(plateLayout.length) renderPlate();
 }
 
+/* ── Debounce / live update ── */
+let _debTimer = null;
+function debounceGenerate() {
+  clearTimeout(_debTimer);
+  _debTimer = setTimeout(() => generatePlate(true), 400);
+}
+
 /* ── Init ── */
 onDesignChange();
 updateWellCounter();
@@ -1749,6 +1759,18 @@ updateWellCounter();
     document.documentElement.setAttribute('data-dark','');
     document.getElementById('btnDark').textContent='☀️';
   }
+
+  /* Live-update: qualquer campo do painel lateral dispara regeneração */
+  document.querySelector('.config-panel').addEventListener('change', e => {
+    const tag = e.target.tagName;
+    if(tag==='SELECT' || tag==='INPUT') generatePlate(true);
+  });
+  document.querySelector('.config-panel').addEventListener('input', e => {
+    const tag = e.target.tagName;
+    const type = e.target.type;
+    if(tag==='TEXTAREA' || (tag==='INPUT' && type==='text')) debounceGenerate();
+    else if(tag==='INPUT' && type==='number') generatePlate(true);
+  });
 })();
 </script>
 </body>
