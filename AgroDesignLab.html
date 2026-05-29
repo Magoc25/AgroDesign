@@ -602,7 +602,6 @@ df = df[df["Tipo"] == "Amostra"]</code></div>
              border:1px solid var(--border);border-radius:var(--radius);
              padding:.5rem .75rem;background:var(--surface);color:var(--text)"></textarea>
     <button class="btn btn-ghost btn-sm" style="margin-top:.25rem" onclick="copyLabText('citation')">📋 Copiar Citação</button>
-    <p class="hint" style="margin-top:.5rem;font-size:.74rem;line-height:1.5">💡 <strong>Para obter DOI citável:</strong> deposite o software no <a href="https://zenodo.org" target="_blank" rel="noopener" style="color:var(--primary)">Zenodo (zenodo.org)</a> antes da submissão do manuscrito.</p>
     <p class="hint" style="margin-top:.75rem;font-size:.74rem;line-height:1.5">Substitua "Figura X" pelo número correto. Complemente com detalhes específicos do seu experimento.</p>
     <div class="info-box" style="font-size:.78rem;margin-top:.5rem">
       <strong>Replicatas biológicas vs. técnicas</strong><br>
@@ -2791,9 +2790,40 @@ function generateCheckLayout(autoUpdate=false) {
 /* ══════════════════════════════════════════════
    TEMPLATES
 ══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   FILTRO DE DELINEAMENTOS — restringe o seletor "Tipo" ao que é
+   compatível com o template carregado.
+   Usa rebuild de innerHTML para máxima compatibilidade de browser.
+══════════════════════════════════════════════════════════════ */
+const ALL_DESIGN_OPTIONS = [
+  {group:'Delineamentos Clássicos', opts:[
+    {v:'CRD',    l:'CRD — Completamente Aleatório'},
+    {v:'RCBD-R', l:'RCBD-R — Blocos por Linha'},
+    {v:'RCBD-C', l:'RCBD-C — Blocos por Coluna'},
+    {v:'RCBD-Q', l:'RCBD-Q — Blocos por Quadrante'},
+  ]},
+  {group:'Fase 2 — Dose-Resposta', opts:[
+    {v:'DOSE',  l:'DOSE — Diluição Seriada'},
+    {v:'CHECK', l:'CHECK — Checkerboard (Sinergismo)'},
+  ]}
+];
+
+// allowed: array de valores permitidos, null = todos
+function filterDesignOptions(allowed) {
+  const sel=document.getElementById('selDesignLab');
+  const cur=sel.value;
+  sel.innerHTML=ALL_DESIGN_OPTIONS.map(grp=>{
+    const opts=allowed ? grp.opts.filter(o=>allowed.includes(o.v)) : grp.opts;
+    if(!opts.length) return '';
+    return `<optgroup label="${grp.group}">${opts.map(o=>`<option value="${o.v}"${o.v===cur?' selected':''}>${o.l}</option>`).join('')}</optgroup>`;
+  }).join('');
+  if(allowed && !allowed.includes(cur)) onDesignChange();
+}
+
 function loadTemplate(name) {
-  /* EcoPlate — layout fixo, geração própria */
+  /* EcoPlate — layout fixo; apenas CRD faz sentido */
   if(name==='ecoplate') {
+    filterDesignOptions(['CRD']);
     document.getElementById('selDesignLab').value='CRD';
     onDesignChange();
     generateEcoPlateLayout();
@@ -2801,6 +2831,7 @@ function loadTemplate(name) {
   }
   /* Templates DOSE e CHECK têm lógica própria */
   if(name==='dose') {
+    filterDesignOptions(['DOSE']);
     document.getElementById('selDesignLab').value = 'DOSE';
     onDesignChange();
     document.getElementById('doseCompounds').value = 'Composto A\nComposto B\nComposto C\nComposto D';
@@ -2821,6 +2852,7 @@ function loadTemplate(name) {
     return;
   }
   if(name==='check') {
+    filterDesignOptions(['CHECK']);
     document.getElementById('selDesignLab').value = 'CHECK';
     onDesignChange();
     document.getElementById('checkDrugA').value = 'Ampicilina';
@@ -2878,6 +2910,7 @@ function loadTemplate(name) {
     }
   };
   const cfg=T[name]; if(!cfg) return;
+  filterDesignOptions(['CRD','RCBD-R','RCBD-C','RCBD-Q']);
   document.getElementById('selDesignLab').value    = cfg.design;
   document.getElementById('selEdge').value         = cfg.edge;
   document.getElementById('txtTreatments').value   = cfg.treats;
