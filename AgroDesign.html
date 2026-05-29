@@ -4772,6 +4772,18 @@ function toggleExploratoryPanel() {
   if (!hidden) renderExploratoryPanel();
 }
 
+function _markDirtyCampo() {
+  if (!_exampleCampoKey) return;
+  projectVariables = [];
+  collectionData = {};
+  _exampleDataCampoLoaded = false;
+  _exampleCampoKey = null;
+  updateExampleCampoBtn();
+  const ep = document.getElementById('exploratoryPanel');
+  if (ep) { ep.classList.add('hidden'); ep.innerHTML = ''; }
+  renderDataTab();
+}
+
 /* ── Presets ── */
 function getPresetsFromStorage() {
   try { return JSON.parse(localStorage.getItem('agrodesign_presets') || '{}'); } catch(e) { return {}; }
@@ -6102,6 +6114,10 @@ applyFontMode(document.getElementById('selFont').value);
     if (last) applyConfig(last);
   } catch(e) {}
 })();
+
+// Invalida dados de exemplo ao alterar qualquer parâmetro do painel lateral
+document.querySelector('.config-panel').addEventListener('change', _markDirtyCampo);
+document.querySelector('.config-panel').addEventListener('input',  _markDirtyCampo);
 
 // ── Modo escuro ──
 function toggleDark() {
