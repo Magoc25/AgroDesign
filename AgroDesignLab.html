@@ -461,7 +461,11 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
   <div id="tabColeta" class="tab-content">
     <div class="action-row">
       <button class="btn btn-primary btn-sm" onclick="calcStats()">📊 Calcular Estatísticas</button>
-      <button class="btn btn-ghost btn-sm" onclick="exportCSVColeta()">⬇ CSV com Valores</button>
+      <button class="btn btn-ghost btn-sm" onclick="checkOutliersLab()" title="Verificar valores discrepantes (Tukey IQR)">🔍 Verificar</button>
+      <button class="btn btn-ghost btn-sm" id="btnDecSepLab" onclick="toggleDecimalSepLab()" title="Separador decimal nos arquivos exportados">🔢 Dec: .</button>
+      <span style="color:var(--border);font-size:.9rem">|</span>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSVColeta()">⬇ CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportXLSColeta()">⬇ XLSX</button>
       <span class="hint" id="coletaHint"></span>
     </div>
     <div id="coletaPlaceholder" class="info-box" style="font-size:.82rem">
@@ -484,19 +488,26 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
   <div class="modal-backdrop" onclick="closeMMModal()"></div>
   <div class="modal-content" style="max-width:660px">
     <div class="modal-header">
-      <span class="modal-title">📄 Material e Métodos</span>
+      <span class="modal-title">📄 Texto para Publicação</span>
       <button class="modal-close-btn" onclick="closeMMModal()">✕</button>
     </div>
     <div style="display:flex;gap:.4rem;margin-bottom:.75rem;align-items:center">
       <button id="btnMMLangPT" class="btn btn-primary btn-sm" onclick="setMMModalLang('pt')">🇧🇷 Português</button>
       <button id="btnMMLangEN" class="btn btn-ghost  btn-sm" onclick="setMMModalLang('en')">🇺🇸 English</button>
-      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="copyMMModal()">📋 Copiar</button>
     </div>
-    <textarea id="labMMText" rows="12" readonly
+    <div class="form-section-title">Material e Métodos</div>
+    <textarea id="labMMText" rows="9" readonly
       style="width:100%;font-size:.82rem;line-height:1.65;resize:vertical;
              border:1px solid var(--border);border-radius:var(--radius);
              padding:.5rem .75rem;background:var(--surface);color:var(--text)"></textarea>
-    <p class="hint" style="margin-top:.4rem">Cite a semente de randomização para reprodutibilidade.</p>
+    <button class="btn btn-ghost btn-sm" style="margin-top:.25rem" onclick="copyLabText('mm')">📋 Copiar M&amp;M</button>
+    <div class="form-section-title" style="margin-top:1rem">Legenda da figura</div>
+    <textarea id="labCaptionText" rows="3" readonly
+      style="width:100%;font-size:.82rem;line-height:1.65;resize:vertical;
+             border:1px solid var(--border);border-radius:var(--radius);
+             padding:.5rem .75rem;background:var(--surface);color:var(--text)"></textarea>
+    <button class="btn btn-ghost btn-sm" style="margin-top:.25rem" onclick="copyLabText('caption')">📋 Copiar Legenda</button>
+    <p class="hint" style="margin-top:.75rem;font-size:.74rem;line-height:1.5">Substitua "Figura X" pelo número correto. Complemente com detalhes específicos do seu experimento.</p>
     <div class="info-box" style="font-size:.78rem;margin-top:.5rem">
       <strong>Replicatas biológicas vs. técnicas</strong><br>
       As replicatas configuradas são <em>técnicas</em> (mesma placa).
@@ -996,7 +1007,10 @@ function renderLegend(colorMap, isPub, isEng) {
       items.push(`<div class="legend-item"><div class="legend-swatch" style="background:${c};border:1px solid #999"></div><span>${lbl}</span></div>`);
     }
   });
-  document.getElementById('plateLegend').innerHTML = items.join('');
+  const titleEl = items.length
+    ? `<div class="form-section-title" style="margin:.2rem 0 .35rem">${isEng?'Legend':'Legenda'}</div>`
+    : '';
+  document.getElementById('plateLegend').innerHTML = titleEl + items.join('');
   applyLegendPos();
 }
 
@@ -1232,6 +1246,46 @@ function buildMM(en) {
   }
 }
 
+function buildCaption(en) {
+  const mode = plateMode();
+  const hasCtrlNeg = plateLayout.some(w=>w.type==='ctrl_neg');
+  const hasCtrlPos = plateLayout.some(w=>w.type==='ctrl_pos');
+  const hasBlank   = plateLayout.some(w=>w.type==='blank');
+
+  if(mode==='dose') {
+    const compounds = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
+    const unit  = plateLayout.find(w=>w.concUnit)?.concUnit || document.getElementById('doseUnit').value || '';
+    const fac   = document.getElementById('doseFactor').value;
+    const concs = [...new Map(plateLayout.filter(w=>w.concentration!==undefined).map(w=>[w.concentration,w])).values()]
+                    .sort((a,b)=>b.concentration-a.concentration).map(w=>fmtConc(w.concentration));
+    if(en) return `Figure X. 96-well plate layout for dose-response assay. ${compounds.length} compound(s) (${compounds.join(', ')}) tested at ${concs.length} serial concentrations (${concs[0]}–${concs[concs.length-1]} ${unit}, dilution factor ${fac}×). Compounds occupy rows; concentrations decrease left to right across columns.`;
+    return `Figura X. Layout da placa de 96 poços para ensaio de dose-resposta. ${compounds.length} composto(s) (${compounds.join(', ')}) avaliado(s) em ${concs.length} concentrações seriadas (${concs[0]}–${concs[concs.length-1]} ${unit}, fator de diluição ${fac}×). Compostos distribuídos por linhas; concentrações decrescentes da esquerda para a direita.`;
+  }
+
+  if(mode==='check') {
+    const drugA = plateLayout.find(w=>w.drugA)?.drugA||'Droga A';
+    const drugB = plateLayout.find(w=>w.drugB)?.drugB||'Droga B';
+    const unitA = plateLayout.find(w=>w.unitA)?.unitA||'';
+    const unitB = plateLayout.find(w=>w.unitB)?.unitB||'';
+    const nA = [...new Set(plateLayout.filter(w=>w.concA!==undefined).map(w=>w.concA))].length;
+    const nB = [...new Set(plateLayout.filter(w=>w.concB!==undefined).map(w=>w.concB))].length;
+    if(en) return `Figure X. 96-well plate checkerboard assay layout. ${drugA} (${nA} concentrations, ${unitA}) distributed across rows; ${drugB} (${nB} concentrations, ${unitB}) across columns; generating ${nA*nB} combination wells. Interaction assessed by fractional inhibitory concentration index (FICI).`;
+    return `Figura X. Layout da placa de 96 poços para ensaio de tabuleiro (checkerboard). ${drugA} (${nA} concentrações, ${unitA}) distribuído pelas linhas; ${drugB} (${nB} concentrações, ${unitB}) pelas colunas; totalizando ${nA*nB} combinações. Interação avaliada pelo índice de concentração inibitória fracionada (ICIF).`;
+  }
+
+  // Standard
+  const treats = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
+  const nT   = treats.length;
+  const reps = parseInt(document.getElementById('numReps').value)||1;
+  const d    = document.getElementById('selDesignLab').value;
+  const dPt  = {CRD:'DIC (Delineamento Inteiramente Casualizado)','RCBD-R':'DBC — blocos por linha','RCBD-C':'DBC — blocos por coluna','RCBD-Q':'DBC — blocos por quadrante'};
+  const dEn  = {CRD:'CRD (Completely Randomized Design)','RCBD-R':'RCBD — row blocks','RCBD-C':'RCBD — column blocks','RCBD-Q':'RCBD — quadrant blocks'};
+  const ctrlParts = [hasCtrlNeg&&(en?'negative controls':'controles negativos'), hasCtrlPos&&(en?'positive controls':'controles positivos'), hasBlank&&(en?'blanks':'brancos')].filter(Boolean);
+  const ctrlStr = ctrlParts.length ? (en?` ${ctrlParts.join(', ')} included as assay controls.`:` ${ctrlParts.join(', ')} incluídos como controles do ensaio.`) : '';
+  if(en) return `Figure X. 96-well plate layout arranged in ${dEn[d]||d} with ${nT} treatment(s) and ${reps} technical replicate(s) per treatment.${ctrlStr}`;
+  return `Figura X. Layout da placa de 96 poços em ${dPt[d]||d} com ${nT} tratamento(s) e ${reps} replicata(s) técnica(s) por tratamento.${ctrlStr}`;
+}
+
 let _mmLang = 'pt';
 
 function openMMModal() {
@@ -1243,14 +1297,18 @@ function openMMModal() {
 function closeMMModal() { document.getElementById('modalMM').classList.add('hidden'); }
 function setMMModalLang(lang) { _mmLang = lang; _refreshMMModal(); }
 function _refreshMMModal() {
-  document.getElementById('labMMText').value = buildMM(_mmLang==='en');
+  const en = _mmLang==='en';
+  document.getElementById('labMMText').value      = buildMM(en);
+  document.getElementById('labCaptionText').value = buildCaption(en);
   document.getElementById('btnMMLangPT').className = `btn btn-sm ${_mmLang==='pt'?'btn-primary':'btn-ghost'}`;
   document.getElementById('btnMMLangEN').className = `btn btn-sm ${_mmLang==='en'?'btn-primary':'btn-ghost'}`;
 }
-function copyMMModal() {
-  navigator.clipboard.writeText(document.getElementById('labMMText').value)
+function copyLabText(which) {
+  const id = which==='caption' ? 'labCaptionText' : 'labMMText';
+  navigator.clipboard.writeText(document.getElementById(id).value)
     .then(()=>toast('Texto copiado!')).catch(()=>{});
 }
+function copyMMModal() { copyLabText('mm'); }
 
 function onEngChange() { if(plateLayout.length){ renderPlate(); renderFieldBook(); renderColeta(); } }
 
@@ -1460,16 +1518,81 @@ function calcStats() {
      </div>${zpBox}`;
 }
 
+/* ── Separador decimal (Coleta) ── */
+let _decSepLab = '.';
+function toggleDecimalSepLab() {
+  _decSepLab = _decSepLab==='.' ? ',' : '.';
+  document.getElementById('btnDecSepLab').textContent = `🔢 Dec: ${_decSepLab}`;
+}
+function fmtDec(v) { return _decSepLab===',' ? String(v).replace('.',',') : String(v); }
+
+/* ── Verificar outliers (Tukey IQR) ── */
+function checkOutliersLab() {
+  const inputs = [...document.querySelectorAll('.val-input')];
+  if(!inputs.length){ alert('Gere o layout primeiro.'); return; }
+  const groups = {};
+  inputs.forEach(inp => {
+    const v = parseFloat(inp.value);
+    if(isNaN(v)) return;
+    const w = plateLayout.find(x=>x.id===inp.dataset.well);
+    if(!w || w.type==='empty') return;
+    const key = w.type==='sample' ? w.treatment : w.type;
+    if(!groups[key]) groups[key]=[];
+    groups[key].push({inp, v});
+  });
+  inputs.forEach(inp=>{ inp.style.background=''; inp.style.borderColor=''; inp.title=''; });
+  let count=0;
+  Object.values(groups).forEach(items=>{
+    if(items.length<4) return;
+    const sorted = items.map(x=>x.v).sort((a,b)=>a-b);
+    const n=sorted.length;
+    const q1=sorted[Math.floor(n*0.25)], q3=sorted[Math.floor(n*0.75)];
+    const iqr=q3-q1;
+    if(iqr===0) return;
+    const lo=q1-1.5*iqr, hi=q3+1.5*iqr;
+    items.forEach(({inp,v})=>{
+      if(v<lo||v>hi){
+        inp.style.background='#fef3c7'; inp.style.borderColor='#f59e0b';
+        inp.title='⚠ Valor discrepante (Tukey IQR)'; count++;
+      }
+    });
+  });
+  if(count===0) alert('✅ Nenhuma irregularidade detectada.');
+  else alert(`⚠ ${count} valor(es) discrepante(s) encontrado(s) — destacado(s) em amarelo.\n\nCritério: Tukey IQR (Q1 − 1,5×IQR ou Q3 + 1,5×IQR). Mínimo 4 observações por grupo.`);
+}
+
 function exportCSVColeta() {
   if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
   const valMap = {};
   document.querySelectorAll('.val-input').forEach(inp => { valMap[inp.dataset.well]=inp.value; });
-  const header = 'Poço,Linha,Coluna,Tipo,Tratamento,Replicata_Técnica,Bloco,Valor\n';
+  const sep = _decSepLab===',' ? ';' : ',';
+  const header = `Poço${sep}Linha${sep}Coluna${sep}Tipo${sep}Tratamento${sep}Replicata_Técnica${sep}Bloco${sep}Valor\n`;
   const typeMap = {sample:'Amostra',ctrl_neg:'Ctrl. Negativo',ctrl_pos:'Ctrl. Positivo',blank:'Branco',buffer:'Buffer (PBS)',empty:'Vazio'};
-  const rows = plateLayout.filter(w=>w.type!=='empty').map(w =>
-    `${w.id},${w.row},${w.col},${typeMap[w.type]||w.type},"${w.treatment||''}",${w.rep??''},${w.block??''},${valMap[w.id]??''}`
-  ).join('\n');
+  const rows = plateLayout.filter(w=>w.type!=='empty').map(w => {
+    const raw = valMap[w.id]??'';
+    const val = raw!=='' ? fmtDec(raw) : '';
+    return `${w.id}${sep}${w.row}${sep}${w.col}${sep}${typeMap[w.type]||w.type}${sep}"${w.treatment||''}"${sep}${w.rep??''}${sep}${w.block??''}${sep}${val}`;
+  }).join('\n');
   dlBlob(new Blob(['﻿'+header+rows], {type:'text/csv;charset=utf-8'}), 'agrodesign-lab-coleta.csv');
+}
+
+function exportXLSColeta() {
+  if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
+  const valMap = {};
+  document.querySelectorAll('.val-input').forEach(inp => { valMap[inp.dataset.well]=inp.value; });
+  const isEng = document.getElementById('chkEngLab').checked;
+  const typeMap = {sample:'Amostra',ctrl_neg:'Ctrl. Negativo',ctrl_pos:'Ctrl. Positivo',blank:'Branco',buffer:'Buffer (PBS)',empty:'Vazio'};
+  const heads = isEng
+    ? ['Well','Row','Col','Type','Treatment','Tech. Rep','Block','Measured Value']
+    : ['Poço','Linha','Coluna','Tipo','Tratamento','Rep. Técnica','Bloco','Valor Medido'];
+  const rows = plateLayout.filter(w=>w.type!=='empty').map(w =>
+    `<tr>${[w.id,w.row,w.col,typeMap[w.type]||w.type,w.treatment||'',w.rep??'',w.block??'',valMap[w.id]??'']
+      .map(c=>`<td>${esc(String(c))}</td>`).join('')}</tr>`
+  ).join('');
+  const html = `<html><head><meta charset="utf-8"/></head><body>
+<table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
+</body></html>`;
+  dlBlob(new Blob([html],{type:'application/vnd.ms-excel;charset=utf-8'}), 'agrodesign-lab-coleta.xls');
 }
 
 /* ══════════════════════════════════════════════
