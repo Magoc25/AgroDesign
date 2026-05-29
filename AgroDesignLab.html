@@ -169,6 +169,7 @@ tr:hover td{background:var(--primary-pale)}
   padding:.38rem .65rem;font-size:.77rem;cursor:pointer;text-align:left;color:var(--text);
   transition:background .15s}
 .template-btn:hover{background:var(--primary-pale);border-color:var(--primary)}
+.template-btn.active{background:var(--primary-pale);border-color:var(--primary);color:var(--primary);font-weight:600}
 
 /* Toast */
 .toast{position:fixed;bottom:70px;right:16px;z-index:999;max-width:300px;
@@ -240,14 +241,14 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
   <div class="form-section">
     <div class="form-section-title">Templates</div>
     <div class="template-list">
-      <button class="template-btn" onclick="loadTemplate('mic')">💊 MIC Antimicrobiano (CLSI M07)</button>
-      <button class="template-btn" onclick="loadTemplate('mtt')">🔬 Viabilidade Celular (MTT)</button>
-      <button class="template-btn" onclick="loadTemplate('phyto')">🌿 Fitotoxicidade (OECD TG 208)</button>
-      <button class="template-btn" onclick="loadTemplate('elisa')">🩸 ELISA (RCBD-C)</button>
-      <button class="template-btn" onclick="loadTemplate('dose')">📈 Dose-Resposta (Diluição Seriada)</button>
-      <button class="template-btn" onclick="loadTemplate('check')">♟ Checkerboard (Sinergismo)</button>
-      <button class="template-btn" onclick="loadTemplate('crd')">🎲 CRD Genérico</button>
-      <button class="template-btn" onclick="loadTemplate('ecoplate')">🌱 EcoPlate (Biolog CLPP)</button>
+      <button class="template-btn" data-template="mic"      onclick="loadTemplate('mic')">💊 MIC Antimicrobiano (CLSI M07)</button>
+      <button class="template-btn" data-template="mtt"      onclick="loadTemplate('mtt')">🔬 Viabilidade Celular (MTT)</button>
+      <button class="template-btn" data-template="phyto"    onclick="loadTemplate('phyto')">🌿 Fitotoxicidade (OECD TG 208)</button>
+      <button class="template-btn" data-template="elisa"    onclick="loadTemplate('elisa')">🩸 ELISA (RCBD-C)</button>
+      <button class="template-btn" data-template="dose"     onclick="loadTemplate('dose')">📈 Dose-Resposta (Diluição Seriada)</button>
+      <button class="template-btn" data-template="check"    onclick="loadTemplate('check')">♟ Checkerboard (Sinergismo)</button>
+      <button class="template-btn" data-template="crd"      onclick="loadTemplate('crd')">🎲 CRD Genérico</button>
+      <button class="template-btn" data-template="ecoplate" onclick="loadTemplate('ecoplate')">🌱 EcoPlate (Biolog CLPP)</button>
     </div>
   </div>
 
@@ -2874,6 +2875,10 @@ function loadTemplate(name) {
   /* Cancela debounce pendente e bloqueia eventos durante o carregamento */
   clearTimeout(_debTimer); _debTimer = null;
   _templateLoading = true;
+
+  /* Destaca o botão do template ativo */
+  document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.template-btn[data-template="${name}"]`)?.classList.add('active');
 
   try {
     /* EcoPlate — layout fixo; apenas CRD faz sentido */
