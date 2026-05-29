@@ -434,10 +434,10 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
       <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;margin:0">
         <span>Legenda</span>
         <select id="selLegendPos" style="font-size:.78rem;padding:.2rem .4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" onchange="applyLegendPos()">
-          <option value="bottom">Abaixo</option>
-          <option value="right">Direita</option>
-          <option value="top">Acima</option>
-          <option value="none">Nenhuma</option>
+          <option value="none" selected>Na barra</option>
+          <option value="bottom">Abaixo (na imagem)</option>
+          <option value="right">Direita (na imagem)</option>
+          <option value="top">Acima (na imagem)</option>
         </select>
       </label>
     </div>
@@ -1274,23 +1274,27 @@ function renderPlate() {
   });
 
   /* Legenda SVG embutida — expande dimensões do SVG conforme posição */
-  const legendPos = document.getElementById('selLegendPos')?.value || 'bottom';
+  const legendPos = document.getElementById('selLegendPos')?.value || 'none';
   const leg = buildLabSvgLegend(colorMap, plateLayout, mode, isPub, isEng, legendPos);
   const LPAD = 12;
   let totalW=svgW, totalH=svgH, plateX=0, plateY=0, legX=0, legY=0;
   if(leg.h > 0) {
     if(legendPos==='bottom'){
+      totalW = Math.max(svgW, leg.w + 16);
       totalH = svgH + LPAD + leg.h;
-      legX = Math.max(8, (svgW-leg.w)/2);
-      legY = svgH + LPAD/2;
+      plateX = (totalW - svgW) / 2;
+      legX = Math.max(8, (totalW - leg.w) / 2);
+      legY = svgH + LPAD / 2;
     } else if(legendPos==='top'){
+      totalW = Math.max(svgW, leg.w + 16);
       totalH = svgH + LPAD + leg.h;
+      plateX = (totalW - svgW) / 2;
       plateY = leg.h + LPAD;
-      legX = Math.max(8, (svgW-leg.w)/2);
+      legX = Math.max(8, (totalW - leg.w) / 2);
     } else if(legendPos==='right'){
-      totalW = svgW + LPAD + leg.w + 16;
+      totalW = svgW + LPAD + leg.w + 8;
       legX = svgW + LPAD;
-      legY = Math.max(8, (svgH-leg.h)/2);
+      legY = Math.max(8, (svgH - leg.h) / 2);
     }
   }
 
@@ -1313,8 +1317,8 @@ function renderPlate() {
     }
   });
 
-  /* HTML legend div obsoleto — legenda agora está no SVG */
-  document.getElementById('plateLegend').innerHTML = '';
+  /* Legenda HTML permanente abaixo da placa */
+  renderLegend(colorMap, isPub, isEng);
 }
 
 function plateMode() {
@@ -1402,11 +1406,9 @@ function renderLegend(colorMap, isPub, isEng) {
     ? `<div class="form-section-title" style="margin:.2rem 0 .35rem">${isEng?'Legend':'Legenda'}</div>`
     : '';
   document.getElementById('plateLegend').innerHTML = titleEl + items.join('');
-  applyLegendPos();
 }
 
 function applyLegendPos() {
-  /* Legenda agora está embutida no SVG — basta re-renderizar */
   if(plateLayout.length) renderPlate();
 }
 
