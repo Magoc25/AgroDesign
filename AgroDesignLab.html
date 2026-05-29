@@ -1638,17 +1638,17 @@ function buildCitation(en) {
   const accessed = new Date().toLocaleDateString(en?'en-US':'pt-BR',{day:'2-digit',month:'long',year:'numeric'});
   if(en) return (
     `APA (7th ed.)\n` +
-    `[Author Name]. (${yr}). AgroDesign Lab: Microplate experimental design tool (${ver}) [Web application]. GitHub. ${url}\n\n` +
+    `Costa, M. G. (${yr}). AgroDesign Lab: Microplate experimental design tool (${ver}) [Web application]. GitHub. ${url}\n\n` +
     `Vancouver\n` +
-    `[Author Name]. AgroDesign Lab [Internet]. ${yr} [cited ${accessed}]. ${ver}. Available from: ${url}\n\n` +
-    `Note: fill in author name. To obtain a citable DOI, deposit the software on Zenodo (zenodo.org) before journal submission.`
+    `Costa MG. AgroDesign Lab [Internet]. ${yr} [cited ${accessed}]. ${ver}. Available from: ${url}\n\n` +
+    `Note: To obtain a citable DOI, deposit the software on Zenodo (zenodo.org) before journal submission.`
   );
   return (
     `APA (7ª ed.)\n` +
-    `[Nome do Autor]. (${yr}). AgroDesign Lab: Ferramenta de delineamento experimental em microplacas (${ver}) [Aplicativo web]. GitHub. ${url}\n\n` +
+    `Costa, M. G. (${yr}). AgroDesign Lab: Ferramenta de delineamento experimental em microplacas (${ver}) [Aplicativo web]. GitHub. ${url}\n\n` +
     `ABNT NBR 6023:2018\n` +
-    `[SOBRENOME, Nome]. AgroDesign Lab: ferramenta de delineamento experimental em microplacas. ${ver}. [S.l.]: [s.n.], ${yr}. Disponível em: <${url}>. Acesso em: ${accessed}.\n\n` +
-    `Nota: preencha o nome do autor. Para obter DOI citável, deposite o software no Zenodo (zenodo.org) antes da submissão.`
+    `COSTA, M. G. AgroDesign Lab: ferramenta de delineamento experimental em microplacas. ${ver}. [S.l.]: [s.n.], ${yr}. Disponível em: <${url}>. Acesso em: ${accessed}.\n\n` +
+    `Nota: Para obter DOI citável, deposite o software no Zenodo (zenodo.org) antes da submissão.`
   );
 }
 function copyMMModal() { copyLabText('mm'); }
@@ -2198,7 +2198,8 @@ function importColetaCSV() {
     const reader=new FileReader();
     reader.onload=ev=>{
       try {
-        const lines=ev.target.result.trim().split(/\r?\n/);
+        const allLines=ev.target.result.trim().split(/\r?\n/);
+        const lines=allLines.filter(l=>!l.trim().startsWith('#')&&l.trim());
         const sep=lines[0].includes(';')?';':',';
         const hdr=lines[0].split(sep).map(h=>h.trim().replace(/^["﻿]+|"+$/g,'').toLowerCase());
         /* Aceita: Poço/poco/well/wellid  e  Valor/value/measuredvalue */
