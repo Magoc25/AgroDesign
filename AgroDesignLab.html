@@ -466,6 +466,12 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
       <span style="color:var(--border);font-size:.9rem">|</span>
       <button class="btn btn-ghost btn-sm" onclick="exportCSVColeta()">⬇ CSV</button>
       <button class="btn btn-ghost btn-sm" onclick="exportXLSColeta()">⬇ XLSX</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportTXTColeta()">⬇ TXT</button>
+      <span style="color:var(--border);font-size:.9rem">|</span>
+      <button class="btn btn-secondary btn-sm" onclick="exportScriptRLab()"   title="Script R (aov/drc/FICI conforme o modo)">⬇ R</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportScriptSASLab()" title="Script SAS (PROC GLM / PROC NLIN)">⬇ SAS</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportScriptPyLab()"  title="Script Python (scipy/pingouin)">⬇ Python</button>
+      <button class="btn btn-ghost btn-sm" onclick="openImportHelpModalLab()" title="Como analisar em outros softwares">📖 Softwares</button>
       <span class="hint" id="coletaHint"></span>
     </div>
     <div id="coletaPlaceholder" class="info-box" style="font-size:.82rem">
@@ -480,6 +486,43 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
 
 </div><!-- /result-panel -->
 </div><!-- /app-layout -->
+
+<!-- ═══ SOFTWARES MODAL ═══ -->
+<div id="importHelpModalLab" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeImportHelpModalLab()"></div>
+  <div class="modal-content" style="max-width:560px">
+    <div class="modal-header">
+      <div class="modal-title">📖 Como analisar em outros softwares</div>
+      <button class="modal-close-btn" type="button" onclick="closeImportHelpModalLab()">✕</button>
+    </div>
+    <p class="hint" style="margin-bottom:.75rem">Exporte os dados pela aba <strong>Coleta</strong> (CSV ou XLSX) e importe no software desejado.</p>
+    <div style="display:flex;flex-direction:column;gap:.5rem;max-height:400px;overflow-y:auto;font-size:.82rem">
+      <details open><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🔵 R</summary>
+        <div style="padding:.5rem .25rem;color:var(--text-muted)">Use o botão <strong>⬇ R</strong> — o script é gerado para o modo ativo:<br>• CRD/RCBD — <code>aov()</code> + Tukey (<code>agricolae</code>)<br>• Dose-Resposta — curva 4PL e IC₅₀ (<code>drc</code>)<br>• Checkerboard — cálculo de FICI + heatmap</div>
+      </details>
+      <details><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🟠 SAS</summary>
+        <div style="padding:.5rem .25rem;color:var(--text-muted)">Use o botão <strong>⬇ SAS</strong>:<br>• CRD/RCBD — PROC GLM + MEANS/TUKEY<br>• Dose-Resposta — PROC NLIN (4PL)<br>• Checkerboard — DATA step para FICI</div>
+      </details>
+      <details><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🟡 Python</summary>
+        <div style="padding:.5rem .25rem;color:var(--text-muted)">Use o botão <strong>⬇ Python</strong>:<br>• CRD/RCBD — <code>pingouin</code> ANOVA + Tukey<br>• Dose-Resposta — <code>scipy.optimize.curve_fit</code> (4PL) + <code>matplotlib</code><br>• Checkerboard — <code>seaborn</code> heatmap + FICI<br><br>Instalar: <code>pip install pandas pingouin scipy seaborn matplotlib</code></div>
+      </details>
+      <details><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🟣 GraphPad Prism</summary>
+        <div style="padding:.5rem .25rem;color:var(--text-muted)">1. Exporte o CSV (ajuste Dec se necessário)<br>2. Prism → <em>New Table → XY</em> (dose-resposta) ou <em>Grouped</em> (ANOVA)<br>3. Cole colunas de Concentração e Valor por composto<br>4. Para 4PL: Analyze → <em>Nonlinear regression → Inhibitor vs. response — Variable slope</em></div>
+      </details>
+      <details><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🟢 Excel / LibreOffice</summary>
+        <div style="padding:.5rem .25rem;color:var(--text-muted)">1. Use <strong>⬇ XLSX</strong> para abrir direto no Excel<br>2. Tabela dinâmica para resumos por tratamento<br>3. Dose-resposta: gráfico de dispersão → linha de tendência (polinomial como aproximação)</div>
+      </details>
+      <details><summary style="font-weight:700;cursor:pointer;padding:.3rem 0">🔵 Python pandas (importação manual)</summary>
+        <div style="padding:.5rem .25rem"><code style="display:block;background:var(--bg);padding:.4rem;border-radius:4px;font-size:.78rem;white-space:pre">import pandas as pd
+df = pd.read_csv("agrodesign-lab-coleta.csv",
+                 sep=",",      # ";" se Dec: ,
+                 decimal=".",  # "," se Dec: ,
+                 encoding="utf-8-sig")
+df = df[df["Tipo"] == "Amostra"]</code></div>
+      </details>
+    </div>
+  </div>
+</div>
 
 <div class="well-tooltip" id="wellTooltip"></div>
 
@@ -1865,6 +1908,220 @@ function toggleDark() {
   document.getElementById('btnDark').textContent = on?'☀️':'🌙';
   if(plateLayout.length) renderPlate();
 }
+
+/* ══════════════════════════════════════════════
+   TXT / SCRIPTS / SOFTWARES
+══════════════════════════════════════════════ */
+function _dlText(content, filename) {
+  dlBlob(new Blob([content], {type:'text/plain;charset=utf-8'}), filename);
+}
+
+function exportTXTColeta() {
+  if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
+  const valMap = {};
+  document.querySelectorAll('.val-input').forEach(inp => { valMap[inp.dataset.well]=inp.value; });
+  const isEng = document.getElementById('chkEngLab').checked;
+  const typeMap = {sample:'Amostra',ctrl_neg:'Ctrl. Negativo',ctrl_pos:'Ctrl. Positivo',blank:'Branco',buffer:'Buffer (PBS)',empty:'Vazio'};
+  const heads = isEng
+    ? ['Well','Row','Col','Type','Treatment','Tech_Rep','Block','Value']
+    : ['Poco','Linha','Coluna','Tipo','Tratamento','Rep_Tecnica','Bloco','Valor'];
+  const rows = plateLayout.filter(w=>w.type!=='empty').map(w => {
+    const raw = valMap[w.id]??'';
+    return [w.id,w.row,w.col,typeMap[w.type]||w.type,w.treatment||'',w.rep??'',w.block??'',raw!==''?fmtDec(raw):''].join('\t');
+  });
+  _dlText([heads.join('\t'),...rows].join('\n'), 'agrodesign-lab-coleta.txt');
+}
+
+function exportScriptRLab() {
+  if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
+  const mode = plateMode();
+  const dt   = new Date().toLocaleString('pt-BR');
+  const dec  = _decSepLab, sep = dec===','?';':',';
+  let s = '';
+
+  if(mode==='dose') {
+    const compounds = [...new Set(plateLayout.filter(w=>w.type==='sample').map(w=>w.treatment))];
+    s += `# ${'='.repeat(55)}\n# AgroDesign Lab — Script R: Dose-Resposta (4PL / IC50)\n# Gerado em: ${dt}\n# ${'='.repeat(55)}\n\n`;
+    s += `if(!require(drc)) install.packages("drc")\nlibrary(drc)\n\n`;
+    s += `# Importar dados (exporte pela aba Coleta > CSV)\n`;
+    s += `dados <- read.csv("agrodesign-lab-coleta.csv", sep="${sep}", dec="${dec}", fileEncoding="UTF-8-BOM")\n`;
+    s += `dados <- subset(dados, Tipo == "Amostra")\n\n`;
+    s += `# Normalização como % inibição (opcional — descomente e ajuste)\n`;
+    s += `# neg_mean <- mean(subset(dados_full, Tipo=="Ctrl. Negativo")$Valor)\n`;
+    s += `# pos_mean <- mean(subset(dados_full, Tipo=="Ctrl. Positivo")$Valor)\n`;
+    s += `# dados$Inibicao <- (neg_mean - dados$Valor) / (neg_mean - pos_mean) * 100\n\n`;
+    s += `# Modelo 4PL por composto\n`;
+    compounds.forEach(c => {
+      const vn = c.replace(/[^a-zA-Z0-9_]/g,'_');
+      s += `sub_${vn} <- subset(dados, Tratamento=="${c}")\n`;
+      s += `sub_${vn}$Conc <- as.numeric(sub_${vn}$Concentracao)  # ajuste o nome da coluna de concentração\n`;
+      s += `m_${vn} <- drm(Valor~Conc, data=sub_${vn}, fct=LL.4(names=c("b","Lower","Upper","IC50")))\n`;
+      s += `summary(m_${vn})\ncat("IC50 ${c}:", ED(m_${vn}, 50)[1], "\\n")\n\n`;
+    });
+    s += `# Pressupostos\nshapiro.test(residuals(m_${compounds[0].replace(/[^a-zA-Z0-9_]/g,'_')}))\n`;
+
+  } else if(mode==='check') {
+    const dA = plateLayout.find(w=>w.drugA)?.drugA||'DrugA';
+    const dB = plateLayout.find(w=>w.drugB)?.drugB||'DrugB';
+    s += `# ${'='.repeat(55)}\n# AgroDesign Lab — Script R: Checkerboard / FICI\n# Gerado em: ${dt}\n# ${'='.repeat(55)}\n\n`;
+    s += `library(dplyr)\n\n`;
+    s += `dados <- read.csv("agrodesign-lab-coleta.csv", sep="${sep}", dec="${dec}", fileEncoding="UTF-8-BOM")\n`;
+    s += `dados <- subset(dados, Tipo=="Amostra")\n\n`;
+    s += `# Extrair concentrações (campo Tratamento no formato "concA|concB")\n`;
+    s += `dados$concA <- as.numeric(sub("\\\\|.*","",dados$Tratamento))\n`;
+    s += `dados$concB <- as.numeric(sub(".*\\\\|","",dados$Tratamento))\n\n`;
+    s += `# MIC individuais (inserir manualmente)\n`;
+    s += `mic_A <- NA  # MIC de ${dA}\nmic_B <- NA  # MIC de ${dB}\n\n`;
+    s += `dados$FICI <- dados$concA/mic_A + dados$concB/mic_B\n`;
+    s += `cat("FICI minimo:", min(dados$FICI, na.rm=TRUE), "\\n")\n`;
+    s += `cat("FICI<=0.5 (sinergismo):", sum(dados$FICI<=0.5, na.rm=TRUE), "combinacoes\\n")\n\n`;
+    s += `# Heatmap\nmat <- reshape2::acast(dados, concA~concB, value.var="Valor", fun.aggregate=mean)\n`;
+    s += `image(mat, col=hcl.colors(20,"YlOrRd",rev=TRUE), xlab="${dA}", ylab="${dB}", main="Checkerboard")\n`;
+
+  } else {
+    const design = document.getElementById('selDesignLab').value;
+    const isRCBD = design.startsWith('RCBD');
+    s += `# ${'='.repeat(55)}\n# AgroDesign Lab — Script R: ANOVA (${design})\n# Gerado em: ${dt}\n# ${'='.repeat(55)}\n\n`;
+    s += `if(!require(agricolae)) install.packages("agricolae")\nlibrary(agricolae)\n\n`;
+    s += `dados <- read.csv("agrodesign-lab-coleta.csv", sep="${sep}", dec="${dec}", fileEncoding="UTF-8-BOM")\n`;
+    s += `dados <- subset(dados, Tipo=="Amostra")\n`;
+    s += `dados$Tratamento <- factor(dados$Tratamento)\n`;
+    if(isRCBD) s += `dados$Bloco <- factor(dados$Bloco)\n`;
+    s += `\n`;
+    const formula = isRCBD ? 'Valor ~ Tratamento + Bloco' : 'Valor ~ Tratamento';
+    s += `modelo <- aov(${formula}, data=dados)\n`;
+    s += `cat("\\n-- ANOVA --\\n"); summary(modelo)\n\n`;
+    s += `tukey <- HSD.test(modelo, "Tratamento", group=TRUE)\nprint(tukey$groups)\n\n`;
+    s += `shapiro.test(residuals(modelo))                      # normalidade\n`;
+    s += `bartlett.test(Valor ~ Tratamento, data=dados)        # homogeneidade\n`;
+  }
+  s += `\n# --- Fim do script ---\n`;
+  _dlText(s, 'agrodesign-lab-script.R');
+}
+
+function exportScriptSASLab() {
+  if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
+  const mode = plateMode();
+  const dt   = new Date().toLocaleString('pt-BR');
+  const dec  = _decSepLab, sep = dec===','?';':',';
+  let s = '';
+  const hdr = `/* ${'='.repeat(53)} */\n/* AgroDesign Lab — Script SAS`;
+
+  if(mode==='dose') {
+    s += `${hdr}: Dose-Resposta (4PL) */\n/* Gerado em: ${dt} */\n/* ${'='.repeat(53)} */\n\n`;
+    s += `PROC IMPORT DATAFILE="agrodesign-lab-coleta.csv" OUT=dados DBMS=CSV REPLACE;\n`;
+    s += `    GETNAMES=YES; DATAROW=2;\nRUN;\n\nDATA amostras; SET dados; WHERE Tipo="Amostra";\n`;
+    s += `    Conc = INPUT(Concentracao, BEST12.);  /* ajuste o nome da coluna */\nRUN;\n\n`;
+    s += `/* Ajuste 4PL por composto (um DATA step por composto) */\n`;
+    s += `DATA comp1; SET amostras; WHERE Tratamento="Composto 1"; RUN;\n\n`;
+    s += `PROC NLIN DATA=comp1 METHOD=MARQUARDT;\n`;
+    s += `    PARMS b=1 Lower=0 Upper=100 IC50=10;\n`;
+    s += `    MODEL Valor = Lower + (Upper-Lower)/(1+(IC50/Conc)**b);\n`;
+    s += `    OUTPUT OUT=pred P=Predito R=Residuo;\nRUN;\n`;
+
+  } else if(mode==='check') {
+    const dA = plateLayout.find(w=>w.drugA)?.drugA||'DrugA';
+    const dB = plateLayout.find(w=>w.drugB)?.drugB||'DrugB';
+    s += `${hdr}: Checkerboard / FICI */\n/* Gerado em: ${dt} */\n/* ${'='.repeat(53)} */\n\n`;
+    s += `PROC IMPORT DATAFILE="agrodesign-lab-coleta.csv" OUT=dados DBMS=CSV REPLACE;\n`;
+    s += `    GETNAMES=YES; DATAROW=2;\nRUN;\n\nDATA amostras; SET dados; WHERE Tipo="Amostra";\n`;
+    s += `    concA=INPUT(SCAN(Tratamento,1,"|"),BEST12.);\n`;
+    s += `    concB=INPUT(SCAN(Tratamento,2,"|"),BEST12.);\nRUN;\n\n`;
+    s += `/* Inserir MIC individuais abaixo */\n%LET mic_A=.; /* MIC ${dA} */\n%LET mic_B=.; /* MIC ${dB} */\n\n`;
+    s += `DATA fici; SET amostras;\n    FICI=concA/&mic_A + concB/&mic_B;\nRUN;\n\n`;
+    s += `PROC MEANS DATA=fici MIN MAX MEAN; VAR FICI; RUN;\n`;
+    s += `PROC FREQ DATA=fici; TABLES FICI; WHERE FICI<=0.5; RUN;  /* sinergismo */\n`;
+
+  } else {
+    const design = document.getElementById('selDesignLab').value;
+    const isRCBD = design.startsWith('RCBD');
+    s += `${hdr}: ANOVA (${design}) */\n/* Gerado em: ${dt} */\n/* ${'='.repeat(53)} */\n\n`;
+    s += `PROC IMPORT DATAFILE="agrodesign-lab-coleta.csv" OUT=dados DBMS=CSV REPLACE;\n`;
+    s += `    GETNAMES=YES; DATAROW=2;\nRUN;\n\nDATA amostras; SET dados; WHERE Tipo="Amostra"; RUN;\n\n`;
+    const cls = isRCBD ? 'Bloco Tratamento' : 'Tratamento';
+    const mdl = isRCBD ? 'Valor = Bloco Tratamento' : 'Valor = Tratamento';
+    s += `PROC GLM DATA=amostras;\n    CLASS ${cls};\n    MODEL ${mdl};\n`;
+    s += `    MEANS Tratamento / TUKEY CLDIFF ALPHA=0.05;\n    OUTPUT OUT=res R=residuo;\nRUN;\n\n`;
+    s += `PROC UNIVARIATE DATA=res NORMAL; VAR residuo; RUN;\n`;
+  }
+  s += `\n/* --- Fim do script --- */\n`;
+  _dlText(s, 'agrodesign-lab-script.sas');
+}
+
+function exportScriptPyLab() {
+  if(!plateLayout.length){ alert('Gere o layout primeiro.'); return; }
+  const mode = plateMode();
+  const dt   = new Date().toLocaleString('pt-BR');
+  const dec  = _decSepLab, sep = dec===','?';':',';
+  let s = '';
+
+  if(mode==='dose') {
+    s += `# ${'='.repeat(55)}\n# AgroDesign Lab — Script Python: Dose-Resposta (4PL)\n# Gerado em: ${dt}\n# ${'='.repeat(55)}\n\n`;
+    s += `# pip install pandas scipy matplotlib\nimport pandas as pd\nimport numpy as np\n`;
+    s += `from scipy.optimize import curve_fit\nimport matplotlib.pyplot as plt\n\n`;
+    s += `df = pd.read_csv("agrodesign-lab-coleta.csv", sep="${sep}", decimal="${dec}", encoding="utf-8-sig")\n`;
+    s += `df = df[df["Tipo"]=="Amostra"].copy()\n\n`;
+    s += `def four_pl(x, b, lower, upper, ic50):\n    return lower + (upper-lower)/(1+(ic50/x)**b)\n\n`;
+    s += `for compound, grp in df.groupby("Tratamento"):\n`;
+    s += `    x = grp["Concentracao"].astype(float).values  # ajuste o nome da coluna\n`;
+    s += `    y = grp["Valor"].astype(float).values\n`;
+    s += `    try:\n`;
+    s += `        popt, _ = curve_fit(four_pl, x, y, p0=[1,y.min(),y.max(),np.median(x)], maxfev=5000)\n`;
+    s += `        b, lo, hi, ic50 = popt\n`;
+    s += `        print(f"{compound}: IC50={ic50:.4f}  (b={b:.3f}, range={lo:.2f}-{hi:.2f})")\n`;
+    s += `        xs = np.logspace(np.log10(x.min()),np.log10(x.max()),200)\n`;
+    s += `        plt.plot(xs, four_pl(xs,*popt), label=compound)\n`;
+    s += `        plt.scatter(x, y, alpha=0.6)\n`;
+    s += `    except Exception as e:\n        print(f"{compound}: ajuste falhou — {e}")\n\n`;
+    s += `plt.xscale("log"); plt.xlabel("Concentracao"); plt.ylabel("Resposta")\n`;
+    s += `plt.title("Curvas Dose-Resposta"); plt.legend(); plt.tight_layout()\n`;
+    s += `plt.savefig("dose_resposta.png", dpi=150); plt.show()\n`;
+
+  } else if(mode==='check') {
+    const dA = plateLayout.find(w=>w.drugA)?.drugA||'DrugA';
+    const dB = plateLayout.find(w=>w.drugB)?.drugB||'DrugB';
+    s += `# ${'='.repeat(55)}\n# AgroDesign Lab — Script Python: Checkerboard / FICI\n# Gerado em: ${dt}\n# ${'='.repeat(55)}\n\n`;
+    s += `# pip install pandas seaborn matplotlib\nimport pandas as pd\nimport numpy as np\n`;
+    s += `import seaborn as sns\nimport matplotlib.pyplot as plt\n\n`;
+    s += `df = pd.read_csv("agrodesign-lab-coleta.csv", sep="${sep}", decimal="${dec}", encoding="utf-8-sig")\n`;
+    s += `df = df[df["Tipo"]=="Amostra"].copy()\n\n`;
+    s += `# Extrair concentrações (formato "concA|concB" no campo Tratamento)\ndf[["concA","concB"]] = df["Tratamento"].str.split("|",expand=True).astype(float)\n\n`;
+    s += `mic_A = None  # MIC de ${dA} — inserir valor\nmic_B = None  # MIC de ${dB}\n\n`;
+    s += `if mic_A and mic_B:\n    df["FICI"] = df["concA"]/mic_A + df["concB"]/mic_B\n`;
+    s += `    print("FICI min:", df["FICI"].min())\n    print("Sinergismo (FICI<=0.5):", (df["FICI"]<=0.5).sum(), "combinacoes")\n\n`;
+    s += `pivot = df.pivot_table(values="Valor", index="concA", columns="concB", aggfunc="mean").sort_index(ascending=False)\n`;
+    s += `sns.heatmap(pivot, cmap="YlOrRd_r", annot=True, fmt=".3f")\n`;
+    s += `plt.xlabel("${dB}"); plt.ylabel("${dA}"); plt.title("Checkerboard Heatmap")\n`;
+    s += `plt.tight_layout(); plt.savefig("checkerboard.png", dpi=150); plt.show()\n`;
+
+  } else {
+    const design = document.getElementById('selDesignLab').value;
+    const isRCBD = design.startsWith('RCBD');
+    s += `# ${'='.repeat(55)}\n# AgroDesign Lab — Script Python: ANOVA (${design})\n# Gerado em: ${dt}\n# ${'='.repeat(55)}\n\n`;
+    s += `# pip install pandas pingouin scipy\nimport pandas as pd\nimport pingouin as pg\nfrom scipy import stats\n`;
+    if(isRCBD) s += `import statsmodels.formula.api as smf\nfrom statsmodels.stats.anova import anova_lm\n`;
+    s += `\n`;
+    s += `df = pd.read_csv("agrodesign-lab-coleta.csv", sep="${sep}", decimal="${dec}", encoding="utf-8-sig")\n`;
+    s += `df = df[df["Tipo"]=="Amostra"].copy()\n`;
+    s += `df["Tratamento"] = df["Tratamento"].astype(str)\n`;
+    if(isRCBD) s += `df["Bloco"] = df["Bloco"].astype(str)\n`;
+    s += `\n`;
+    if(isRCBD) {
+      s += `modelo = smf.ols('Valor ~ C(Tratamento) + C(Bloco)', data=df).fit()\nprint(anova_lm(modelo, typ=2))\n`;
+    } else {
+      s += `anova = pg.anova(dv="Valor", between="Tratamento", data=df)\nprint(anova)\n`;
+    }
+    s += `\ntukey = pg.pairwise_tukey(dv="Valor", between="Tratamento", data=df)\nprint(tukey)\n\n`;
+    s += `stat, p = stats.shapiro(df["Valor"].dropna())\nprint(f"Shapiro-Wilk: W={stat:.4f}, p={p:.4f}")\n`;
+    s += `groups = [g["Valor"].dropna().values for _,g in df.groupby("Tratamento")]\n`;
+    s += `stat_b, p_b = stats.bartlett(*groups)\nprint(f"Bartlett: stat={stat_b:.4f}, p={p_b:.4f}")\n`;
+  }
+  s += `\n# --- Fim do script ---\n`;
+  _dlText(s, 'agrodesign-lab-script.py');
+}
+
+function openImportHelpModalLab()  { document.getElementById('importHelpModalLab').classList.remove('hidden'); }
+function closeImportHelpModalLab() { document.getElementById('importHelpModalLab').classList.add('hidden'); }
 
 /* ── Debounce / live update ── */
 let _debTimer = null;
