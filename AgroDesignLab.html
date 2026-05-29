@@ -215,6 +215,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
   .config-panel{width:100%;min-width:unset;border-right:none;border-bottom:1px solid var(--border)}
 }
 @media print{header,footer,.config-panel,.tab-nav,.action-row{display:none!important}}
+.star-btn{font-size:1.8rem;cursor:pointer;color:#4b5563}
 </style>
 </head>
 <body>
@@ -561,10 +562,77 @@ df = df[df["Tipo"] == "Amostra"]</code></div>
 </div>
 
 <footer>
-  <button class="footer-btn" onclick="window.open('https://github.com/Magoc25/AgroDesign','_blank')">⭐ GitHub</button>
+  <button class="footer-btn" onclick="window.open('https://github.com/Magoc25/AgroDesign','_blank')" title="GitHub"><svg aria-hidden="true" viewBox="0 0 16 16" width="13" height="13" fill="currentColor" style="vertical-align:-.15em;margin-right:3px"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</button>
+  <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
+  <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
   <span id="appVersion">© MGC · Lab v1.1.0</span>
 </footer>
 
+<!-- ═══ PIX MODAL ═══ -->
+<div id="pixModal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closePixModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">☕ Apoiar o Projeto</div>
+      <button class="modal-close-btn" type="button" onclick="closePixModal()">✕</button>
+    </div>
+    <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:1rem">O app é gratuito. Se foi útil no seu ensino ou pesquisa, considere apoiar via PIX.</p>
+    <div id="pixQrContainer" style="text-align:center;margin-bottom:.75rem;min-height:210px;display:flex;align-items:center;justify-content:center"></div>
+    <div style="text-align:center;margin-bottom:1rem">
+      <button type="button" id="pixCopyBtn" onclick="copyPixCode()" class="btn btn-secondary">Copiar código PIX</button>
+    </div>
+    <hr style="border-color:var(--border);margin:.75rem 0">
+    <button type="button" onclick="closePixModal();openReviewsModal('form')" class="btn btn-primary btn-block">✅ Já fiz o PIX — quero avaliar</button>
+  </div>
+</div>
+
+<!-- ═══ REVIEWS MODAL ═══ -->
+<div id="reviewsModal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeReviewsModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">⭐ Avaliações</div>
+      <button class="modal-close-btn" type="button" onclick="closeReviewsModal()">✕</button>
+    </div>
+    <div id="reviewListMode">
+      <div id="reviewsList" style="max-height:260px;overflow-y:auto;margin-bottom:.75rem"></div>
+      <hr style="border-color:var(--border);margin:.5rem 0 .75rem">
+      <button type="button" onclick="closeReviewsModal();openPixModal()" class="btn btn-primary btn-block">☕ Apoiar via PIX para avaliar</button>
+    </div>
+    <div id="reviewFormMode" class="hidden">
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:.75rem">Obrigado pelo apoio! Deixe sua avaliação.</p>
+      <div style="text-align:center;margin-bottom:.5rem">
+        <span class="star-btn" onclick="setReviewStar(1)">★</span>
+        <span class="star-btn" onclick="setReviewStar(2)">★</span>
+        <span class="star-btn" onclick="setReviewStar(3)">★</span>
+        <span class="star-btn" onclick="setReviewStar(4)">★</span>
+        <span class="star-btn" onclick="setReviewStar(5)">★</span>
+      </div>
+      <input type="hidden" id="reviewStarInput" value="0">
+      <div style="display:flex;flex-direction:column;gap:.5rem;margin-bottom:.5rem">
+        <label style="font-size:.85rem"><span>Seu nome *</span>
+          <input id="reviewNameInput" type="text" maxlength="40" placeholder="Ex: Maria">
+        </label>
+        <label style="font-size:.85rem"><span>Comentário (opcional)</span>
+          <textarea id="reviewCommentInput" rows="2" maxlength="200" placeholder="O que você achou do app?"></textarea>
+        </label>
+        <div class="check-row" style="font-size:.82rem">
+          <input type="checkbox" id="reviewDonatedCheck" checked style="width:auto">
+          <label for="reviewDonatedCheck" style="flex-direction:row;margin:0"><span>Já apoiei via PIX ☕</span></label>
+        </div>
+      </div>
+      <button type="button" onclick="submitReview()" class="btn btn-primary btn-block">Enviar avaliação</button>
+    </div>
+    <div id="reviewThankYou" class="hidden" style="text-align:center;padding:1rem 0">
+      <p style="font-size:1.5rem;margin-bottom:.5rem">🎉</p>
+      <p style="font-weight:600;margin-bottom:.25rem">Obrigado pela avaliação!</p>
+      <p id="reviewSyncMsg" style="font-size:.82rem;color:var(--text-muted);margin-bottom:1rem">Sua opinião ajuda outros usuários a conhecer o app.</p>
+      <button type="button" onclick="openReviewsModal('list')" class="btn btn-secondary">Ver todas as avaliações</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 'use strict';
 
@@ -572,6 +640,165 @@ df = df[df["Tipo"] == "Amostra"]</code></div>
 const LAB_VERSION = '1.1.0';
 const ROWS = ['A','B','C','D','E','F','G','H'];
 const COLS = [1,2,3,4,5,6,7,8,9,10,11,12];
+
+/* ── PIX / Reviews — compartilhado com AgroDesign campo ── */
+const PROJECT_ID = 'agrodesign';
+const PIX_KEY    = '4c6086a2-4bb8-474b-a4cf-ced8c8d82189';
+const PIX_NAME   = 'MGC Dev';
+const PIX_CITY   = 'Sao Raimundo';
+const REV_SB_URL = 'https://qvddbmlhucxndvbakvyd.supabase.co';
+const REV_SB_KEY = 'sb_publishable_0Saq2ZYXgGEApcbvWAahtw_VQ9b9iTq';
+
+function pixEmv(key, name, city, amount) {
+  const f = (id, val) => { const v = String(val); return id + String(v.length).padStart(2,'0') + v; };
+  const mai = f('26', f('00','BR.GOV.BCB.PIX') + f('01', key));
+  const adf = f('62', f('05','***'));
+  let emv = f('00','01') + mai + f('52','0000') + f('53','986') +
+    (amount && parseFloat(amount) > 0 ? f('54', parseFloat(amount).toFixed(2)) : '') +
+    f('58','BR') + f('59', name.slice(0,25)) + f('60', city.slice(0,15)) +
+    adf + '6304';
+  let crc = 0xFFFF;
+  for (let i = 0; i < emv.length; i++) {
+    crc ^= emv.charCodeAt(i) << 8;
+    for (let j = 0; j < 8; j++) { crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1); crc &= 0xFFFF; }
+  }
+  return emv + crc.toString(16).toUpperCase().padStart(4,'0');
+}
+
+let _pixCode = '';
+function openPixModal() {
+  document.getElementById('pixModal').classList.remove('hidden');
+  _pixCode = pixEmv(PIX_KEY, PIX_NAME, PIX_CITY, '');
+  const container = document.getElementById('pixQrContainer');
+  const encoded   = encodeURIComponent(_pixCode);
+  const qr1 = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&data=' + encoded;
+  const qr2 = 'https://chart.googleapis.com/chart?chs=200x200&cht=qr&choe=UTF-8&chl=' + encoded;
+  container.innerHTML = `<img id="pixQrImg" src="${qr1}" width="200" height="200" style="border-radius:8px;background:#fff;padding:6px;display:block;margin:0 auto" alt="QR Code PIX">
+    <p id="pixQrFallback" style="display:none;color:var(--text-muted);font-size:.8rem;text-align:center;margin-top:.5rem">Copie o código abaixo para pagar.</p>`;
+  document.getElementById('pixQrImg').onerror = function() {
+    this.src = qr2;
+    this.onerror = function() { this.style.display='none'; document.getElementById('pixQrFallback').style.display='block'; };
+  };
+}
+function closePixModal() { document.getElementById('pixModal').classList.add('hidden'); }
+function copyPixCode() {
+  const btn = document.getElementById('pixCopyBtn');
+  navigator.clipboard.writeText(_pixCode).then(() => {
+    btn.textContent = '✅ Copiado!';
+    setTimeout(() => { btn.textContent = 'Copiar código PIX'; }, 2000);
+  }).catch(() => {
+    const tmp = document.createElement('textarea');
+    tmp.value = _pixCode; document.body.appendChild(tmp); tmp.select();
+    document.execCommand('copy'); document.body.removeChild(tmp);
+  });
+}
+
+let revClient = null;
+function initRevClient() {
+  try {
+    if (window.supabase && typeof window.supabase.createClient === 'function')
+      revClient = window.supabase.createClient(REV_SB_URL, REV_SB_KEY);
+  } catch(e) {}
+}
+initRevClient();
+
+let localReviews = (() => { try { return JSON.parse(localStorage.getItem('agrodesign_reviews') || '[]'); } catch(e) { return []; } })();
+let sharedReviews = [];
+
+function mergeReviews(local, shared) {
+  const map = new Map();
+  [...shared, ...local].forEach(r => map.set(r.id, r));
+  return [...map.values()].sort((a, b) => new Date(b.ts||0).getTime() - new Date(a.ts||0).getTime());
+}
+
+async function loadSharedReviews() {
+  if (!revClient) return;
+  try {
+    const { data, error } = await revClient.from('app_reviews').select('*')
+      .eq('project_id', PROJECT_ID).order('ts', { ascending: false }).limit(200);
+    if (!error && data) sharedReviews = data;
+  } catch(e) {}
+}
+
+async function pushReviewToCloud(review) {
+  if (!revClient) return { ok: false, reason: 'Supabase não carregou' };
+  try {
+    const { error } = await revClient.from('app_reviews').insert({
+      id: review.id, project_id: PROJECT_ID, name: review.name,
+      comment: review.comment, stars: review.stars, donated: review.donated,
+      date: review.date, ts: review.ts
+    });
+    if (error) return { ok: false, reason: error.message };
+    return { ok: true };
+  } catch(e) { return { ok: false, reason: e.message }; }
+}
+
+function renderReviewsList() {
+  const all = mergeReviews(localReviews, sharedReviews);
+  const el  = document.getElementById('reviewsList');
+  if (!all.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;text-align:center;padding:.5rem">Nenhuma avaliação ainda.</p>'; return; }
+  el.innerHTML = all.map(r => {
+    const stars = '★'.repeat(Math.max(0,Math.min(5,r.stars||0))) + '☆'.repeat(5-Math.max(0,Math.min(5,r.stars||0)));
+    return `<div style="border-bottom:1px solid var(--border);padding:.5rem 0">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong style="font-size:.85rem">${esc(r.name)}</strong>
+        <span style="color:#facc15;font-size:.9rem">${stars}</span>
+      </div>
+      ${r.comment?`<p style="font-size:.82rem;color:var(--text-muted);margin:.2rem 0">${esc(r.comment)}</p>`:''}
+      <span style="font-size:.72rem;color:#9ca3af">${esc(r.date||'')}${r.donated?' · ☕':''}</span>
+    </div>`;
+  }).join('');
+}
+
+async function openReviewsModal(mode = 'list') {
+  if (!revClient) initRevClient();
+  document.getElementById('reviewsModal').classList.remove('hidden');
+  document.getElementById('reviewListMode').classList.toggle('hidden', mode !== 'list');
+  document.getElementById('reviewFormMode').classList.toggle('hidden', mode !== 'form');
+  document.getElementById('reviewThankYou').classList.add('hidden');
+  if (mode === 'list') {
+    document.getElementById('reviewsList').innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;text-align:center">Carregando...</p>';
+    await loadSharedReviews();
+    renderReviewsList();
+  }
+  if (mode === 'form') {
+    setReviewStar(0);
+    document.getElementById('reviewNameInput').value = '';
+    document.getElementById('reviewCommentInput').value = '';
+    document.getElementById('reviewDonatedCheck').checked = true;
+  }
+}
+function closeReviewsModal() { document.getElementById('reviewsModal').classList.add('hidden'); }
+
+function setReviewStar(n) {
+  document.getElementById('reviewStarInput').value = n;
+  document.querySelectorAll('.star-btn').forEach((btn, i) => { btn.style.color = i < n ? '#facc15' : '#4b5563'; });
+}
+
+async function submitReview() {
+  const stars   = parseInt(document.getElementById('reviewStarInput').value || '0');
+  const name    = document.getElementById('reviewNameInput').value.trim();
+  const comment = document.getElementById('reviewCommentInput').value.trim();
+  const donated = document.getElementById('reviewDonatedCheck').checked;
+  if (!stars) { alert('Selecione uma avaliação de 1 a 5 estrelas.'); return; }
+  if (!name)  { alert('Digite seu nome.'); return; }
+  const now = new Date();
+  const review = {
+    id: `${PROJECT_ID}_${now.getTime()}_${Math.random().toString(36).slice(2,7)}`,
+    name, comment, stars, donated,
+    date: now.toLocaleDateString('pt-BR'),
+    ts: now.toISOString()
+  };
+  localReviews = [review, ...localReviews];
+  try { localStorage.setItem('agrodesign_reviews', JSON.stringify(localReviews)); } catch(e) {}
+  renderReviewsList();
+  const result = await pushReviewToCloud(review);
+  document.getElementById('reviewFormMode').classList.add('hidden');
+  document.getElementById('reviewSyncMsg').textContent = result?.ok
+    ? '✅ Avaliação sincronizada! Outros usuários já podem ver.'
+    : `⚠️ Salvo só neste dispositivo. Motivo: ${result?.reason || 'desconhecido'}`;
+  document.getElementById('reviewThankYou').classList.remove('hidden');
+}
 
 const EDGE_SET = new Set(
   ROWS.flatMap(r => COLS.map(c => `${r}${c}`))
