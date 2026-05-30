@@ -16,6 +16,29 @@ Desenvolvido por **Marlon Gomes da Costa (MGC Dev)**
 
 ---
 
+## ▶ Abrir agora — sem baixar nada
+
+Os apps já estão publicados online. Clique e use:
+
+| Módulo | Para que serve | Abrir |
+|---|---|---|
+| 🌾 **Campo** | Croquis de experimentos a campo, casa de vegetação, instalações animais e ecologia/florestas | **[▶ Abrir AgroDesign Campo](https://Magoc25.github.io/AgroDesign/AgroDesign.html)** |
+| 🧪 **Lab** | Delineamentos em microplacas de 96 poços (MIC, MTT, ELISA, Dose-Resposta, EcoPlate…) | **[▶ Abrir AgroDesign Lab](https://Magoc25.github.io/AgroDesign/AgroDesignLab.html)** |
+
+Funciona em qualquer navegador moderno (Chrome, Edge, Firefox, Safari) — no celular, tablet ou computador. **Não precisa de cadastro, login, conta GitHub ou download de arquivos.** Após o primeiro acesso, o app funciona **offline**. Seus dados ficam **somente no seu dispositivo** (no armazenamento do próprio navegador).
+
+### 📱 Instalar como app no seu dispositivo
+
+Depois de abrir uma das URLs acima, você pode instalar como aplicativo nativo, com ícone na tela inicial / área de trabalho:
+
+| Plataforma | Como instalar |
+|---|---|
+| **Chrome / Edge no PC** | Clique no ícone de instalação (☐ com seta) na barra de endereços → Instalar |
+| **Android (Chrome)** | Menu (⋮) → "Instalar app" ou "Adicionar à tela inicial" |
+| **iPhone / iPad (Safari)** | Compartilhar (□↑) → "Adicionar à Tela de Início" |
+
+---
+
 ## 🤔 Por que usar o AgroDesign?
 
 Se você está avaliando este app, provavelmente já pesquisou alternativas online. Antes de decidir, considere:
@@ -33,16 +56,14 @@ O único "custo" honesto: a instalação é um pouco mais manual do que clicar e
 
 ## 📂 O que são todos esses arquivos?
 
-Se você veio aqui só para **usar o app**, pode ignorar a grande maioria dos arquivos deste repositório — eles são documentação técnica e configuração voltadas para desenvolvedores.
+Se você veio aqui só para **usar o app**, pode ignorar a grande maioria dos arquivos deste repositório — eles são documentação técnica e configuração voltadas para o desenvolvedor.
 
-Para você, o que importa é simples:
+Para você, basta clicar em uma das URLs acima na seção [▶ Abrir agora](#-abrir-agora--sem-baixar-nada). Tudo o que importa é:
 
-| Cenário | Módulo | O que você precisa |
+| Módulo | Arquivo principal | URL para usar |
 |---|---|---|
-| **Experimentos a campo / instalações animais** | Campo | `AgroDesign.html` ou URL pública |
-| **Ensaios em microplaca de 96 poços** | Lab | `AgroDesignLab.html` ou URL pública |
-
-👉 Vá direto para [**Como usar**](#-como-usar) para o passo a passo do seu cenário.
+| **Campo** | `AgroDesign.html` | [Magoc25.github.io/AgroDesign/AgroDesign.html](https://Magoc25.github.io/AgroDesign/AgroDesign.html) |
+| **Lab** | `AgroDesignLab.html` | [Magoc25.github.io/AgroDesign/AgroDesignLab.html](https://Magoc25.github.io/AgroDesign/AgroDesignLab.html) |
 
 ---
 
@@ -102,7 +123,7 @@ Delineamento e randomização para **microplacas de 96 poços** em ensaios biol�
 - **8 templates** pré-configurados com delineamento, controles e parâmetros completos
 - **Layout SVG** da placa com tooltip por poço, tema Colorido/Publicação e legenda
 - **Dose-Resposta** — curva 4PL in-browser (IC50, B, Lower, Upper) com Levenberg-Marquardt
-- **EcoPlate** — AWCD, Shannon H', Simpson D, McIntosh U a partir das leituras de OD
+- **EcoPlate** — AWCD, Shannon H', Simpson D, McIntosh D a partir das leituras de OD
 - **Coleta de dados** — entrada por poço, outliers IQR, importação/exportação CSV
 - **Export XLSX multi-abas** — Dados Brutos + Resumo + aba condicional (4PL ou CLPP)
 - **Scripts R, SAS e Python** gerados por modo de análise
@@ -114,41 +135,29 @@ Delineamento e randomização para **microplacas de 96 poços** em ensaios biol�
 
 ## 📦 Como usar
 
-### Módulo Campo
+### Opção 1 — Online _(recomendado)_
 
-#### Cenário 1 — Uso local simples _(sem nuvem)_
+Use as URLs públicas da seção [▶ Abrir agora](#-abrir-agora--sem-baixar-nada). É a forma mais simples — sem instalação, sem cadastro, sem download. Funciona em qualquer dispositivo com navegador.
 
-1. Baixe `AgroDesign.html` e abra no Chrome, Edge, Firefox ou Safari
-2. Pronto — todos os dados ficam salvos no próprio navegador
+Seus dados (croquis, projetos, coletas) ficam salvos **no próprio navegador**, apenas no seu dispositivo. Para fazer backup ou levar para outro computador, use **Projetos → ⬇ JSON** dentro do app.
 
-**Backup:** exporte os presets regularmente pelo botão Exportar JSON em Configurações.
+### Opção 2 — Cópia local _(opcional)_
 
-#### Cenário 2 — Acesso de qualquer lugar pela URL _(GitHub Pages)_
+Se quiser uma cópia totalmente independente — útil para usar em laboratório/campo sem conexão garantida, ou para arquivamento — faça assim:
 
-1. Acesse a URL pública: `https://Magoc25.github.io/AgroDesign/AgroDesign.html`
-2. No Chrome/Edge: clique no ícone de instalação na barra de endereços para instalar como PWA
+1. No repositório, clique no botão verde **Code** → **Download ZIP**
+2. Extraia o ZIP em uma pasta no seu computador
+3. Dê duplo clique em `AgroDesign.html` (Campo) ou `AgroDesignLab.html` (Lab)
 
-### Módulo Lab
+Funciona exatamente igual à versão online, mas sem nenhuma dependência da internet ou do GitHub.
 
-#### Cenário 1 — Uso local
+### Opção 3 — Sincronizar entre dois ou mais dispositivos _(opcional — apenas Campo)_
 
-1. Baixe `AgroDesignLab.html` e abra no navegador
-
-#### Cenário 2 — URL pública
-
-1. Acesse: `https://Magoc25.github.io/AgroDesign/AgroDesignLab.html`
+Se quiser que os projetos do AgroDesign Campo apareçam tanto no PC quanto no celular automaticamente, configure uma conta gratuita no Supabase (instruções na seção [Configurar Supabase](#-configurar-supabase-opcional)). É opcional — você pode usar o app perfeitamente sem isso.
 
 ---
 
-### Cenário 3 — Dois computadores com sincronização de presets _(Supabase — apenas Campo)_
-
-1. Crie conta no Supabase (gratuito) — veja [Configurar Supabase](#-configurar-supabase-sincronização)
-2. Abra o app em cada dispositivo, acesse ☁️ e configure as chaves
-3. Os presets sincronizam automaticamente
-
----
-
-## 🔧 Configurar Supabase (sincronização)
+## 🔧 Configurar Supabase _(opcional — só para sincronizar entre dispositivos)_
 
 #### 1. Criar conta e projeto
 
@@ -196,27 +205,6 @@ SELECT cron.schedule(
 ```
 
 > Agenda uma consulta toda segunda-feira às 5h Brasília. Para confirmar: `SELECT * FROM cron.job;`
-
----
-
-## 🔧 Configurar GitHub Pages
-
-1. Repositório → Settings → Pages
-2. Source: Deploy from a branch → Branch: main → / (root) → Save
-3. Aguarde ~2 min
-4. URLs:
-   - Campo: `https://Magoc25.github.io/AgroDesign/AgroDesign.html`
-   - Lab: `https://Magoc25.github.io/AgroDesign/AgroDesignLab.html`
-
-> ⚠️ A URL base (`/AgroDesign/`) retorna 404 — sempre use a URL com o nome do arquivo.
-
----
-
-## 📱 Instalar como app no celular
-
-**Android (Chrome):** Menu (⋮) → Adicionar à tela inicial → Confirmar
-
-**iPhone/iPad (Safari):** Compartilhar → Adicionar à tela de início
 
 ---
 
