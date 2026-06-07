@@ -1,6 +1,6 @@
 # Política de Segurança — AgroDesign
 
-**Versão 1.0 · Maio de 2026**
+**Versão 2.0 · Junho de 2026**
 
 Este documento descreve as práticas de segurança implementadas no AgroDesign e o processo de resposta a incidentes, em conformidade com os arts. 46–49 da [LGPD (Lei nº 13.709/2018)](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm), a [Resolução CD/ANPD nº 15/2024](https://www.gov.br/anpd/pt-br) e o art. 8º da [Lei nº 9.609/1998](https://www.planalto.gov.br/ccivil_03/leis/l9609.htm).
 
@@ -8,7 +8,7 @@ Este documento descreve as práticas de segurança implementadas no AgroDesign e
 
 ## 1. Arquitetura de segurança
 
-O AgroDesign implementa defesa em cinco camadas contra as principais ameaças a aplicações web:
+O AgroDesign implementa defesa em cinco camadas contra as principais ameaças a aplicações web. As cinco camadas aplicam-se aos **dois módulos** do app — **Campo** (`AgroDesign.html`) e **Lab** (`AgroDesignLab.html`):
 
 ### Camada 1 — Sanitização HTML (esc)
 Toda saída de dados do usuário inserida via `innerHTML` passa pela função `esc()`, que escapa os caracteres especiais `& < > " '`, prevenindo ataques de Cross-Site Scripting (XSS).
@@ -31,8 +31,8 @@ Os dados do experimento (configurações, modelos) ficam exclusivamente no `loca
 
 | Versão | Suporte de segurança |
 |---|---|
-| 1.x (atual) | ✅ Suportada — correções aplicadas |
-| < 1.0 | ❌ Não aplicável (sem versões anteriores) |
+| 2.x (atual) | ✅ Suportada — correções aplicadas |
+| 1.x | ⚠️ Atualize para a versão mais recente |
 
 Recomenda-se sempre usar a versão mais recente, disponível em:
 `https://Magoc25.github.io/AgroDesign/AgroDesign.html`

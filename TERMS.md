@@ -1,6 +1,6 @@
 # Termos de Uso — AgroDesign
 
-**Versão 1.0.0 · Maio de 2026**
+**Versão 2.0.0 · Junho de 2026**
 
 Desenvolvido por **Marlon Gomes da Costa (MGC Dev)** — professor do IFMA Campus São Raimundo das Mangabeiras; este projeto é uma iniciativa pessoal, sem vínculo institucional.
 
@@ -56,6 +56,7 @@ O usuário é responsável por validar os delineamentos gerados com o referencia
 
 ## 6. Dados e privacidade
 
+- O AgroDesign possui dois módulos: **Campo** (`AgroDesign.html`) e **Lab** (`AgroDesignLab.html`). Ambos são *local-first*; apenas o módulo **Campo** oferece sincronização opcional via Supabase próprio do usuário
 - Os dados do experimento (configurações, modelos salvos) ficam armazenados exclusivamente no `localStorage` do dispositivo do usuário
 - Se o usuário optar por configurar o Supabase próprio (sincronização entre dispositivos), as chaves e dados ficam sob controle exclusivo do usuário — o autor não tem acesso
 - O sistema de avaliações (☕ Apoiar / ⭐ Avaliações) usa um banco de dados compartilhado do autor para armazenar avaliações públicas: nome, comentário, estrelas, data e indicação de apoio via PIX

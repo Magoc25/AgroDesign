@@ -1,6 +1,6 @@
 # Declaração de Acessibilidade — AgroDesign
 
-**Versão 1.0 · Maio de 2026**
+**Versão 2.0 · Junho de 2026**
 
 Esta declaração é elaborada em conformidade com o art. 63 da [Lei Brasileira de Inclusão (LBI — Lei nº 13.146/2015)](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13146.htm), as diretrizes [WCAG 2.2 (W3C)](https://www.w3.org/TR/WCAG22/) e a norma [ABNT NBR 17225:2025](https://www.abnt.org.br/).
 
@@ -8,10 +8,11 @@ Esta declaração é elaborada em conformidade com o art. 63 da [Lei Brasileira 
 
 ## 1. Identificação
 
-**Aplicação:** AgroDesign — Experimental Design para Ciências Agrárias
+**Aplicação:** AgroDesign — Experimental Design para Ciências Agrárias (dois módulos: Campo e Lab)
 **Responsável:** Marlon Gomes da Costa (MGC Dev)
-**URL:** https://Magoc25.github.io/AgroDesign/AgroDesign.html
-**Data desta declaração:** Maio de 2026
+**URL (Campo):** https://Magoc25.github.io/AgroDesign/AgroDesign.html
+**URL (Lab):** https://Magoc25.github.io/AgroDesign/AgroDesignLab.html
+**Data desta declaração:** Junho de 2026
 
 ---
 
@@ -38,7 +39,7 @@ O AgroDesign busca conformidade com o **nível AA das WCAG 2.2**, com as seguint
 |---|---|---|
 | Croqui SVG complexo | Representação gráfica de experimentos grandes pode ser de difícil navegação por leitores de tela | Médio |
 | Exportação PNG | A imagem exportada não possui texto alternativo | Baixo |
-| Tooltip por clique na unidade | Pode requerer mouse ou toque; atalho de teclado planejado para v1.1 | Baixo |
+| Tooltip por clique na unidade | Pode requerer mouse ou toque; atalho de teclado planejado para versão futura | Baixo |
 
 ---
 

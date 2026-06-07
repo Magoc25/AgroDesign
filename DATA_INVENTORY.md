@@ -1,6 +1,6 @@
 # Inventário de Tratamento de Dados Pessoais — AgroDesign
 
-**Versão 1.0 · Maio de 2026**
+**Versão 2.0 · Junho de 2026**
 
 Inventário simplificado elaborado em conformidade com o art. 37 da [LGPD (Lei nº 13.709/2018)](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm) e a [Resolução CD/ANPD nº 2/2022](https://www.gov.br/anpd/pt-br/documentos-e-publicacoes/resolucao-cd-anpd-no-2-de-27-de-janeiro-de-2022.pdf), art. 7º (formato ATPP — Agente de Tratamento de Pequeno Porte).
 
@@ -14,7 +14,7 @@ Inventário simplificado elaborado em conformidade com o art. 37 da [LGPD (Lei n
 | CPF/CNPJ | Pessoa natural |
 | Porte | ATPP (Agente de Tratamento de Pequeno Porte) |
 | Contato DPO/Canal | marlongc25@protonmail.com |
-| Aplicação | AgroDesign v1.0 |
+| Aplicação | AgroDesign v2.0 — módulos Campo (`AgroDesign.html`) e Lab (`AgroDesignLab.html`) |
 
 ---
 
@@ -52,7 +52,7 @@ Inventário simplificado elaborado em conformidade com o art. 37 da [LGPD (Lei n
 
 | Campo | Descrição |
 |---|---|
-| **Dados tratados** | Configurações de experimentos, modelos/presets, preferências de interface |
+| **Dados tratados** | Configurações de experimentos, modelos/presets, preferências de interface (módulos **Campo** e **Lab**; o módulo Lab é exclusivamente local) |
 | **Categoria** | Dados técnicos (não pessoais por natureza; podem conter nomes de pesquisadores se inseridos pelo usuário) |
 | **Finalidade** | Persistência de configurações entre sessões do app |
 | **Base legal** | Não aplicável (armazenamento local; controlado exclusivamente pelo usuário) |

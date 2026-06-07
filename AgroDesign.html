@@ -10,7 +10,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AgroDesign</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://api.qrserver.com https://chart.googleapis.com; connect-src 'self' https://*.supabase.co; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://api.qrserver.com https://chart.googleapis.com; connect-src 'self' https://*.supabase.co; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none';">
 <link rel="manifest" href="./manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -95,6 +95,7 @@ header { background: var(--primary); color: #fff; padding: .75rem 1rem; display:
 header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: .02em; }
 header p { font-size: .75rem; opacity: .8; }
 .header-logo { font-size: 1.6rem; line-height: 1; }
+.beta-badge { display:inline-block; margin-left:8px; padding:1px 7px; font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#241a02; background:#f2c14e; border:none; border-radius:999px; cursor:pointer; }
 
 /* Layout */
 .app-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
@@ -253,9 +254,23 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     <h1>AgroDesign</h1>
     <p>Experimental Design para Ciências Agrárias</p>
   </div>
+  <button class="beta-badge" type="button" title="Versão em testes — toque para detalhes" onclick="showBeta()">beta</button>
   <a href="./AgroDesignLab.html" style="margin-left:auto;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:.78rem;padding:.3rem .75rem;border-radius:8px;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:.3rem">🧪 Lab</a>
   <button id="btnDark" onclick="toggleDark()" title="Modo escuro" style="background:none;border:none;color:#fff;font-size:1.25rem;cursor:pointer;opacity:.85;padding:4px 8px;line-height:1">🌙</button>
 </header>
+
+<!-- ═══ BETA MODAL ═══ -->
+<div id="betaModal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeBeta()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">🧪 Versão em testes (beta)</div>
+      <button class="modal-close-btn" type="button" onclick="closeBeta()">✕</button>
+    </div>
+    <p style="font-size:.88rem;line-height:1.5;margin-bottom:1rem">O <b>AgroDesign</b> está <b>funcional</b>, mas ainda <b>não passou por validação completa</b>. Os resultados (croquis, randomização, análises) <b>podem conter imprecisões</b>: confira e <b>valide-os antes de usar</b> em trabalhos técnicos, laudos ou publicações. Uso <b>por sua conta e risco, sem garantias</b> (veja os <a href="./TERMS.md" target="_blank" rel="noopener">Termos de Uso</a>).</p>
+    <button type="button" class="btn btn-primary btn-block" onclick="ackBeta()">Entendi</button>
+  </div>
+</div>
 
 <div class="app-layout">
 
@@ -882,7 +897,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
   <button class="footer-btn" onclick="window.open('https://github.com/Magoc25/AgroDesign','_blank')" title="GitHub"><svg aria-hidden="true" viewBox="0 0 16 16" width="13" height="13" fill="currentColor" style="vertical-align:-.15em;margin-right:3px"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</button>
   <button class="footer-btn" onclick="openPixModal()">☕ Apoiar</button>
   <button class="footer-btn" onclick="openReviewsModal('list')">⭐ Avaliações</button>
-  <span id="appVersion">© MGC · v1.2.6</span>
+  <span id="appVersion">© MGC · v2.0.0</span>
 </footer>
 
 <!-- ═══ UNIT TOOLTIP ═══ -->
@@ -1141,7 +1156,7 @@ df = pd.read_csv("AgroDesign_dados.csv",
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 /* ── Constantes ── */
-const APP_VERSION  = '1.2.6';
+const APP_VERSION  = '2.0.0';
 const APP_NAME     = 'AgroDesign';
 const PROJECT_ID   = 'agrodesign';
 const PIX_KEY      = '4c6086a2-4bb8-474b-a4cf-ced8c8d82189';
@@ -6141,6 +6156,12 @@ if ('serviceWorker' in navigator) {
     .then(reg => reg.update())
     .catch(() => {});
 }
+
+/* ══ Aviso beta ══ */
+function showBeta(){ const m=document.getElementById('betaModal'); if(m) m.classList.remove('hidden'); }
+function closeBeta(){ const m=document.getElementById('betaModal'); if(m) m.classList.add('hidden'); }
+function ackBeta(){ try{ localStorage.setItem('agrodesign_beta_ack','1'); }catch(e){} closeBeta(); }
+(function(){ try{ if(!localStorage.getItem('agrodesign_beta_ack')) setTimeout(showBeta, 700); }catch(e){} })();
 
 /* ══ Resize ══ */
 window.addEventListener('resize', () => {

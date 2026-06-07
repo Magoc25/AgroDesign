@@ -5,6 +5,7 @@
   "start_url": "./AgroDesign.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "any",
   "background_color": "#f0f7ee",
   "theme_color": "#2d6a4f",

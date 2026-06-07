@@ -9,7 +9,16 @@ Desenvolvido por **Marlon Gomes da Costa (MGC Dev)**
 > Não representa, não é financiado e não tem vínculo institucional com o IFMA
 > ou qualquer outra organização.
 
-[![Versão](https://img.shields.io/badge/versão-2.0.0--dev-blue)](#changelog)
+> 🧪 **Versão em testes e validação (beta).** O AgroDesign está **funcional** e você pode usá-lo à
+> vontade — mas ainda **não passou por validação completa**. Os resultados gerados **podem conter
+> imprecisões**: confira e **valide-os antes de usar** em trabalhos técnicos, laudos ou publicações.
+> O uso é **por sua conta e risco, sem garantias** (veja os [Termos de Uso](./TERMS.md)).
+>
+> 💬 **Ajude a validar!** Testou? Conte como foi — relatos de funcionamento e da qualidade dos
+> resultados orientam a evolução do app. Use a **avaliação dentro do app** ou abra uma issue.
+
+[![Versão](https://img.shields.io/badge/versão-2.0.0-blue)](#changelog)
+[![Status](https://img.shields.io/badge/status-beta%20%C2%B7%20em%20valida%C3%A7%C3%A3o-yellow)](./TERMS.md)
 [![Licença](https://img.shields.io/badge/licença-não%20comercial-orange)](#licença-e-termos-de-uso)
 [![PIX](https://img.shields.io/badge/apoie-PIX-brightgreen)](#-apoiar-o-projeto)
 [![Dispositivos ativos](https://img.shields.io/badge/dynamic/json?url=https://raw.githubusercontent.com/Magoc25/AgroDesign/master/stats.json&query=$.active_30d&label=dispositivos%20ativos%20(30d)&color=blue&suffix=%20dispositivos)](./stats.json)

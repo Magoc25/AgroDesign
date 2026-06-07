@@ -1,6 +1,6 @@
 # Aviso de Privacidade — AgroDesign
 
-**Versão 1.0 · Maio de 2026**
+**Versão 2.0 · Junho de 2026**
 
 Este aviso descreve como o AgroDesign trata dados pessoais, em conformidade com a [Lei Geral de Proteção de Dados Pessoais (LGPD — Lei nº 13.709/2018)](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm), art. 9º e art. 18.
 
@@ -16,7 +16,7 @@ Contato (canal de privacidade): **marlongc25@protonmail.com**
 
 ## 2. Arquitetura de dados — três camadas
 
-O AgroDesign opera em três camadas distintas de armazenamento:
+O AgroDesign opera em três camadas distintas de armazenamento. O app possui dois módulos — **Campo** (`AgroDesign.html`) e **Lab** (`AgroDesignLab.html`) — que compartilham as Camadas 1 e 2; a Camada 3 (sincronização) aplica-se **apenas ao módulo Campo** (o Lab é exclusivamente local).
 
 | Camada | O que armazena | Quem controla |
 |---|---|---|
