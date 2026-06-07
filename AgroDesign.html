@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <!--
-  AgroDesign — Experimental Design para Ciências Agrárias
+  AgroDesign — Experimental Design para Ciências Agrárias e Afins
   © 2026 MGC Dev — Marlon Gomes da Costa
   Projeto pessoal. Proibido uso comercial sem autorização.
   https://github.com/Magoc25/AgroDesign
@@ -252,7 +252,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
   <span class="header-logo">🌱</span>
   <div>
     <h1>AgroDesign</h1>
-    <p>Experimental Design para Ciências Agrárias</p>
+    <p>Experimental Design para Ciências Agrárias e Afins</p>
   </div>
   <button class="beta-badge" type="button" title="Versão em testes — toque para detalhes" onclick="showBeta()">beta</button>
   <a href="./AgroDesignLab.html" style="margin-left:auto;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:.78rem;padding:.3rem .75rem;border-radius:8px;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:.3rem">🧪 Lab</a>
@@ -950,8 +950,8 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <label style="font-size:.85rem"><span>Seu nome *</span>
           <input id="reviewNameInput" type="text" maxlength="40" placeholder="Ex: Maria">
         </label>
-        <label style="font-size:.85rem"><span>Comentário (opcional)</span>
-          <textarea id="reviewCommentInput" rows="2" maxlength="200" placeholder="O que você achou do app?"></textarea>
+        <label style="font-size:.85rem"><span>Comentário (opcional) — <span id="reviewCommentCount">0</span>/200</span>
+          <textarea id="reviewCommentInput" rows="2" maxlength="200" placeholder="O que você achou do app?" oninput="document.getElementById('reviewCommentCount').textContent=this.value.length"></textarea>
         </label>
         <div class="check-row" style="font-size:.82rem">
           <input type="checkbox" id="reviewDonatedCheck" checked style="width:auto">
@@ -6055,6 +6055,7 @@ async function openReviewsModal(mode = 'list') {
     setReviewStar(0);
     document.getElementById('reviewNameInput').value = '';
     document.getElementById('reviewCommentInput').value = '';
+    const _rcc = document.getElementById('reviewCommentCount'); if (_rcc) _rcc.textContent = '0';
     document.getElementById('reviewDonatedCheck').checked = true;
   }
 }

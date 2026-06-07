@@ -693,8 +693,8 @@ df = df[df["Tipo"] == "Amostra"]</code></div>
         <label style="font-size:.85rem"><span>Seu nome *</span>
           <input id="reviewNameInput" type="text" maxlength="40" placeholder="Ex: Maria">
         </label>
-        <label style="font-size:.85rem"><span>Comentário (opcional)</span>
-          <textarea id="reviewCommentInput" rows="2" maxlength="200" placeholder="O que você achou do app?"></textarea>
+        <label style="font-size:.85rem"><span>Comentário (opcional) — <span id="reviewCommentCount">0</span>/200</span>
+          <textarea id="reviewCommentInput" rows="2" maxlength="200" placeholder="O que você achou do app?" oninput="document.getElementById('reviewCommentCount').textContent=this.value.length"></textarea>
         </label>
         <div class="check-row" style="font-size:.82rem">
           <input type="checkbox" id="reviewDonatedCheck" checked style="width:auto">
@@ -846,6 +846,7 @@ async function openReviewsModal(mode = 'list') {
     setReviewStar(0);
     document.getElementById('reviewNameInput').value = '';
     document.getElementById('reviewCommentInput').value = '';
+    const _rcc = document.getElementById('reviewCommentCount'); if (_rcc) _rcc.textContent = '0';
     document.getElementById('reviewDonatedCheck').checked = true;
   }
 }

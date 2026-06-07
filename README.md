@@ -15,7 +15,7 @@ Desenvolvido por **Marlon Gomes da Costa (MGC Dev)**
 > O uso é **por sua conta e risco, sem garantias** (veja os [Termos de Uso](./TERMS.md)).
 >
 > 💬 **Ajude a validar!** Testou? Conte como foi — relatos de funcionamento e da qualidade dos
-> resultados orientam a evolução do app. Use a **avaliação dentro do app** ou abra uma issue.
+> resultados orientam a evolução do app. Use a **avaliação dentro do app** ou [abra uma issue](https://github.com/Magoc25/AgroDesign/issues).
 
 [![Versão](https://img.shields.io/badge/versão-2.0.0-blue)](#changelog)
 [![Status](https://img.shields.io/badge/status-beta%20%C2%B7%20em%20valida%C3%A7%C3%A3o-yellow)](./TERMS.md)
@@ -152,13 +152,14 @@ Seus dados (croquis, projetos, coletas) ficam salvos **no próprio navegador**, 
 
 ### Opção 2 — Cópia local _(opcional)_
 
-Se quiser uma cópia totalmente independente — útil para usar em laboratório/campo sem conexão garantida, ou para arquivamento — faça assim:
+Cada módulo é um **único arquivo HTML autossuficiente** (fontes, estilos e scripts embutidos) — **você não precisa baixar a pasta inteira**. Basta o arquivo do módulo que vai usar:
 
-1. No repositório, clique no botão verde **Code** → **Download ZIP**
-2. Extraia o ZIP em uma pasta no seu computador
-3. Dê duplo clique em `AgroDesign.html` (Campo) ou `AgroDesignLab.html` (Lab)
+- **Campo:** `AgroDesign.html`
+- **Lab:** `AgroDesignLab.html`
 
-Funciona exatamente igual à versão online, mas sem nenhuma dependência da internet ou do GitHub.
+Para salvar só o arquivo: abra a URL pública do módulo e use **Ctrl+S** (salvar página); ou, no repositório, abra o arquivo e clique em **Download raw file** (ícone ⬇). Depois é só dar duplo clique nele — funciona offline, igual à versão online.
+
+> _Quer instalar como app (ícone na tela), com cache offline automático? Use a **Opção 1** (online) e instale como PWA — a cópia de um único arquivo roda direto do disco, mas não se instala como aplicativo._
 
 ### Opção 3 — Sincronizar entre dois ou mais dispositivos _(opcional — apenas Campo)_
 
