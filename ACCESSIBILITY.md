@@ -8,7 +8,7 @@ Esta declaração é elaborada em conformidade com o art. 63 da [Lei Brasileira 
 
 ## 1. Identificação
 
-**Aplicação:** AgroDesign — Experimental Design para Ciências Agrárias (dois módulos: Campo e Lab)
+**Aplicação:** AgroDesign — Experimental Design para Ciências Agrárias e Afins (dois módulos: Campo e Lab)
 **Responsável:** Marlon Gomes da Costa (MGC Dev)
 **URL (Campo):** https://Magoc25.github.io/AgroDesign/AgroDesign.html
 **URL (Lab):** https://Magoc25.github.io/AgroDesign/AgroDesignLab.html
