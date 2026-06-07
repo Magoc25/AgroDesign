@@ -68,7 +68,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 - **Meta tags PWA + ícones** e comentário de copyright no `<head>` do Lab
 - **Versão automática** (lê `CHANGELOG.md`), **banner de atualização** (`app_config`), **ping de dispositivos ativos** (`app_pings`) e **registro do Service Worker** também no módulo Lab
 - **Aviso de versão beta** (selo no cabeçalho + modal na 1ª abertura) nos dois módulos
-- `manifest.json` com `display_override`; Service Worker com estratégia *network-first* e cache `agrodesign-v54`
+- `manifest.json` com `display_override`; Service Worker com estratégia *network-first* e cache versionado
 
 ---
 
