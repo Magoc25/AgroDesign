@@ -1215,7 +1215,7 @@ let units = [];
 let _repositionMode = false;   // modo "reposicionar parcelas" ativo
 let _swapFirstId = null;        // id da 1ª parcela tocada (aguardando a 2ª p/ trocar)
 let _customLayout = false;      // arranjo editado manualmente (não-aleatorizado)
-const _SWAP_KEYS = ['treatment','factorA','factorB','factorC','mainPlot','mainPlotLabel'];
+const _SWAP_KEYS = ['treatment','factorA','factorB','factorC','mainPlotLabel']; // 'mainPlot' fica POSICIONAL (split-plot: a parcela principal física não se move)
 let treatmentColors = {};
 let dqlRowFactorName  = 'Linha';
 let dqlColFactorName  = 'Coluna';
@@ -2333,19 +2333,70 @@ function validateLayout() {
   const design = document.getElementById('selDesign').value;
   const allT = [...new Set(units.map(u => u.treatment))];
   const count = (arr, t) => arr.filter(x => x === t).length;
-  if (design === 'DBC') {
-    const byBlock = {};
-    units.forEach(u => { (byBlock[u.block] = byBlock[u.block] || []).push(u.treatment); });
-    for (const [b, list] of Object.entries(byBlock))
+  const groupBy = key => { const g = {}; units.forEach(u => { (g[u[key]] = g[u[key]] || []).push(u); }); return g; };
+
+  // DIC e Fatorial em DIC — casualização completa: nenhuma restrição posicional
+  if (design === 'DIC' || design === 'FAT_DIC')
+    return '✓ Sem restrição posicional (DIC): qualquer arranjo das repetições é válido';
+
+  // DBC e Fatorial em DBC — cada bloco com cada tratamento/combinação exatamente 1×
+  if (design === 'DBC' || design === 'FAT_DBC') {
+    const g = groupBy('block');
+    for (const [b, arr] of Object.entries(g)) {
+      const list = arr.map(u => u.treatment);
       for (const t of allT) { const n = count(list, t); if (n !== 1) return `⚠ Bloco ${b}: "${t}" ${n}× (esperado 1×)`; }
+    }
     return '✓ Arranjo válido (cada bloco tem cada tratamento 1×)';
   }
+
+  // DQL — cada tratamento 1× por linha e por coluna
   if (design === 'DQL') {
     const rows = [...new Set(units.map(u => u.row))], cols = [...new Set(units.map(u => u.col))];
     for (const r of rows) { const ln = units.filter(u => u.row === r).map(u => u.treatment); for (const t of allT) { const n = count(ln, t); if (n !== 1) return `⚠ Linha ${r + 1}: "${t}" ${n}× (esperado 1×)`; } }
     for (const c of cols) { const cl = units.filter(u => u.col === c).map(u => u.treatment); for (const t of allT) { const n = count(cl, t); if (n !== 1) return `⚠ Coluna ${c + 1}: "${t}" ${n}× (esperado 1×)`; } }
     return '✓ Arranjo válido (quadrado latino: 1× por linha e por coluna)';
   }
+
+  // Parcelas subdivididas — cada parcela principal: fator A único + todos os níveis de B 1×
+  if (design === 'SPL_DIC' || design === 'SPL_DBC') {
+    const allB = [...new Set(units.map(u => u.factorB))];
+    const mp = groupBy('mainPlot');
+    for (const [m, arr] of Object.entries(mp)) {
+      const as = [...new Set(arr.map(u => u.factorA))];
+      if (as.length !== 1) return `⚠ Parcela principal ${m}: fator A misturado (${as.join(', ')}) — deve ter um único nível`;
+      for (const bl of allB) { const n = arr.filter(u => u.factorB === bl).length; if (n !== 1) return `⚠ Parcela principal ${m}: fator B "${bl}" ${n}× (esperado 1×)`; }
+    }
+    return '✓ Arranjo válido (cada parcela principal: fator A único + todos os níveis de B 1×)';
+  }
+
+  // Faixas cruzadas — por bloco: cada faixa de linha = um nível de A; cada faixa de coluna = um nível de B
+  if (design === 'STRIP') {
+    const g = groupBy('block');
+    for (const [b, arr] of Object.entries(g)) {
+      const byRow = {}; arr.forEach(u => { (byRow[u.row] = byRow[u.row] || []).push(u.factorA); });
+      for (const [, as] of Object.entries(byRow)) { const uA = [...new Set(as)]; if (uA.length !== 1) return `⚠ Bloco ${b}: faixa de linha com fator A misturado (${uA.join(', ')})`; }
+      const byCol = {}; arr.forEach(u => { (byCol[u.col] = byCol[u.col] || []).push(u.factorB); });
+      for (const [, bs] of Object.entries(byCol)) { const uB = [...new Set(bs)]; if (uB.length !== 1) return `⚠ Bloco ${b}: faixa de coluna com fator B misturado (${uB.join(', ')})`; }
+    }
+    return '✓ Arranjo válido (faixas: linha = fator A, coluna = fator B, em cada bloco)';
+  }
+
+  // Látice simples — cada repetição com cada tratamento 1×; sem repetição dentro de um bloco incompleto
+  if (design === 'LATICE') {
+    const reps = groupBy('rep');
+    for (const [rp, arr] of Object.entries(reps)) {
+      const list = arr.map(u => u.treatment);
+      for (const t of allT) { const n = count(list, t); if (n !== 1) return `⚠ Repetição ${rp}: "${t}" ${n}× (esperado 1× por repetição)`; }
+    }
+    const blk = groupBy('block');
+    for (const [b, arr] of Object.entries(blk)) {
+      const list = arr.map(u => u.treatment);
+      const dup = list.find((t, i) => list.indexOf(t) !== i);
+      if (dup) return `⚠ Bloco incompleto ${b}: "${dup}" repetido`;
+    }
+    return '✓ Válido por repetição (a estrutura interna de blocos incompletos do látice não é verificada automaticamente)';
+  }
+
   return 'ℹ Arranjo personalizado (sem checagem automática para este delineamento)';
 }
 
