@@ -809,8 +809,17 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
           <label id="lblGradArrow" style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
             <input type="checkbox" id="chkGradArrow" onchange="onGradArrowToggle()" style="width:auto"> Gradiente
           </label>
+          <label style="display:flex;flex-direction:row;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)" title="Reposicionar parcelas manualmente — para documentar um experimento já implantado">
+            <input type="checkbox" id="chkReposition" onchange="toggleReposition()" style="width:auto"> ✋ Reposicionar
+          </label>
         </div>
       </div>
+      <div id="repositionBanner" class="hidden" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;background:#fff7ed;border:1px solid #f59e0b;border-radius:6px;padding:.45rem .6rem;margin:.4rem 0 0;font-size:.78rem;color:#7c2d12">
+        <span>✋ <b>Modo reposicionar</b> — toque em <b>duas parcelas</b> para trocar os tratamentos de posição (reflete um experimento já implantado).</span>
+        <span id="repositionWarn" style="font-weight:600"></span>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="revertToRandom()" style="margin-left:auto">↻ Voltar ao aleatório</button>
+      </div>
+      <div id="customLayoutBadge" class="hidden" style="display:inline-flex;align-items:center;gap:.3rem;background:#fef3c7;border:1px solid #f59e0b;border-radius:999px;padding:1px 10px;margin:.4rem 0 0;font-size:.72rem;color:#92400e;font-weight:600;width:fit-content">✏️ Layout personalizado — arranjo informado pelo usuário (não aleatorizado)</div>
       <div class="svg-scroll" id="svgScroll">
         <div class="svg-inner" id="svgInner"></div>
       </div>
@@ -1203,6 +1212,10 @@ const PUB_PALETTES = {
 
 /* ── State ── */
 let units = [];
+let _repositionMode = false;   // modo "reposicionar parcelas" ativo
+let _swapFirstId = null;        // id da 1ª parcela tocada (aguardando a 2ª p/ trocar)
+let _customLayout = false;      // arranjo editado manualmente (não-aleatorizado)
+const _SWAP_KEYS = ['treatment','factorA','factorB','factorC','mainPlot','mainPlotLabel'];
 let treatmentColors = {};
 let dqlRowFactorName  = 'Linha';
 let dqlColFactorName  = 'Coluna';
@@ -1586,6 +1599,8 @@ function generateCroqui(autoUpdate = false) {
   renderFieldbook();
   renderUnidade();
   renderDataTab();
+  _customLayout = false; _swapFirstId = null;
+  updateRepositionUI();
   if (!autoUpdate) showTab('croqui');
   if (currentProjectName) saveCurrentProject(true);
 }
@@ -2263,6 +2278,75 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
 /* ── Croqui SVG ── */
 function rerenderCroqui() { renderCroqui(); renderUnidade(); renderSummary(); }
 
+/* ── Reposicionar parcelas (arranjo manual p/ experimentos já implantados) ── */
+function onCellClick(dataEnc) {
+  if (_repositionMode) {
+    let id;
+    try { id = JSON.parse(decodeURIComponent(dataEnc)).id; } catch (e) { return; }
+    handleSwapTap(id);
+  } else {
+    openUnitModal(dataEnc);
+  }
+}
+
+function toggleReposition() {
+  _repositionMode = document.getElementById('chkReposition').checked;
+  _swapFirstId = null;
+  const banner = document.getElementById('repositionBanner');
+  if (banner) banner.classList.toggle('hidden', !_repositionMode);
+  renderCroqui();
+}
+
+function handleSwapTap(id) {
+  if (_swapFirstId === null) { _swapFirstId = id; renderCroqui(); return; }
+  if (_swapFirstId === id)   { _swapFirstId = null; renderCroqui(); return; }
+  const a = units.find(u => u.id === _swapFirstId);
+  const b = units.find(u => u.id === id);
+  _swapFirstId = null;
+  if (!a || !b) { renderCroqui(); return; }
+  _SWAP_KEYS.forEach(k => { const t = a[k]; a[k] = b[k]; b[k] = t; });
+  _customLayout = true;
+  assignColors();
+  rerenderCroqui();
+  renderFieldbook();
+  renderDataTab();
+  updateRepositionUI();
+  if (currentProjectName) saveCurrentProject(true);
+}
+
+function revertToRandom() {
+  if (!confirm('Descartar o arranjo manual e gerar um novo croqui aleatório?')) return;
+  generateCroqui();
+}
+
+function updateRepositionUI() {
+  const badge = document.getElementById('customLayoutBadge');
+  if (badge) badge.classList.toggle('hidden', !_customLayout);
+  const warn = document.getElementById('repositionWarn');
+  if (warn) warn.textContent = _customLayout ? validateLayout() : '';
+}
+
+/* Checagem não-bloqueante das regras do delineamento após edição manual */
+function validateLayout() {
+  const design = document.getElementById('selDesign').value;
+  const allT = [...new Set(units.map(u => u.treatment))];
+  const count = (arr, t) => arr.filter(x => x === t).length;
+  if (design === 'DBC') {
+    const byBlock = {};
+    units.forEach(u => { (byBlock[u.block] = byBlock[u.block] || []).push(u.treatment); });
+    for (const [b, list] of Object.entries(byBlock))
+      for (const t of allT) { const n = count(list, t); if (n !== 1) return `⚠ Bloco ${b}: "${t}" ${n}× (esperado 1×)`; }
+    return '✓ Arranjo válido (cada bloco tem cada tratamento 1×)';
+  }
+  if (design === 'DQL') {
+    const rows = [...new Set(units.map(u => u.row))], cols = [...new Set(units.map(u => u.col))];
+    for (const r of rows) { const ln = units.filter(u => u.row === r).map(u => u.treatment); for (const t of allT) { const n = count(ln, t); if (n !== 1) return `⚠ Linha ${r + 1}: "${t}" ${n}× (esperado 1×)`; } }
+    for (const c of cols) { const cl = units.filter(u => u.col === c).map(u => u.treatment); for (const t of allT) { const n = count(cl, t); if (n !== 1) return `⚠ Coluna ${c + 1}: "${t}" ${n}× (esperado 1×)`; } }
+    return '✓ Arranjo válido (quadrado latino: 1× por linha e por coluna)';
+  }
+  return 'ℹ Arranjo personalizado (sem checagem automática para este delineamento)';
+}
+
 function applyPaletteOptions() {
   const theme = document.getElementById('selTheme').value;
   const sel   = document.getElementById('selPalette');
@@ -2796,8 +2880,9 @@ function renderCroqui() {
     })();
 
     // Grupo posicionado na célula
-    svg += `<g transform="translate(${x},${y})" style="cursor:pointer" onclick="openUnitModal('${td}')">`;
+    svg += `<g transform="translate(${x},${y})" style="cursor:${_repositionMode ? 'crosshair' : 'pointer'}" onclick="onCellClick('${td}')">`;
     svg += cellBg(UW, UH, cellFill, cellStyle);
+    if (_repositionMode && u.id === _swapFirstId) svg += `<rect x="-1" y="-1" width="${UW + 2}" height="${UH + 2}" fill="none" stroke="#f59e0b" stroke-width="3" rx="5"/>`;
     svg += `<g transform="translate(${UW / 2},${UH / 2})">`;
     svg += cellLabel(raw, UW, UH, labelMode, u.id, treatCode, factCode, smartCode, labelPos, cellStyle, idDescFixedFs, cellFill);
     svg += '</g>';
@@ -4335,6 +4420,9 @@ function toggleExamples() {
 
 function clearAll() {
   units = []; treatmentColors = {};
+  _customLayout = false; _swapFirstId = null; _repositionMode = false;
+  { const _cr = document.getElementById('chkReposition'); if (_cr) _cr.checked = false; const _rb = document.getElementById('repositionBanner'); if (_rb) _rb.classList.add('hidden'); }
+  updateRepositionUI();
   projectVariables = []; collectionData = {};
   _exampleCampoKey = null;
   _exampleDataCampoLoaded = false;
@@ -5814,7 +5902,8 @@ function saveCurrentProject(silent = false) {
     treatmentColors: { ...treatmentColors },
     notes: { ...unitNotes },
     variables: JSON.parse(JSON.stringify(projectVariables)),
-    collectionData: JSON.parse(JSON.stringify(collectionData))
+    collectionData: JSON.parse(JSON.stringify(collectionData)),
+    customLayout: _customLayout
   };
   if (idx >= 0) projects[idx] = proj; else projects.unshift(proj);
   if (!storeProjects(projects)) {
@@ -5839,6 +5928,7 @@ function loadProject(idx) {
 
   applyConfig(proj.config);
   units = Array.isArray(proj.units) ? proj.units : [];
+  _customLayout = !!proj.customLayout; _swapFirstId = null; updateRepositionUI();
   treatmentColors = proj.treatmentColors || {};
   unitNotes = proj.notes || {};
   projectVariables = Array.isArray(proj.variables) ? proj.variables : [];
