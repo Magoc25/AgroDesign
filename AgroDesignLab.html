@@ -450,6 +450,9 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
       <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;margin:0">
         <input type="checkbox" id="chkEngLab" onchange="onEngChange()"> English
       </label>
+      <label id="lblLabReposition" style="display:none;align-items:center;gap:.4rem;font-size:.8rem;margin:0" title="Reposicionar amostras — para documentar um ensaio já montado">
+        <input type="checkbox" id="chkLabReposition" onchange="toggleLabReposition()"> ✋ Reposicionar
+      </label>
       <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;margin:0">
         <span>Fonte</span>
         <select id="selFont" style="font-size:.78rem;padding:.2rem .4rem;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text)" onchange="applyFontMode(this.value)">
@@ -468,6 +471,11 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
         </select>
       </label>
     </div>
+    <div id="labRepositionBanner" class="hidden" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;background:#fff7ed;border:1px solid #f59e0b;border-radius:6px;padding:.45rem .6rem;margin:.4rem 0 0;font-size:.78rem;color:#7c2d12">
+      <span>✋ <b>Modo reposicionar</b> — toque em <b>dois poços de amostra</b> para trocar os tratamentos (reflete um ensaio já montado).</span>
+      <button class="btn btn-ghost btn-sm" type="button" onclick="revertLabToRandom()" style="margin-left:auto">↻ Voltar ao aleatório</button>
+    </div>
+    <div id="labCustomBadge" class="hidden" style="display:inline-flex;align-items:center;gap:.3rem;background:#fef3c7;border:1px solid #f59e0b;border-radius:999px;padding:1px 10px;margin:.4rem 0 0;font-size:.72rem;color:#92400e;font-weight:600;width:fit-content">✏️ Layout personalizado — arranjo informado pelo usuário (não aleatorizado)</div>
     <div id="plateContainer">
       <div class="plate-wrap" id="plateWrap">
         <div style="color:var(--text-muted);font-size:.88rem;text-align:center;padding:2rem">
@@ -902,6 +910,9 @@ const CTRL_PUB   = { ctrl_neg:'#d4d4d4', ctrl_pos:'#a3a3a3', blank:'#ffffff', bu
 
 /* ── Estado ── */
 let plateLayout = [];
+let _labReposition = false;     // modo "reposicionar" ativo (Lab)
+let _labSwapFirstId = null;     // id do 1º poço tocado (aguardando o 2º)
+let _labCustomLayout = false;   // layout da placa editado manualmente
 let labLang = 'pt';
 
 /* ── RNG com semente (xorshift32) ── */
@@ -1123,6 +1134,8 @@ function generatePlate(autoUpdate=false) {
 
   /* Flatten em ordem de leitura (A1→H12) */
   plateLayout = ROWS.flatMap(r => COLS.map(c => wm[`${r}${c}`]));
+  _labCustomLayout = false; _labSwapFirstId = null;
+  try { localStorage.removeItem('agrodesignlab_autosave'); } catch (e) {}
 
   renderPlate();
   renderSummaryLab();
@@ -1298,7 +1311,8 @@ function renderPlate() {
       stroke = isPub?'#555':'rgba(0,0,0,.3)';
     }
     const textFill = hexLum(fill)<130?'#fff':(isPub?'#111':'#1b2a1e');
-    p += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${fill}" stroke="${stroke}" stroke-width="${isPub?'0.9':'0.6'}" data-well="${w.id}" style="cursor:${w.type!=='empty'?'pointer':'default'}"/>`;
+    const _isSel = _labReposition && w.id === _labSwapFirstId;
+    p += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${fill}" stroke="${_isSel?'#f59e0b':stroke}" stroke-width="${_isSel?'2.6':(isPub?'0.9':'0.6')}" data-well="${w.id}" style="cursor:${w.type!=='empty'?'pointer':'default'}"/>`;
     const lbl = shortLabel(w, treats, isEng);
     if(lbl){
       const fs = lbl.length>3?5:lbl.length>2?6:7;
@@ -1348,11 +1362,23 @@ function renderPlate() {
       el.addEventListener('mouseenter', e => showTip(e, el.getAttribute('data-well')));
       el.addEventListener('mouseleave', hideTip);
       el.addEventListener('mousemove',  moveTip);
+      el.addEventListener('click', () => onLabWellClick(el.getAttribute('data-well')));
     }
   });
 
   /* Legenda HTML permanente abaixo da placa */
   renderLegend(colorMap, isPub, isEng);
+
+  /* Reposicionar: visível só nos modos aleatorizados (standard) */
+  const _lblRep = document.getElementById('lblLabReposition');
+  if (_lblRep) _lblRep.style.display = (plateMode() === 'standard') ? 'flex' : 'none';
+  if (plateMode() !== 'standard' && _labReposition) {
+    _labReposition = false; _labSwapFirstId = null;
+    const _cb = document.getElementById('chkLabReposition'); if (_cb) _cb.checked = false;
+    const _bn = document.getElementById('labRepositionBanner'); if (_bn) _bn.classList.add('hidden');
+  }
+  const _bd = document.getElementById('labCustomBadge');
+  if (_bd) _bd.classList.toggle('hidden', !_labCustomLayout);
 }
 
 function plateMode() {
@@ -1360,6 +1386,41 @@ function plateMode() {
   if(plateLayout.some(w=>w.concentration!==undefined))  return 'dose';
   if(plateLayout.some(w=>w.concA!==undefined))          return 'check';
   return 'standard';
+}
+
+/* ── Reposicionar amostras (Lab) — para documentar um ensaio já montado ── */
+function toggleLabReposition() {
+  _labReposition = document.getElementById('chkLabReposition').checked;
+  _labSwapFirstId = null;
+  const b = document.getElementById('labRepositionBanner');
+  if (b) b.classList.toggle('hidden', !_labReposition);
+  renderPlate();
+}
+
+function onLabWellClick(id) {
+  if (!_labReposition) return;
+  const w = plateLayout.find(x => x.id === id);
+  if (!w || w.type !== 'sample') return;   // só poços de amostra trocam
+  handleLabSwapTap(id);
+}
+
+function handleLabSwapTap(id) {
+  if (_labSwapFirstId === null) { _labSwapFirstId = id; renderPlate(); return; }
+  if (_labSwapFirstId === id)   { _labSwapFirstId = null; renderPlate(); return; }
+  const a = plateLayout.find(w => w.id === _labSwapFirstId);
+  const b = plateLayout.find(w => w.id === id);
+  _labSwapFirstId = null;
+  if (!a || !b || a.type !== 'sample' || b.type !== 'sample') { renderPlate(); return; }
+  ['treatment', 'rep'].forEach(k => { const t = a[k]; a[k] = b[k]; b[k] = t; });
+  _labCustomLayout = true;
+  renderPlate(); renderSummaryLab(); renderFieldBook();
+  try { localStorage.setItem('agrodesignlab_autosave', JSON.stringify({ config: _captureLabConfig(), plateLayout, customLayout: true })); } catch (e) {}
+  if (currentProjectNameLab) saveCurrentProjectLab(true);
+}
+
+function revertLabToRandom() {
+  if (!confirm('Descartar o arranjo manual e gerar um novo layout aleatório?')) return;
+  generatePlate();
 }
 
 function fmtConc(c) {
@@ -2275,7 +2336,7 @@ function saveCurrentProjectLab(silent=false) {
   document.querySelectorAll('.val-input').forEach(inp=>{if(inp.value!=='')valMap[inp.dataset.well]=inp.value;});
   const projects=getProjectsLabFromStorage();
   const idx=projects.findIndex(p=>p.name===name);
-  const proj={name, savedAt:new Date().toISOString(), appVersion:LAB_VERSION, config:_captureLabConfig(), plateLayout, collectedData:valMap};
+  const proj={name, savedAt:new Date().toISOString(), appVersion:LAB_VERSION, config:_captureLabConfig(), plateLayout, collectedData:valMap, customLayout:_labCustomLayout};
   if(idx>=0) projects[idx]=proj; else projects.unshift(proj);
   storeProjectsLab(projects);
   currentProjectNameLab=name; updateProjectBadgeLab();
@@ -2289,6 +2350,7 @@ function loadProjectFromStorageLab(idx) {
   _restoreLabConfig(proj.config);
   if(Array.isArray(proj.plateLayout)&&proj.plateLayout.length){
     plateLayout=proj.plateLayout;
+    _labCustomLayout=!!proj.customLayout; _labSwapFirstId=null;
     renderPlate(); renderSummaryLab(); renderFieldBook(); renderColeta(); renderMM();
     if(proj.collectedData){
       Object.entries(proj.collectedData).forEach(([well,val])=>{
@@ -2371,6 +2433,7 @@ function loadProjectLab() {
         _restoreLabConfig(state.config);
         if(Array.isArray(state.plateLayout)&&state.plateLayout.length){
           plateLayout=state.plateLayout;
+          _labCustomLayout=!!state.customLayout; _labSwapFirstId=null;
           renderPlate(); renderSummaryLab(); renderFieldBook(); renderColeta(); renderMM();
           if(state.collectedData){
             Object.entries(state.collectedData).forEach(([well,val])=>{
@@ -3694,6 +3757,19 @@ function showBeta(){ const m=document.getElementById('betaModal'); if(m) m.class
 function closeBeta(){ const m=document.getElementById('betaModal'); if(m) m.classList.add('hidden'); }
 function ackBeta(){ try{ localStorage.setItem('agrodesignlab_beta_ack','1'); }catch(e){} closeBeta(); }
 (function(){ try{ if(!localStorage.getItem('agrodesignlab_beta_ack')) setTimeout(showBeta, 700); }catch(e){} })();
+
+/* Restaura layout manual (reposicionado) entre recargas — só se for arranjo personalizado */
+(function(){
+  try {
+    const auto = JSON.parse(localStorage.getItem('agrodesignlab_autosave') || 'null');
+    if (auto && auto.customLayout && Array.isArray(auto.plateLayout) && auto.plateLayout.length) {
+      if (auto.config) _restoreLabConfig(auto.config);
+      plateLayout = auto.plateLayout;
+      _labCustomLayout = true; _labSwapFirstId = null;
+      renderPlate(); renderSummaryLab(); renderFieldBook(); renderColeta(); renderMM();
+    }
+  } catch(e) {}
+})();
 </script>
 </body>
 </html>
