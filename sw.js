@@ -1,6 +1,6 @@
-/* AgroDesign (Campo + Lab) — Service Worker — cache v60 (network-first) */
+/* AgroDesign (Campo + Lab) — Service Worker — cache v61 (network-first) */
 
-const CACHE_NAME = 'agrodesign-v60';
+const CACHE_NAME = 'agrodesign-v61';
 
 self.addEventListener('install', event => {
   self.skipWaiting();
