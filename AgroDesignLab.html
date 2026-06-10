@@ -473,6 +473,7 @@ footer{background:var(--surface);border-top:1px solid var(--border);padding:.5re
     </div>
     <div id="labRepositionBanner" class="hidden" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;background:#fff7ed;border:1px solid #f59e0b;border-radius:6px;padding:.45rem .6rem;margin:.4rem 0 0;font-size:.78rem;color:#7c2d12">
       <span>✋ <b>Modo reposicionar</b> — toque em <b>dois poços de amostra</b> para trocar os tratamentos (reflete um ensaio já montado).</span>
+      <span id="labRepositionWarn" style="font-weight:600"></span>
       <button class="btn btn-ghost btn-sm" type="button" onclick="revertLabToRandom()" style="margin-left:auto">↻ Voltar ao aleatório</button>
     </div>
     <div id="labCustomBadge" class="hidden" style="display:inline-flex;align-items:center;gap:.3rem;background:#fef3c7;border:1px solid #f59e0b;border-radius:999px;padding:1px 10px;margin:.4rem 0 0;font-size:.72rem;color:#92400e;font-weight:600;width:fit-content">✏️ Layout personalizado — arranjo informado pelo usuário (não aleatorizado)</div>
@@ -1379,6 +1380,8 @@ function renderPlate() {
   }
   const _bd = document.getElementById('labCustomBadge');
   if (_bd) _bd.classList.toggle('hidden', !_labCustomLayout);
+  const _wn = document.getElementById('labRepositionWarn');
+  if (_wn) _wn.textContent = _labReposition ? validateLabLayout() : '';
 }
 
 function plateMode() {
@@ -1421,6 +1424,17 @@ function handleLabSwapTap(id) {
 function revertLabToRandom() {
   if (!confirm('Descartar o arranjo manual e gerar um novo layout aleatório?')) return;
   generatePlate();
+}
+
+/* Checagem por modo (não-bloqueante). O RCBD do Lab é randomização restrita
+   (espalha os tratamentos), não bloco completo estrito — não há regra "1× por bloco"
+   a impor. Por isso a mensagem é informativa, não um veredito de validade. */
+function validateLabLayout() {
+  const d = document.getElementById('selDesignLab').value;
+  if (d === 'CRD') return '✓ Sem restrição posicional (CRD): qualquer arranjo das repetições é válido';
+  const lbl = { 'RCBD-R': 'linha', 'RCBD-C': 'coluna', 'RCBD-Q': 'quadrante' }[d];
+  if (lbl) return `ℹ Randomização restrita por ${lbl}: este delineamento espalha os tratamentos, sem exigir bloco completo — não há regra posicional rígida a validar`;
+  return '';
 }
 
 function fmtConc(c) {
