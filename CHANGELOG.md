@@ -5,6 +5,28 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
 ---
 
+## [2.1.0] — Junho 2026
+
+> Consolida como versão própria os ajustes "rolantes" feitos sobre a v2.0.0 (Reposicionar parcelas/amostras
+> e RCBD de bloco completo no Lab) e corrige a métrica de dispositivos ativos para contar apenas recorrentes.
+
+### Adicionado
+- **Reposicionar parcelas / amostras (Campo + Lab)** — novo modo na aba Croqui/Placa (checkbox **"✋ Reposicionar"**) para **documentar experimentos já implantados**: toca-se em **duas parcelas** (Campo) ou **dois poços de amostra** (Lab) e os tratamentos trocam de posição, refletindo o arranjo real (sem depender do sorteio / da semente). Inclui *tap-to-swap* (desktop + mobile), destaque da seleção, badge **"Layout personalizado"**, validação não-bloqueante das regras de **todos os delineamentos** do Campo (DBC/Fatorial: 1× por bloco; DQL: quadrado latino; parcelas subdivididas: fator A único + níveis de B completos por parcela principal; faixas cruzadas: A por linha e B por coluna; látice: 1× por repetição) — no split-plot a **parcela principal física não se move** (só o conteúdo do tratamento), botão **"↻ Voltar ao aleatório"** e propagação automática para Field Book / CSV / scripts / Coleta.
+  - No **Lab**, disponível apenas nos modos **aleatorizados** (MIC/CRD, MTT, Fitotoxicidade, ELISA, CRD genérico); oculto em Dose-Resposta / Checkerboard / EcoPlate (layouts sistemáticos). Checagem por modo: **CRD** → sem restrição posicional; **RCBD-R/C/Q** → **bloco completo** (cada linha/coluna/quadrante usada contém cada tratamento exatamente 1×), com validação estrita.
+  - **Integridade científica:** com layout manual, o **Texto para Publicação** (M&M + legenda, PT/EN) passa a esclarecer que o croqui reflete o **arranjo conforme implantado (informado pelo usuário)**, não uma aleatorização gerada pelo software. No **Lab** — onde o M&M citava *"randomização restrita … (semente = X)"* —, essa frase é **substituída** pela do arranjo informado.
+  - **Persistência:** o arranjo manual é salvo no projeto **e persiste entre recargas** (autosave local), sem precisar salvar um projeto nomeado.
+
+### Melhorado
+- **Lab — RCBD agora é bloco completo de verdade**: o gerador de layout foi reescrito para usar **`reps` blocos** (linhas/colunas/quadrantes), cada um contendo **cada tratamento exatamente 1×** — antes era randomização restrita (espalhava os tratamentos sem garantir bloco completo). Limite: `reps` ≤ 8 (linha) / 12 (coluna) / 4 (quadrante); se faltarem blocos com poços livres suficientes, **alerta e não gera**. O **Texto de M&M** passa a descrever "blocos completos casualizados / randomized complete blocks". CRD permanece casualização completa. _Reprodutibilidade: a mesma semente passa a gerar um layout diferente do das versões anteriores do Lab._
+- **Avaliações**: contador de caracteres ao vivo no campo de comentário (`0/200`), zerado ao abrir/limpar o formulário (Campo + Lab).
+- **Cabeçalho do Campo**: subtítulo passa a "Experimental Design para Ciências Agrárias **e Afins**" (abrange Ecologia/Floresta).
+- **README**: link direto para abrir issue no aviso "Ajude a validar!"; Opção 2 (cópia local) esclarece que basta **um único arquivo HTML** (não a pasta toda).
+
+### Infraestrutura
+- **Métrica de dispositivos ativos** (`update-stats.yml`) passa a contar **apenas dispositivos recorrentes** — vistos em **≥2 dias distintos** na janela de 30 dias —, filtrando IDs efêmeros (aba anônima, reinstalação do PWA, testes do próprio dev) que pingam um único dia e inflavam a contagem. O badge passa a refletir dispositivos reais.
+
+---
+
 ## [2.0.0] — Junho 2026
 
 > Versão maior justificada pela introdução do módulo **Lab** como componente permanente do produto,
