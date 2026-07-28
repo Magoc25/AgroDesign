@@ -1,0 +1,41 @@
+name: Smoke-test (jsdom)
+
+# §35 do "Guia de projetos.md" — verificar o app single-file antes de subir.
+# O jsdom é instalado SÓ no runner (`--no-save --no-package-lock`): o repositório
+# fica sem package.json/node_modules, como manda o ciclo do r33 (OneDrive).
+# `CI=1` faz o check.js EXIGIR o jsdom — teste que "passa" por não ter rodado é
+# pior que teste vermelho (r57d).
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - 'stats.json'      # commit diário do update-stats.yml não muda o app
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Degrau estático (sem dependência)
+        env:
+          CI: ''            # o runner define CI=true; aqui o jsdom ainda não existe
+        run: node check.js
+
+      - name: Instalar jsdom (só no runner)
+        run: npm install --no-save --no-package-lock jsdom
+
+      - name: Smoke completo (boot dos dois módulos)
+        env:
+          CI: '1'
+        run: node check.js
