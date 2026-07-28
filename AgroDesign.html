@@ -6247,24 +6247,16 @@ async function submitReview() {
   document.getElementById('reviewThankYou').classList.remove('hidden');
 }
 
-/* ══ Version ══ */
-(async () => {
+/* ══ Version ══
+   A versão exibida vem da constante EMBUTIDA — reflete o código que está rodando.
+   (Antes: fetch do CHANGELOG.md com cache de 6h no localStorage → depois de
+   atualizar, o rodapé mostrava a versão ANTIGA por horas, parecendo que o app não
+   tinha atualizado. Detectar versão nova no servidor é outra coisa: é o banner
+   logo abaixo, que compara com o app_config.) */
+(() => {
   const el = document.getElementById('appVersion');
-  if (!el) return;
-  const CACHE_KEY = 'agrodesign_app_version';
-  const CACHE_TTL = 6 * 60 * 60 * 1000;
-  const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
-  if (cached && Date.now() - cached.ts < CACHE_TTL) { el.textContent = '© MGC · ' + cached.v; return; }
-  try {
-    const res = await fetch('./CHANGELOG.md?_=' + Date.now(), { cache: 'no-cache' });
-    if (!res.ok) return;
-    const text  = await res.text();
-    const match = text.match(/##\s+\[(\d+\.\d+\.\d+)\]/);
-    if (!match) return;
-    const v = 'v' + match[1];
-    el.textContent = '© MGC · ' + v;
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ v, ts: Date.now() }));
-  } catch(e) {}
+  if (el) el.textContent = '© MGC · v' + APP_VERSION;
+  try { localStorage.removeItem('agrodesign_app_version'); } catch(e) {}   // cache antigo
 })();
 
 (async () => {
