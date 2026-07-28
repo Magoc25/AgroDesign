@@ -17,7 +17,7 @@ Desenvolvido por **Marlon Gomes da Costa (MGC Dev)**
 > 💬 **Ajude a validar!** Testou? Conte como foi — relatos de funcionamento e da qualidade dos
 > resultados orientam a evolução do app. Use a **avaliação dentro do app** ou [abra uma issue](https://github.com/Magoc25/AgroDesign/issues).
 
-[![Versão](https://img.shields.io/badge/versão-2.1.0-blue)](#changelog)
+[![Versão](https://img.shields.io/badge/versão-2.2.0-blue)](#changelog)
 [![Status](https://img.shields.io/badge/status-beta%20%C2%B7%20em%20valida%C3%A7%C3%A3o-yellow)](./TERMS.md)
 [![Licença](https://img.shields.io/badge/licença-não%20comercial-orange)](#licença-e-termos-de-uso)
 [![PIX](https://img.shields.io/badge/apoie-PIX-brightgreen)](#-apoiar-o-projeto)

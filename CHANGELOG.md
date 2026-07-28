@@ -5,6 +5,33 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
 ---
 
+## [2.2.0] — Julho 2026
+
+> Traz para a aba Coleta do Campo a organização que se espera de uma planilha — ordenação por tratamento e
+> subamostras por parcela — com o cuidado estatístico de manter a parcela como unidade experimental. Corrige
+> um defeito antigo no rodapé de versão e passa a verificar os dois módulos automaticamente antes de cada
+> publicação.
+
+### Adicionado
+- **Aba Coleta — ordenação das linhas (Campo).** Seletor `↕` com três ordens: **Tratamento → Bloco** (padrão), **Bloco → Tratamento** e **Campo (ID)**, que é a ordem de caminhada pelo croqui. A ordem dos tratamentos é a **declarada por você** no painel — `T2` vem antes de `T10`, e "Controle, Dose 5, Dose 10" sai nessa sequência, não em ordem alfabética. A coluna `#` continua sendo o **ID real da parcela**, então o dado volta para a parcela certa e o CSV segue reimportável. **Os arquivos exportados (CSV/TXT/XLSX) saem na mesma ordem da tela.**
+- **Aba Coleta — amostras por parcela (Campo).** Campo `🧪 Amostras/parcela` (1 a 20): escolhendo 4 amostras, cada parcela passa a ocupar 4 linhas, ordenadas **Tratamento → Bloco → Amostra**, com as amostras da mesma parcela agrupadas visualmente. A coluna `Amostra` entra no CSV/TXT/XLSX e é lida de volta na importação — arquivo com mais amostras do que a tela aumenta a tela automaticamente.
+  - **A parcela continua sendo a unidade experimental.** Subamostra não é repetição: tratar 4 amostras como 4 repetições infla os graus de liberdade do resíduo e faz o teste F acusar diferença que não existe. Por isso o **Resumo Stat** agrega a média da parcela antes de calcular, e os **scripts R, SAS e Python** passam a **agregar as amostras por parcela antes da ANOVA**, com o **modelo misto** (parcela como efeito aleatório) documentado logo abaixo como alternativa para quem quiser usar a variação dentro da parcela.
+  - O **Texto para Publicação** declara as subamostras em PT e EN ("*foram coletadas N amostras, tomadas como subamostras; a média foi utilizada como valor da parcela*").
+  - Funciona nos **9 delineamentos** do Campo — DIC, DBC, DQL, Fatorial em DIC/DBC, Parcelas Subdivididas em DIC/DBC, Strip-plot e Látice —, preservando bloco, repetição, fatores e as coordenadas do quadrado latino.
+  - **Projetos antigos continuam abrindo normalmente:** a amostra 1 é gravada na mesma chave de sempre, então nada precisa ser migrado.
+
+### Corrigido
+- **O rodapé mostrava a versão antiga por até 6 horas depois de uma atualização** (Campo e Lab). O número vinha de uma consulta ao `CHANGELOG.md` guardada em cache por 6 h; agora vem da constante embutida no próprio código, que é o que está de fato rodando. O aviso de "nova versão disponível" não muda — é ele quem detecta atualização no servidor.
+
+### Melhorado
+- **Documentação alinhada ao app.** O README (seção "Configurar Supabase" e "Opção 3"), o `PRIVACY.md` ("Camada 3"), o `DATA_INVENTORY.md` e o `TERMS.md` descreviam uma **sincronização em nuvem que nunca existiu** no código — quem seguisse o passo a passo criaria uma tabela no Supabase e não acharia onde configurá-la. A portabilidade entre aparelhos é por arquivo (Exportar ⬇ JSON / 📥 Importar) e agora está documentada como tal, com o aviso que faltava: **não há backup em servidor**, e reinstalar o app marcando "limpar também os dados do navegador" apaga o armazenamento de todos os apps publicados no mesmo endereço.
+
+### Infraestrutura
+- **`check.js` — verificação automática antes de publicar.** Roda em dois níveis: estático (sintaxe de todo script embutido, `id`/handler órfão, arquivo referenciado que não existe, coerência da versão entre código, rodapé, README e CHANGELOG) e funcional via jsdom (sobe os dois módulos e exercita os fluxos reais — delineamentos, Field Book, abas, Reposicionar, ordenação, subamostras, modo escuro, banner de versão). **108 verificações**, executadas a cada publicação pelo GitHub Actions.
+- **Deploy do GitHub Pages ignora o commit diário de `stats.json`** — evita publicações concorrentes e falhas transitórias sem relação com o app.
+
+---
+
 ## [2.1.0] — Junho 2026
 
 > Consolida como versão própria os ajustes "rolantes" feitos sobre a v2.0.0 (Reposicionar parcelas/amostras
