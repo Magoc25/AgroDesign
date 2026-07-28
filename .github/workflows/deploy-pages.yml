@@ -3,6 +3,12 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [master]
+    # O update-stats.yml commita stats.json todo dia; o badge lê o arquivo pela raw,
+    # então o site não precisa redeployar por isso. Sem este paths-ignore, cada commit
+    # automático dispara um deploy e as runs concorrentes caem em
+    # "Deployment failed, try again later" (uma verde, outra vermelha à toa).
+    paths-ignore:
+      - 'stats.json'
   workflow_dispatch:
 
 permissions:
