@@ -150,6 +150,13 @@ Use as URLs públicas da seção [▶ Abrir agora](#-abrir-agora--sem-baixar-nad
 
 Seus dados (croquis, projetos, coletas) ficam salvos **no próprio navegador**, apenas no seu dispositivo. Para fazer backup ou levar para outro computador, use **Projetos → ⬇ JSON** dentro do app.
 
+> ⚠️ **Não existe cópia na nuvem — o backup é você quem faz.** Como nada sai do seu aparelho, os projetos
+> se perdem se o armazenamento do navegador for limpo. Dois cuidados:
+> - **Exporte o JSON** dos projetos importantes de vez em quando (Projetos → ⬇ JSON).
+> - Ao **desinstalar/reinstalar** o app instalado (PWA), **não marque** _"Limpar também os dados do
+>   [navegador]"_ na caixa de desinstalação: isso apaga o armazenamento **do endereço inteiro**
+>   (`magoc25.github.io`) — e leva junto os dados dos outros apps publicados ali.
+
 ### Opção 2 — Cópia local _(opcional)_
 
 Cada módulo é um **único arquivo HTML autossuficiente** (fontes, estilos e scripts embutidos) — **você não precisa baixar a pasta inteira**. Basta o arquivo do módulo que vai usar:
@@ -161,60 +168,14 @@ Para salvar só o arquivo: abra a URL pública do módulo e use **Ctrl+S** (salv
 
 > _Quer instalar como app (ícone na tela), com cache offline automático? Use a **Opção 1** (online) e instale como PWA — a cópia de um único arquivo roda direto do disco, mas não se instala como aplicativo._
 
-### Opção 3 — Sincronizar entre dois ou mais dispositivos _(opcional — apenas Campo)_
+### Opção 3 — Levar os projetos para outro dispositivo
 
-Se quiser que os projetos do AgroDesign Campo apareçam tanto no PC quanto no celular automaticamente, configure uma conta gratuita no Supabase (instruções na seção [Configurar Supabase](#-configurar-supabase-opcional)). É opcional — você pode usar o app perfeitamente sem isso.
+Não há sincronização automática entre aparelhos: o AgroDesign **não envia seus dados para servidor
+nenhum**. Para continuar um trabalho em outro computador ou celular, exporte e importe o arquivo:
 
----
+no aparelho de origem, **Projetos → ⬇** (Exportar JSON) → abra o app no outro aparelho → **Projetos → 📥 Importar projeto (.json)**.
 
-## 🔧 Configurar Supabase _(opcional — só para sincronizar entre dispositivos)_
-
-#### 1. Criar conta e projeto
-
-1. Acesse supabase.com → New Project
-2. Nome: `agrodesign` · Região: South America (São Paulo)
-
-#### 2. Criar a tabela de dados (SQL Editor)
-
-```sql
-CREATE TABLE public.agro_sync (
-  id         text PRIMARY KEY,
-  payload    text,
-  updated_at timestamptz DEFAULT now()
-);
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.agro_sync TO anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.agro_sync TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.agro_sync TO service_role;
-
-ALTER TABLE public.agro_sync ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all" ON public.agro_sync FOR ALL USING (true) WITH CHECK (true);
-```
-
-#### 3. Copiar as chaves
-
-Settings → Data API:
-- **Project URL** — `https://xxxx.supabase.co`
-- **Publishable key** — começa com `sb_publis...`
-
-#### 4. Configurar no app
-
-Abra o app Campo → ☁️ → cole URL e Key → Testar conexão → Salvar
-
-**Bloco extra — Evitar suspensão por inatividade (recomendado):**
-
-O Supabase pode suspender projetos gratuitos sem atividade por 7 dias.
-Para evitar isso, rode uma vez no SQL Editor após ativar a extensão `pg_cron` em Database → Extensions:
-
-```sql
-SELECT cron.schedule(
-  'agrodesign-keep-alive',
-  '0 8 * * 1',
-  $$SELECT COUNT(*) FROM public.agro_sync$$
-);
-```
-
-> Agenda uma consulta toda segunda-feira às 5h Brasília. Para confirmar: `SELECT * FROM cron.job;`
+O mesmo arquivo serve de backup. _(Os dois módulos, Campo e Lab, têm exportação/importação própria.)_
 
 ---
 

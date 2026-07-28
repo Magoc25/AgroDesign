@@ -62,19 +62,19 @@ Inventário simplificado elaborado em conformidade com o art. 37 da [LGPD (Lei n
 | **Retenção** | Até exclusão manual pelo usuário |
 | **Medidas de segurança** | Armazenamento local; isolamento por origem do navegador |
 
-### 2.4 Dados de experimentos sincronizados (Camada 3 — Supabase próprio do usuário, opcional)
+### 2.4 Arquivos exportados pelo usuário (JSON / CSV / XLSX / PNG / SVG / TXT)
 
 | Campo | Descrição |
 |---|---|
-| **Dados tratados** | JSON com configurações do experimento (definido pelo próprio usuário) |
+| **Dados tratados** | Cópia do projeto ou da tabela de dados, gerada sob comando explícito do usuário |
 | **Categoria** | Dados técnicos (controlados pelo usuário) |
-| **Finalidade** | Sincronização entre dispositivos |
-| **Base legal** | Não aplicável — o controlador é o próprio usuário |
+| **Finalidade** | Backup e portabilidade entre dispositivos — **não há sincronização automática** |
+| **Base legal** | Não aplicável — o arquivo é gerado no dispositivo e fica sob controle do usuário |
 | **Titulares** | Usuário |
-| **Compartilhamento** | Apenas entre dispositivos do próprio usuário |
-| **Transferência internacional** | Depende da região escolhida pelo usuário no Supabase |
+| **Compartilhamento** | Nenhum pelo app; o arquivo vai para onde o usuário salvar/enviar |
+| **Transferência internacional** | Nenhuma pelo app |
 | **Retenção** | Controlada pelo usuário |
-| **Medidas de segurança** | Chaves configuradas pelo usuário; não expostas no código |
+| **Medidas de segurança** | Geração 100% local (sem upload); o app não guarda cópia do arquivo exportado |
 
 ---
 

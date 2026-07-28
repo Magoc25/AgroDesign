@@ -56,9 +56,9 @@ O usuário é responsável por validar os delineamentos gerados com o referencia
 
 ## 6. Dados e privacidade
 
-- O AgroDesign possui dois módulos: **Campo** (`AgroDesign.html`) e **Lab** (`AgroDesignLab.html`). Ambos são *local-first*; apenas o módulo **Campo** oferece sincronização opcional via Supabase próprio do usuário
-- Os dados do experimento (configurações, modelos salvos) ficam armazenados exclusivamente no `localStorage` do dispositivo do usuário
-- Se o usuário optar por configurar o Supabase próprio (sincronização entre dispositivos), as chaves e dados ficam sob controle exclusivo do usuário — o autor não tem acesso
+- O AgroDesign possui dois módulos: **Campo** (`AgroDesign.html`) e **Lab** (`AgroDesignLab.html`). Ambos são *local-first*: **não há sincronização em nuvem** dos dados de experimento
+- Os dados do experimento (configurações, projetos, coletas) ficam armazenados exclusivamente no `localStorage` do dispositivo do usuário
+- Para backup ou uso em outro dispositivo, o usuário exporta um arquivo (JSON/CSV/XLSX) gerado localmente — o app não envia esse arquivo a lugar nenhum. **Limpar o armazenamento do navegador apaga os dados de forma definitiva**; o backup é responsabilidade do usuário
 - O sistema de avaliações (☕ Apoiar / ⭐ Avaliações) usa um banco de dados compartilhado do autor para armazenar avaliações públicas: nome, comentário, estrelas, data e indicação de apoio via PIX
 - O app envia **um ping anônimo por dia** ao Supabase do autor para contagem de dispositivos ativos. O ping contém apenas: nome do app, versão, data e um identificador aleatório gerado no dispositivo (sem vínculo com dados pessoais). Não é possível identificar o usuário a partir deste dado
 - Nenhum dado do experimento é enviado a servidores externos

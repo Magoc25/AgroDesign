@@ -14,15 +14,16 @@ Contato (canal de privacidade): **marlongc25@protonmail.com**
 
 ---
 
-## 2. Arquitetura de dados — três camadas
+## 2. Arquitetura de dados — duas camadas
 
-O AgroDesign opera em três camadas distintas de armazenamento. O app possui dois módulos — **Campo** (`AgroDesign.html`) e **Lab** (`AgroDesignLab.html`) — que compartilham as Camadas 1 e 2; a Camada 3 (sincronização) aplica-se **apenas ao módulo Campo** (o Lab é exclusivamente local).
+O AgroDesign opera em duas camadas distintas de armazenamento, compartilhadas pelos dois módulos —
+**Campo** (`AgroDesign.html`) e **Lab** (`AgroDesignLab.html`). **Não há sincronização em nuvem:**
+os dados de experimento nunca saem do dispositivo, exceto quando o próprio usuário exporta um arquivo JSON.
 
 | Camada | O que armazena | Quem controla |
 |---|---|---|
 | **Camada 1** — Supabase compartilhado (autor) | Avaliações públicas, contagem anônima de dispositivos | Autor |
-| **Camada 2** — Dispositivo local | Configurações, modelos de experimento, preferências | Usuário |
-| **Camada 3** — Supabase próprio (opcional) | Dados de experimentos sincronizados | Usuário |
+| **Camada 2** — Dispositivo local | Projetos, croquis, coletas, modelos e preferências | Usuário |
 
 ---
 
@@ -54,30 +55,28 @@ O ping é enviado **uma vez por dia**, não contém dados pessoais identificáve
 
 ## 4. Dados armazenados localmente — Camada 2 (usuário controla)
 
-O AgroDesign armazena no `localStorage` do navegador:
+O AgroDesign armazena no `localStorage` do navegador (todas as chaves prefixadas por `agrodesign`):
 
-- Configurações de experimentos (delineamento, tratamentos, dimensões)
-- Modelos/presets salvos pelo usuário
-- Cache da versão do app (expiração: 6 horas)
-- Preferências de interface
+- Configurações e croquis de experimentos (delineamento, tratamentos, dimensões, arranjo manual)
+- Projetos salvos e modelos/presets do usuário
+- Dados de coleta digitados nas abas Coleta
+- Preferências de interface (modo escuro, separador decimal, aceite do aviso beta)
+- Identificador aleatório de dispositivo e data do último ping (ver Camada 1)
 
-Esses dados **nunca saem do dispositivo** sem ação explícita do usuário (export JSON, sincronização Supabase própria). O autor não tem acesso a esses dados.
+Esses dados **nunca saem do dispositivo** sem ação explícita do usuário (exportar JSON/CSV/XLSX). O autor não tem acesso a esses dados.
 
----
-
-## 5. Supabase próprio do usuário — Camada 3 (usuário controla)
-
-Se o usuário configurar um projeto Supabase próprio para sincronizar experimentos entre dispositivos, **o autor não tem acesso a esse banco**. O usuário é o único controlador desses dados.
+> ⚠️ Como não há cópia em servidor, limpar o armazenamento do navegador **apaga os projetos definitivamente**.
+> O backup é o próprio arquivo JSON exportado pelo usuário.
 
 ---
 
-## 6. Transferência internacional
+## 5. Transferência internacional
 
 As avaliações e pings são armazenados em servidores do Supabase Inc. (EUA), com proteção de dados conforme os termos de serviço da plataforma. O Supabase possui conformidade com padrões como SOC 2 Type II.
 
 ---
 
-## 7. Retenção de dados
+## 6. Retenção de dados
 
 - **Avaliações:** armazenadas indefinidamente enquanto o projeto Supabase estiver ativo
 - **Pings anônimos:** sem prazo de exclusão automática definido
@@ -85,7 +84,7 @@ As avaliações e pings são armazenados em servidores do Supabase Inc. (EUA), c
 
 ---
 
-## 8. Direitos do titular (LGPD Art. 18)
+## 7. Direitos do titular (LGPD Art. 18)
 
 O usuário pode exercer os seguintes direitos mediante contato com o autor:
 
@@ -101,19 +100,19 @@ Prazo de resposta: até 15 dias úteis, conforme art. 18, §3º da LGPD.
 
 ---
 
-## 9. Cookies e rastreamento
+## 8. Cookies e rastreamento
 
 O AgroDesign **não usa cookies**. O armazenamento local é feito exclusivamente via `localStorage` e `sessionStorage` da API Web, sem rastreamento entre sessões ou entre sites.
 
 ---
 
-## 10. Menores de idade
+## 9. Menores de idade
 
 O app não é direcionado a menores de 13 anos (art. 14 da LGPD). Não há coleta intencional de dados de crianças. Se identificada tal situação, os dados serão excluídos.
 
 ---
 
-## 11. Alterações neste aviso
+## 10. Alterações neste aviso
 
 Este aviso pode ser atualizado. A versão vigente é sempre a publicada no repositório. Alterações relevantes serão notificadas pelo banner de atualização do app.
 
