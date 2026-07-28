@@ -5757,7 +5757,7 @@ function exportScriptR() {
   if (_nSamples() > 1) {
     const chaves = ['ID', ...(isLatice ? ['Rep'] : []), ...(hasBloco ? ['Bloco'] : []), 'Tratamento',
                     ...((isFat || isSplit || isStrip) ? ['"Fator A"', '"Fator B"'] : []),
-                    ...(isDQL ? [`"${dqlRowFactorName || 'Linha_DQL'}"`, `"${dqlColFactorName || 'Coluna_DQL'}"`] : [])];
+                    ...(isDQL ? [`"${_safeName(dqlRowFactorName || 'Linha_DQL')}"`, `"${_safeName(dqlColFactorName || 'Coluna_DQL')}"`] : [])];
     const respostas = numVars.length ? numVars.map(v => `"${v.name}"`).join(', ') : '"Variavel1"';
     s += `# 2b. Subamostras ────────────────────────────────────────────\n`;
     s += `# O arquivo traz ${_nSamples()} amostras por parcela (coluna "Amostra").\n`;
@@ -6039,7 +6039,7 @@ function exportScriptPy() {
   if (_nSamples() > 1) {
     const chaves = ['ID', ...(isLatice ? ['Rep'] : []), ...(hasBloco ? ['Bloco'] : []), 'Tratamento',
                     ...((isFat || isSplit || isStrip) ? ['Fator A', 'Fator B'] : []),
-                    ...(isDQL ? [dqlRowFactorName || 'Linha_DQL', dqlColFactorName || 'Coluna_DQL'] : [])];
+                    ...(isDQL ? [_safeName(dqlRowFactorName || 'Linha_DQL'), _safeName(dqlColFactorName || 'Coluna_DQL')] : [])];
     const respostas = numVars.length ? numVars.map(v => v.name) : ['Variavel1'];
     s += `# 2b. Subamostras ───────────────────────────────────────────\n`;
     s += `# ${_nSamples()} amostras por parcela (coluna "Amostra").\n`;

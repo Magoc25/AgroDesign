@@ -450,6 +450,54 @@ async function smokeCampo(jsdom) {
   ok(/subamostras/i.test(ev("buildPublicationText('pt').mm")), 'Campo/M&M: não declara as subamostras');
   ok(/subsample/i.test(ev("buildPublicationText('en').mm")), 'Campo/M&M (EN): não declara as subamostras');
 
+  /* Toda chave da agregação do script R tem de EXISTIR como coluna do CSV.
+     Regra derivada do código: pega o descasamento entre o nome que o usuário
+     digita e o nome saneado que vai para o arquivo (ex.: DQL com o fator
+     renomeado para "Ordem de aplicação" → coluna "Ordem_de_aplica__o"). */
+  const chavesBatem = (rotulo) => {
+    ev('exportScriptR();');
+    const script = ev('window.__lastBlob') || '';
+    const bruto  = (/chaves\s+<- c\(([^)]*)\)/.exec(script) || [])[1] || '';
+    const chaves = bruto.split(',').map(s => s.trim().replace(/^"|"$/g, '')).filter(Boolean);
+    const headers = JSON.parse(ev("JSON.stringify(_buildDataRows().headers)"));
+    const orfas = chaves.filter(k => !headers.includes(k));
+    ok(chaves.length > 0 && orfas.length === 0,
+       `Campo/Script R (${rotulo}): agregação usa coluna que não existe no CSV → ${orfas.join(', ')}`);
+  };
+
+  ev(`document.getElementById('selDesign').value='DQL'; onDesignChange();
+      document.getElementById('dqlTreatments').value=['A','B','C'].join('\\n');
+      document.getElementById('dqlRowName').value='Ordem de aplicação';
+      document.getElementById('dqlColName').value='Fila/Cova';
+      generateCroqui();
+      projectVariables=[{id:'vA',name:'Altura',type:'numeric',unit:'cm',decimals:2,options:[]}];
+      document.getElementById('numSamples').value='3'; onSamplesChange();`);
+  chavesBatem('DQL com fator renomeado');
+
+  ev(`document.getElementById('selDesign').value='FAT_DBC'; onDesignChange();
+      document.getElementById('fatALevels').value=['A1','A2'].join('\\n');
+      document.getElementById('fatBLevels').value=['B1','B2'].join('\\n');
+      document.getElementById('numFatBlocks').value='3'; generateCroqui();
+      projectVariables=[{id:'vA',name:'Altura',type:'numeric',unit:'cm',decimals:2,options:[]}];
+      document.getElementById('numSamples').value='3'; onSamplesChange();`);
+  chavesBatem('fatorial em blocos');
+  ok(ev('_coletaRows().length') === ev('units.length') * 3, 'Campo/Amostras: fatorial não expandiu as linhas por amostra');
+
+  ev(`document.getElementById('selDesign').value='LATICE'; onDesignChange();
+      document.getElementById('numLaticeK').value='3'; generateCroqui();
+      projectVariables=[{id:'vA',name:'Altura',type:'numeric',unit:'cm',decimals:2,options:[]}];
+      document.getElementById('numSamples').value='3'; onSamplesChange();`);
+  chavesBatem('látice');
+  ok(JSON.parse(ev("JSON.stringify(_buildDataRows().headers)")).includes('Rep'),
+     'Campo/Export: látice perdeu a coluna Rep com subamostras');
+
+  /* Volta ao DBC simples para os testes seguintes */
+  ev(`document.getElementById('selDesign').value='DBC'; onDesignChange();
+      document.getElementById('txtTreatments').value=['T1','T2','T3'].join('\\n');
+      document.getElementById('numReps').value='3'; generateCroqui();
+      projectVariables=[{id:'vA',name:'Altura',type:'numeric',unit:'cm',decimals:2,options:[]}];
+      document.getElementById('numSamples').value='4'; onSamplesChange();`);
+
   /* Voltar para 1 amostra: some a coluna e o CSV volta ao formato antigo */
   ev("document.getElementById('numSamples').value='1'; onSamplesChange();");
   ok(!JSON.parse(ev("JSON.stringify(_buildDataRows().headers)")).includes('Amostra'),
