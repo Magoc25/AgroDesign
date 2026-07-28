@@ -224,7 +224,7 @@ function esperaBoot(w) {
   });
 }
 
-async function boot(jsdom, arquivo) {
+async function boot(jsdom, arquivo, opts = {}) {
   const { JSDOM, VirtualConsole } = jsdom;
   const erros = [];
 
@@ -268,11 +268,17 @@ async function boot(jsdom, arquivo) {
       const RealBlob = w.Blob;
       w.Blob = function (parts, opts) { w.__lastBlob = (parts || []).join(''); return new RealBlob(parts, opts); };
 
-      /* Supabase (reviews/app_config/pings) e XLSX vêm de CDN — stub no lugar */
-      const q = { select() { return this; }, eq() { return this; }, order() { return this; },
-        limit: async () => ({ data: [], error: null }), single: async () => ({ data: null, error: true }),
-        insert: async () => ({ error: null }), upsert: async () => ({ error: null }) };
-      w.supabase = { createClient: () => ({ from: () => q }) };
+      /* Supabase (reviews/app_config/pings) e XLSX vêm de CDN — stub no lugar.
+         `cfgVersion` simula a versão publicada no app_config (banner de update). */
+      w.__cfgVersion = opts.cfgVersion || null;
+      w.supabase = { createClient: () => ({ from: tabela => ({
+        select() { return this; }, eq() { return this; }, order() { return this; },
+        limit: async () => ({ data: [], error: null }),
+        insert: async () => ({ error: null }), upsert: async () => ({ error: null }),
+        single: async () => (tabela === 'app_config' && w.__cfgVersion)
+          ? ({ data: { value: w.__cfgVersion }, error: null })
+          : ({ data: null, error: true }),
+      }) }) };
       w.XLSX = { utils: { book_new: () => ({ SheetNames: [], Sheets: {} }), aoa_to_sheet: () => ({}),
         json_to_sheet: () => ({}), book_append_sheet() {} }, writeFile() {}, write: () => new Uint8Array() };
     },
@@ -605,6 +611,43 @@ async function smokeLab(jsdom) {
   fechar();
 }
 
+/* Banner "nova versão disponível" (§14): compara o app_config do Supabase com a
+   constante local. É um mecanismo que morre calado — se ninguém publicar a versão
+   nova no backend, ele simplesmente nunca aparece, sem erro nenhum. */
+async function smokeBanner(jsdom) {
+  secao('▸ jsdom — banner de nova versão (§14)');
+  const espera = ms => new Promise(r => setTimeout(r, ms));
+
+  /* Os dois módulos implementam o banner diferente: o Campo tem markup fixo que
+     sai do .hidden; o Lab cria o elemento na hora. "Visível" cobre os dois. */
+  const visivel = "(() => { const b = document.getElementById('updateBanner');" +
+                  " return !!b && !b.classList.contains('hidden'); })()";
+  const texto   = "((document.getElementById('updateBanner')||{}).textContent || '')";
+
+  for (const arquivo of ['AgroDesign.html', 'AgroDesignLab.html']) {
+    const nome = arquivo.includes('Lab') ? 'Lab' : 'Campo';
+
+    // backend anunciando versão MAIOR → banner tem de aparecer
+    let ctx = await boot(jsdom, arquivo, { cfgVersion: '99.0.0' });
+    await espera(300);   // a checagem é assíncrona (fase tardia — r38b)
+    ok(ctx.w.eval(visivel), `${nome}: backend anunciando v99.0.0 e o banner de atualização não apareceu`);
+    ok(/99\.0\.0/.test(ctx.w.eval(texto)), `${nome}: banner apareceu sem dizer qual é a versão nova`);
+    ctx.fechar();
+
+    // backend com versão MENOR → nada de banner (nunca oferecer downgrade)
+    ctx = await boot(jsdom, arquivo, { cfgVersion: '0.0.1' });
+    await espera(300);
+    ok(!ctx.w.eval(visivel), `${nome}: banner apareceu para uma versão MAIS ANTIGA que a local`);
+    ctx.fechar();
+
+    // backend na MESMA versão → nada de banner (é o estado de hoje em produção)
+    ctx = await boot(jsdom, arquivo, { cfgVersion: null });
+    await espera(300);
+    ok(!ctx.w.eval(visivel), `${nome}: banner apareceu sem versão nova publicada`);
+    ctx.fechar();
+  }
+}
+
 /* ═════════════════════════════ EXECUÇÃO ═════════════════════════════ */
 
 (async () => {
@@ -621,8 +664,9 @@ async function smokeLab(jsdom) {
       console.log('  Para o smoke completo: npm install --no-save --no-package-lock jsdom');
     }
   } else {
-    try { await smokeCampo(jsdom); } catch (e) { ok(false, `Campo: smoke abortou — ${e.message}`); }
-    try { await smokeLab(jsdom);   } catch (e) { ok(false, `Lab: smoke abortou — ${e.message}`); }
+    try { await smokeCampo(jsdom);  } catch (e) { ok(false, `Campo: smoke abortou — ${e.message}`); }
+    try { await smokeLab(jsdom);    } catch (e) { ok(false, `Lab: smoke abortou — ${e.message}`); }
+    try { await smokeBanner(jsdom); } catch (e) { ok(false, `Banner: smoke abortou — ${e.message}`); }
   }
 
   console.log(`\n${fails.length === 0 ? '✓' : '✗'} ${pass} ✓ · ${fails.length} ✗`);
