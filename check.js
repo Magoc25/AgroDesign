@@ -460,9 +460,13 @@ async function smokeCampo(jsdom) {
     const bruto  = (/chaves\s+<- c\(([^)]*)\)/.exec(script) || [])[1] || '';
     const chaves = bruto.split(',').map(s => s.trim().replace(/^"|"$/g, '')).filter(Boolean);
     const headers = JSON.parse(ev("JSON.stringify(_buildDataRows().headers)"));
-    const orfas = chaves.filter(k => !headers.includes(k));
-    ok(chaves.length > 0 && orfas.length === 0,
-       `Campo/Script R (${rotulo}): agregação usa coluna que não existe no CSV → ${orfas.join(', ')}`);
+    const nomesVars = JSON.parse(ev("JSON.stringify(projectVariables.map(v=>v.name))"));
+    const estruturais = headers.filter(h => h !== 'Amostra' && !nomesVars.includes(h));
+    const orfas   = chaves.filter(k => !headers.includes(k));       // aponta p/ coluna inexistente
+    const perdidas = estruturais.filter(k => !chaves.includes(k));  // coluna que o aggregate descarta
+    ok(chaves.length > 0 && orfas.length === 0 && perdidas.length === 0,
+       `Campo/Script R (${rotulo}): agregação ${orfas.length ? 'usa coluna que não existe no CSV → ' + orfas.join(', ') : ''}` +
+       `${perdidas.length ? 'descarta coluna estrutural do CSV → ' + perdidas.join(', ') : ''}`);
   };
 
   ev(`document.getElementById('selDesign').value='DQL'; onDesignChange();
@@ -482,6 +486,16 @@ async function smokeCampo(jsdom) {
       document.getElementById('numSamples').value='3'; onSamplesChange();`);
   chavesBatem('fatorial em blocos');
   ok(ev('_coletaRows().length') === ev('units.length') * 3, 'Campo/Amostras: fatorial não expandiu as linhas por amostra');
+
+  /* Split-plot em DIC: não tem bloco, mas o CSV tem a coluna — e o script usa
+     dados$Bloco no psdb(). A agregação não pode descartá-la. */
+  ev(`document.getElementById('selDesign').value='SPL_DIC'; onDesignChange();
+      document.getElementById('splALevels').value=['P1','P2'].join('\\n');
+      document.getElementById('splBLevels').value=['S1','S2'].join('\\n');
+      document.getElementById('numSplBlocks').value='3'; generateCroqui();
+      projectVariables=[{id:'vA',name:'Altura',type:'numeric',unit:'cm',decimals:2,options:[]}];
+      document.getElementById('numSamples').value='3'; onSamplesChange();`);
+  chavesBatem('split-plot em DIC');
 
   ev(`document.getElementById('selDesign').value='LATICE'; onDesignChange();
       document.getElementById('numLaticeK').value='3'; generateCroqui();

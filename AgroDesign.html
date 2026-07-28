@@ -5237,6 +5237,15 @@ function _sortedUnits() {
     : (a, b) => byTrat(a, b)  || byBloco(a, b) || a.id - b.id);
 }
 
+/* Colunas ESTRUTURAIS do arquivo exportado (tudo que não é resposta nem a
+   própria Amostra) — derivadas do export, nunca remontadas à mão: é o conjunto
+   por onde os scripts agregam as subamostras. Se uma coluna nova entrar no
+   _buildDataRows(), ela entra aqui junto, sem ninguém precisar lembrar. */
+function _chavesEstruturais() {
+  const nomesVars = new Set(projectVariables.map(v => v.name));
+  return _buildDataRows().headers.filter(h => h !== 'Amostra' && !nomesVars.has(h));
+}
+
 /* Valor da PARCELA para uma variável: a própria célula (1 amostra) ou a MÉDIA
    das subamostras. A parcela é a unidade experimental — subamostra não é
    repetição, então é a média dela que entra em qualquer estatística. */
@@ -5755,9 +5764,7 @@ function exportScriptR() {
   s += `str(dados)\n\n`;
 
   if (_nSamples() > 1) {
-    const chaves = ['ID', ...(isLatice ? ['Rep'] : []), ...(hasBloco ? ['Bloco'] : []), 'Tratamento',
-                    ...((isFat || isSplit || isStrip) ? ['"Fator A"', '"Fator B"'] : []),
-                    ...(isDQL ? [`"${_safeName(dqlRowFactorName || 'Linha_DQL')}"`, `"${_safeName(dqlColFactorName || 'Coluna_DQL')}"`] : [])];
+    const chaves = _chavesEstruturais();
     const respostas = numVars.length ? numVars.map(v => `"${v.name}"`).join(', ') : '"Variavel1"';
     s += `# 2b. Subamostras ────────────────────────────────────────────\n`;
     s += `# O arquivo traz ${_nSamples()} amostras por parcela (coluna "Amostra").\n`;
@@ -5765,8 +5772,9 @@ function exportScriptR() {
     s += `# repetições infla os graus de liberdade do resíduo e o teste F passa a\n`;
     s += `# acusar diferença que não existe (pseudorreplicação).\n`;
     s += `# Padrão: média das amostras -> a PARCELA volta a ser a unidade experimental.\n`;
+    s += `# (Variável categórica não entra na média — analise-a sobre 'dados_amostras'.)\n`;
     s += `dados_amostras <- dados   # guarda as subamostras (para o modelo misto abaixo)\n`;
-    s += `chaves  <- c(${chaves.map(c => c.startsWith('"') ? c : `"${c}"`).join(', ')})\n`;
+    s += `chaves  <- c(${chaves.map(c => `"${c}"`).join(', ')})\n`;
     s += `respost <- c(${respostas})\n`;
     s += `dados <- aggregate(dados_amostras[respost],\n`;
     s += `                   by = dados_amostras[chaves],\n`;
@@ -5898,9 +5906,8 @@ function exportScriptSAS() {
   s += `RUN;\n\n`;
 
   if (_nSamples() > 1) {
-    const classe = ['ID', ...(isLatice ? ['Rep'] : []), ...(hasBloco ? ['Bloco'] : []), 'Tratamento',
-                    ...((isFat || isSplit || isStrip) ? ['Fator_A', 'Fator_B'] : []),
-                    ...(isDQL ? [_safeName(dqlRowFactorName || 'Linha_DQL'), _safeName(dqlColFactorName || 'Coluna_DQL')] : [])].join(' ');
+    // No SAS os nomes chegam saneados pelo PROC IMPORT ("Fator A" -> Fator_A)
+    const classe = _chavesEstruturais().map(_safeName).join(' ');
     const respostas = (numVars.length ? numVars.map(v => _safeName(v.name)) : ['Variavel1']).join(' ');
     s += `/* 1b. Subamostras — ${_nSamples()} amostras por parcela (coluna Amostra)\n`;
     s += `   ATENÇÃO: subamostra NÃO é repetição. Rodar a ANOVA sobre as linhas brutas\n`;
@@ -6037,9 +6044,7 @@ function exportScriptPy() {
   s += `print(df.head())\n\n`;
 
   if (_nSamples() > 1) {
-    const chaves = ['ID', ...(isLatice ? ['Rep'] : []), ...(hasBloco ? ['Bloco'] : []), 'Tratamento',
-                    ...((isFat || isSplit || isStrip) ? ['Fator A', 'Fator B'] : []),
-                    ...(isDQL ? [_safeName(dqlRowFactorName || 'Linha_DQL'), _safeName(dqlColFactorName || 'Coluna_DQL')] : [])];
+    const chaves = _chavesEstruturais();
     const respostas = numVars.length ? numVars.map(v => v.name) : ['Variavel1'];
     s += `# 2b. Subamostras ───────────────────────────────────────────\n`;
     s += `# ${_nSamples()} amostras por parcela (coluna "Amostra").\n`;
