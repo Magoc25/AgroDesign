@@ -877,6 +877,20 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
     <div id="coletaContent" class="hidden">
       <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;flex-shrink:0">
         <button class="btn btn-secondary btn-sm" onclick="openVarsModal()">⚙ Variáveis</button>
+        <label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;color:var(--text-muted)"
+               title="Ordem das linhas na tabela e nos arquivos exportados">↕
+          <select id="selColetaSort" onchange="onColetaSortChange()"
+                  style="font-size:.75rem;padding:.15rem .25rem;height:auto">
+            <option value="trat" selected>Tratamento → Bloco</option>
+            <option value="bloco">Bloco → Tratamento</option>
+            <option value="campo">Campo (ID)</option>
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;gap:.25rem;font-size:.75rem;color:var(--text-muted)"
+               title="Subamostras coletadas dentro de cada parcela (pseudorrepetição). A parcela continua sendo a unidade experimental: os scripts usam a média das amostras.">🧪 Amostras/parcela
+          <input type="number" id="numSamples" min="1" max="20" value="1" onchange="onSamplesChange()"
+                 style="width:52px;font-size:.75rem;padding:.15rem .25rem;height:auto">
+        </label>
         <button class="btn btn-ghost btn-sm" onclick="checkOutliers()" title="Verificar valores discrepantes (IQR)">🔍 Verificar</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleExploratoryPanel()" title="Resumo exploratório: média ± DP por tratamento">📊 Resumo Stat</button>
         <button id="btnLoadExampleCampo" class="btn btn-primary btn-sm" onclick="loadExampleCampoData()" style="display:none" title="Carregar dados fictícios do exemplo na tabela de coleta">📋 Carregar Exemplo</button>
@@ -3713,6 +3727,15 @@ function buildPublicationText(lang) {
       : ' Arranjo conforme implantado (informado pelo usuário).';
   }
 
+  // Subamostragem: declarar é obrigatório — quem lê precisa saber que as amostras
+  // dentro da parcela são pseudorrepetições e que a análise usou a média da parcela.
+  const nAmostras = _nSamples();
+  if (nAmostras > 1) {
+    mm += isEng
+      ? ` Within each plot, ${nAmostras} samples were collected as subsamples; the plot remained the experimental unit, and the mean of the subsamples was used as the plot value in the statistical analysis.`
+      : ` Em cada parcela foram coletadas ${nAmostras} amostras, tomadas como subamostras; a parcela foi mantida como unidade experimental, e a média das subamostras foi utilizada como valor da parcela na análise estatística.`;
+  }
+
   return { mm: mm.trim(), caption: caption.trim() };
 }
 
@@ -4489,6 +4512,8 @@ function clearAll() {
   { const _cr = document.getElementById('chkReposition'); if (_cr) _cr.checked = false; const _rb = document.getElementById('repositionBanner'); if (_rb) _rb.classList.add('hidden'); }
   updateRepositionUI();
   projectVariables = []; collectionData = {};
+  samplesPerUnit = 1;
+  { const _ns = document.getElementById('numSamples'); if (_ns) _ns.value = 1; }
   _exampleCampoKey = null;
   _exampleDataCampoLoaded = false;
   updateExampleCampoBtn();
@@ -4929,10 +4954,12 @@ function renderExploratoryPanel() {
     panel.innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;text-align:center;padding:1rem">Sem dados numéricos para sumarizar.</p>';
     return;
   }
+  const nAm = _nSamples();
   const byTrt = {};
-  units.forEach(u => { if (!byTrt[u.treatment]) byTrt[u.treatment] = []; byTrt[u.treatment].push(u); });
-  const treatments = [...new Set(units.map(u => u.treatment))];
-  let html = '<div style="font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:.4rem">Resumo exploratório — Média ± DP por tratamento</div>';
+  _sortedUnits().forEach(u => { if (!byTrt[u.treatment]) byTrt[u.treatment] = []; byTrt[u.treatment].push(u); });
+  const treatments = Object.keys(byTrt);
+  let html = '<div style="font-size:.8rem;font-weight:600;color:var(--text-muted);margin-bottom:.4rem">Resumo exploratório — Média ± DP por tratamento' +
+    (nAm > 1 ? ' <span style="font-weight:400">(média da parcela; as amostras são agregadas antes)</span>' : '') + '</div>';
   html += '<div style="overflow-x:auto"><table class="data-table" style="font-size:.8rem"><thead><tr>';
   html += '<th class="fix" style="min-width:160px">Tratamento</th><th class="fix" style="min-width:44px;text-align:center">n</th>';
   numVars.forEach(v => {
@@ -4944,7 +4971,7 @@ function renderExploratoryPanel() {
     html += `<tr><td style="white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis" title="${esc(trt)}">${esc(trt)}</td>`;
     html += `<td style="text-align:center;color:var(--text-muted)">${trtUnits.length}</td>`;
     numVars.forEach(v => {
-      const vals = trtUnits.map(u => collectionData[String(u.id)]?.[v.id]).filter(x => x !== undefined && x !== '').map(Number).filter(x => !isNaN(x));
+      const vals = trtUnits.map(u => _plotMean(u.id, v.id)).filter(x => x !== null);
       if (!vals.length) { html += '<td style="text-align:center;color:var(--text-muted)">—</td>'; return; }
       const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
       const sd = vals.length > 1 ? Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / (vals.length - 1)) : 0;
@@ -5055,12 +5082,18 @@ function captureCurrentConfig() {
     font:      document.getElementById('selFont').value,
     showUe:    document.getElementById('chkShowUe').checked,
     isEng:     document.getElementById('chkEnglish').checked,
+    samplesPerUnit: _nSamples(),
+    coletaSort: coletaSort,
   };
 }
 
 function applyConfig(c) {
   if (!c) return;
   const set = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.value = v; };
+  // Coleta: subamostras e ordenação (projeto salvo antes disso → padrão)
+  samplesPerUnit = Math.max(1, Math.min(20, parseInt(c.samplesPerUnit) || 1));
+  coletaSort     = ['trat','bloco','campo'].includes(c.coletaSort) ? c.coletaSort : 'trat';
+  set('numSamples', samplesPerUnit); set('selColetaSort', coletaSort);
   set('selDesign', c.design); set('selArea', c.area); set('selUnitType', c.unitType);
   set('txtSpecies', c.species); set('selNumbering', c.numbering);
   set('txtTreatments', c.treatments); set('numReps', c.reps); set('numSeed', c.seed);
@@ -5145,9 +5178,116 @@ function closePresetsModal() { document.getElementById('presetsModal').classList
 
 /* ══ Fase 2 — Variáveis de Coleta ══ */
 let projectVariables = [];   // [{ id, name, type, unit, decimals, options }]
-let collectionData   = {};   // { unitId: { varId: value } }
+let collectionData   = {};   // { cellKey: { varId: value } } — ver _cellKey()
+let samplesPerUnit   = 1;    // amostras (subamostras) por parcela — 1 = sem subamostragem
+let coletaSort       = 'trat';  // ordem da tabela e dos exports: 'trat' | 'bloco' | 'campo'
 let _exampleCampoKey = null;
 let _exampleDataCampoLoaded = false;
+
+/* ── Subamostras e ordenação ──────────────────────────────────────────────
+   A amostra 1 continua guardada na chave antiga (só o ID da parcela) e as
+   demais em "<id>#<n>" — assim projeto salvo, autosave e CSV de antes das
+   subamostras seguem válidos, sem migração. */
+function _cellKey(unitId, s) { return s > 1 ? unitId + '#' + s : String(unitId); }
+function _cellVal(unitId, s, varId) { return collectionData[_cellKey(unitId, s)]?.[varId] ?? ''; }
+function _nSamples() { return Math.max(1, parseInt(samplesPerUnit) || 1); }
+
+/* Todas as células que existem hoje (parcela × amostra) — base das estatísticas */
+function _allCellKeys() {
+  const n = _nSamples(), out = [];
+  units.forEach(u => { for (let s = 1; s <= n; s++) out.push(_cellKey(u.id, s)); });
+  return out;
+}
+
+/* Comparação natural: T2 antes de T10 (e não T1, T10, T2 do alfabético) */
+function _natCmp(a, b) {
+  return String(a).localeCompare(String(b), 'pt-BR', { numeric: true, sensitivity: 'base' });
+}
+
+/* Ordem canônica dos tratamentos = a ordem em que o USUÁRIO os declarou.
+   Delineamento com tratamento gerado (fatorial, split, strip) não tem lista
+   declarada: cai no desempate por fator e depois natural. */
+function _treatRankFn() {
+  const design = document.getElementById('selDesign').value;
+  let declared = [];
+  try {
+    if (design === 'DQL')          declared = parseTreatments(document.getElementById('dqlTreatments').value);
+    else if (design === 'LATICE')  declared = getLaticeConfig().treats;
+    else if (!design.startsWith('FAT') && !design.startsWith('SPL') && design !== 'STRIP')
+      declared = parseTreatments(document.getElementById('txtTreatments').value);
+  } catch (e) { declared = []; }
+  const rank = new Map(declared.map((t, i) => [t, i]));
+  return t => (rank.has(t) ? rank.get(t) : Infinity);
+}
+
+function _sortedUnits() {
+  const arr = units.slice();
+  if (coletaSort === 'campo') return arr.sort((a, b) => a.id - b.id);
+  const rank = _treatRankFn();
+  const byTrat = (a, b) => {
+    const ra = rank(a.treatment), rb = rank(b.treatment);
+    if (ra !== rb) return ra - rb;                       // (Infinity vs Infinity cai fora)
+    return _natCmp(a.factorA ?? '', b.factorA ?? '')
+        || _natCmp(a.factorB ?? '', b.factorB ?? '')
+        || _natCmp(a.treatment, b.treatment);
+  };
+  const byBloco = (a, b) => ((a.rep ?? 0) - (b.rep ?? 0)) || ((a.block ?? 0) - (b.block ?? 0));
+  return arr.sort(coletaSort === 'bloco'
+    ? (a, b) => byBloco(a, b) || byTrat(a, b)  || a.id - b.id
+    : (a, b) => byTrat(a, b)  || byBloco(a, b) || a.id - b.id);
+}
+
+/* Valor da PARCELA para uma variável: a própria célula (1 amostra) ou a MÉDIA
+   das subamostras. A parcela é a unidade experimental — subamostra não é
+   repetição, então é a média dela que entra em qualquer estatística. */
+function _plotMean(unitId, varId) {
+  const n = _nSamples(), vals = [];
+  for (let s = 1; s <= n; s++) {
+    const raw = _cellVal(unitId, s, varId);
+    const num = parseFloat(String(raw).replace(',', '.'));
+    if (raw !== '' && !isNaN(num)) vals.push(num);
+  }
+  return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
+
+/* Linhas da coleta: uma por parcela × amostra, já na ordem escolhida */
+function _coletaRows() {
+  const n = _nSamples();
+  return _sortedUnits().flatMap(u => Array.from({ length: n }, (_, i) => ({ u, s: i + 1 })));
+}
+
+function onColetaSortChange() {
+  coletaSort = document.getElementById('selColetaSort').value;
+  renderDataTab();
+  if (currentProjectName) saveCurrentProject(true);
+}
+
+function _countDataAboveSample(n) {
+  return Object.keys(collectionData).reduce((c, k) => {
+    const s = k.includes('#') ? parseInt(k.split('#')[1]) : 1;
+    return s > n ? c + Object.values(collectionData[k]).filter(v => v !== '' && v != null).length : c;
+  }, 0);
+}
+
+function onSamplesChange() {
+  const el   = document.getElementById('numSamples');
+  const novo = Math.max(1, Math.min(20, parseInt(el.value) || 1));
+  if (novo < _nSamples()) {
+    const perdidos = _countDataAboveSample(novo);
+    if (perdidos && !confirm(
+      `Reduzir para ${novo} amostra(s) por parcela descarta ${perdidos} valor(es) já digitado(s) da amostra ${novo + 1} em diante.\n\nContinuar?`)) {
+      el.value = _nSamples(); return;
+    }
+    Object.keys(collectionData).forEach(k => {
+      const s = k.includes('#') ? parseInt(k.split('#')[1]) : 1;
+      if (s > novo) delete collectionData[k];
+    });
+  }
+  samplesPerUnit = novo;
+  el.value = novo;
+  renderDataTab();
+  if (currentProjectName) saveCurrentProject(true);
+}
 
 /* ── Gerenciamento de variáveis ── */
 function onVarTypeChange() {
@@ -5236,10 +5376,10 @@ function fmtNum(val) {
 }
 
 /* ── Detecção de outliers (método IQR de Tukey) ── */
-function getVarStats(varId, excludeUnitId) {
-  const vals = units
-    .filter(u => excludeUnitId == null || String(u.id) !== String(excludeUnitId))
-    .map(u => collectionData[String(u.id)]?.[varId])
+function getVarStats(varId, excludeKey) {
+  const vals = _allCellKeys()
+    .filter(k => excludeKey == null || k !== String(excludeKey))
+    .map(k => collectionData[k]?.[varId])
     .filter(v => v !== undefined && v !== '')
     .map(Number)
     .filter(n => !isNaN(n))
@@ -5257,22 +5397,22 @@ function getVarStats(varId, excludeUnitId) {
            upper: q3 + 1.5 * iqr };
 }
 
-function isOutlier(varId, value, excludeUnitId) {
+function isOutlier(varId, value, excludeKey) {
   const v = projectVariables.find(v => v.id === varId);
   if (!v || v.type !== 'numeric') return false;
   const val = parseFloat(value);
   if (isNaN(val)) return false;
-  const stats = getVarStats(varId, excludeUnitId);
+  const stats = getVarStats(varId, excludeKey);
   if (!stats) return false;
   if (stats.iqr === 0) return false; // todos iguais — sem dispersão para comparar
   return val < stats.lower || val > stats.upper;
 }
 
 let _outlierTimer = null;
-function checkCellOutlier(inp, vid, uid, val) {
+function checkCellOutlier(inp, vid, cellKey, val) {
   const v = projectVariables.find(v => v.id === vid);
   if (!v || v.type !== 'numeric') return;
-  const outlier = isOutlier(vid, val, uid);
+  const outlier = isOutlier(vid, val, cellKey);
   inp.style.background   = outlier ? '#fef3c7' : '';
   inp.style.borderColor  = outlier ? '#f59e0b' : '';
   inp.title = outlier ? '⚠ Valor discrepante (Tukey IQR)' : '';
@@ -5285,13 +5425,13 @@ function checkOutliers() {
   let count = 0;
   document.querySelectorAll('.data-input[data-uid]').forEach(inp => {
     const vid = inp.dataset.vid;
-    const uid = inp.dataset.uid;
+    const key = _cellKey(inp.dataset.uid, parseInt(inp.dataset.s) || 1);
     const v = projectVariables.find(v => v.id === vid);
     if (!v || v.type !== 'numeric' || !inp.value.trim()) {
       inp.style.background = ''; inp.style.borderColor = ''; inp.title = '';
       return;
     }
-    const outlier = isOutlier(vid, inp.value, uid);
+    const outlier = isOutlier(vid, inp.value, key);
     inp.style.background  = outlier ? '#fef3c7' : '';
     inp.style.borderColor = outlier ? '#f59e0b' : '';
     inp.title = outlier ? '⚠ Valor discrepante (Tukey IQR)' : '';
@@ -5303,18 +5443,18 @@ function checkOutliers() {
 
 /* ── Tabela de coleta ── */
 function saveCellValue(inp) {
-  const uid = inp.dataset.uid;
+  const key = _cellKey(inp.dataset.uid, parseInt(inp.dataset.s) || 1);
   const vid = inp.dataset.vid;
-  if (!collectionData[uid]) collectionData[uid] = {};
+  if (!collectionData[key]) collectionData[key] = {};
   const val = inp.value.trim();
   if (val === '') {
-    delete collectionData[uid][vid];
+    delete collectionData[key][vid];
     inp.style.background = ''; inp.style.borderColor = ''; inp.title = '';
   } else {
-    collectionData[uid][vid] = val;
+    collectionData[key][vid] = val;
     // Detecção de outlier com debounce de 700ms
     clearTimeout(_outlierTimer);
-    _outlierTimer = setTimeout(() => checkCellOutlier(inp, vid, uid, val), 700);
+    _outlierTimer = setTimeout(() => checkCellOutlier(inp, vid, key, val), 700);
   }
   if (currentProjectName) saveCurrentProject(true);
 }
@@ -5336,42 +5476,55 @@ function renderDataTab() {
     return;
   }
 
-  const filled = Object.values(collectionData).reduce((n, d) => n + Object.values(d).filter(v => v !== '').length, 0);
-  const total  = units.length * projectVariables.length;
-  hint.textContent = `${projectVariables.length} variável(is) · ${units.length} UEs · ${filled}/${total} células preenchidas`;
+  const nAm  = _nSamples();
+  const model = _coletaRows();
+  const filled = model.reduce((n, { u, s }) =>
+    n + projectVariables.filter(v => String(_cellVal(u.id, s, v.id)) !== '').length, 0);
+  const total  = model.length * projectVariables.length;
+  hint.textContent = `${projectVariables.length} variável(is) · ${units.length} UEs` +
+    (nAm > 1 ? ` × ${nAm} amostras = ${model.length} linhas` : '') +
+    ` · ${filled}/${total} células preenchidas`;
 
   /* Cabeçalho */
-  const fixedTh = ['#','Bloco','Tratamento'].map(h =>
+  const fixedCols = ['#', 'Bloco', 'Tratamento'];
+  if (nAm > 1) fixedCols.push('Amostra');
+  const fixedTh = fixedCols.map(h =>
     `<th class="fix" style="min-width:${h==='Tratamento'?130:44}px">${h}</th>`).join('');
   const varTh = projectVariables.map(v =>
     `<th style="min-width:90px">${esc(v.name)}${v.unit ? '<br><small style="font-weight:400;opacity:.8">'+esc(v.unit)+'</small>' : ''}</th>`).join('');
   document.getElementById('dataHead').innerHTML = `<tr>${fixedTh}${varTh}</tr>`;
 
-  /* Linhas */
-  const rows = units.map(u => {
+  /* Linhas — uma por parcela × amostra, na ordem escolhida no seletor */
+  const rows = model.map(({ u, s }, i) => {
+    const novaParcela = s === 1;
+    // separador entre parcelas quando há subamostras (agrupa visualmente)
+    const trStyle = (nAm > 1 && novaParcela && i > 0) ? ' style="border-top:2px solid var(--border)"' : '';
+    const fade = novaParcela ? '' : ';opacity:.45';   // repetições da mesma parcela ficam discretas
+
     const fixedTd =
-      `<td style="text-align:center;color:var(--text-muted);font-size:.78rem">${u.id}</td>` +
-      `<td style="color:var(--text-muted);font-size:.78rem">${u.block ?? '—'}</td>` +
-      `<td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(u.treatment)}">${esc(u.treatment)}</td>`;
+      `<td style="text-align:center;color:var(--text-muted);font-size:.78rem${fade}">${u.id}</td>` +
+      `<td style="color:var(--text-muted);font-size:.78rem${fade}">${u.block ?? '—'}</td>` +
+      `<td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap${fade}" title="${esc(u.treatment)}">${esc(u.treatment)}</td>` +
+      (nAm > 1 ? `<td style="text-align:center;color:var(--text-muted);font-size:.78rem">${s}</td>` : '');
 
     const varTd = projectVariables.map(v => {
-      const val = collectionData[String(u.id)]?.[v.id] ?? '';
+      const val = _cellVal(u.id, s, v.id);
       if (v.type === 'numeric') {
         return `<td><input class="data-input" type="number" step="${v.decimals > 0 ? '0.' + '0'.repeat(v.decimals - 1) + '1' : '1'}"
-          value="${esc(String(val))}" data-uid="${u.id}" data-vid="${esc(v.id)}"
+          value="${esc(String(val))}" data-uid="${u.id}" data-s="${s}" data-vid="${esc(v.id)}"
           oninput="saveCellValue(this)"></td>`;
       } else {
-        const listId = `dl-${esc(v.id)}-${u.id}`;
+        const listId = `dl-${esc(v.id)}-${u.id}-${s}`;
         const dl = v.options?.length
           ? `<datalist id="${listId}">${v.options.map(o => `<option value="${esc(o)}">`).join('')}</datalist>` : '';
         return `<td>${dl}<input class="data-input cat" type="text" value="${esc(String(val))}"
           ${v.options?.length ? `list="${listId}"` : ''}
-          data-uid="${u.id}" data-vid="${esc(v.id)}"
+          data-uid="${u.id}" data-s="${s}" data-vid="${esc(v.id)}"
           oninput="saveCellValue(this)"></td>`;
       }
     }).join('');
 
-    return `<tr>${fixedTd}${varTd}</tr>`;
+    return `<tr${trStyle}>${fixedTd}${varTd}</tr>`;
   });
 
   document.getElementById('dataBody').innerHTML = rows.join('');
@@ -5389,6 +5542,7 @@ function _buildDataRows() {
   // Cabeçalho com TODAS as colunas estruturais que os scripts R/SAS/Python precisam.
   // Variável-resposta: apenas o nome (sem unidade) para garantir que o nome bata
   // exatamente com o que os scripts referenciam.
+  const nAm = _nSamples();
   const headers = ['ID'];
   if (isLatice) headers.push('Rep');
   headers.push('Bloco','Tratamento');
@@ -5397,16 +5551,19 @@ function _buildDataRows() {
     _safeName(dqlRowFactorName || 'Linha_DQL'),
     _safeName(dqlColFactorName || 'Coluna_DQL')
   );
+  if (nAm > 1) headers.push('Amostra');
   projectVariables.forEach(v => headers.push(v.name));
 
-  const rows = units.map(u => {
+  // Uma linha por parcela × amostra, na MESMA ordem exibida na aba Coleta
+  const rows = _coletaRows().map(({ u, s }) => {
     const r = [u.id];
     if (isLatice) r.push(u.rep ?? '');
     r.push(u.block ?? '', u.treatment);
     if (isFat || isSpl || isStrip) r.push(u.factorA ?? '', u.factorB ?? '');
     if (isDQL) r.push(u.rowLabel ?? '', u.colLabel ?? '');
+    if (nAm > 1) r.push(s);
     projectVariables.forEach(v => {
-      const raw = collectionData[String(u.id)]?.[v.id] ?? '';
+      const raw = _cellVal(u.id, s, v.id);
       r.push(v.type === 'numeric' && raw !== '' ? parseFloat(raw) : raw);
     });
     return r;
@@ -5496,6 +5653,8 @@ function importDataCSV() {
         if (idIdx < 0) {
           alert('Coluna "ID" não encontrada.\nColunas encontradas: ' + hdr.join(', ')); return;
         }
+        // Coluna de subamostra (opcional): CSV sem ela = tudo na amostra 1
+        const sIdx = hdr.findIndex(h => /^(amostra|subamostra|sample|subsample)$/.test(h));
         const varIdxMap = projectVariables.map(v => ({
           id: v.id,
           idx: hdr.findIndex(h => h === v.name.toLowerCase() || h === v.name.toLowerCase().replace(/\s+\([^)]*\)/,'').trim())
@@ -5503,23 +5662,35 @@ function importDataCSV() {
         if (!varIdxMap.length) {
           alert('Nenhuma coluna correspondeu às variáveis.\nVariáveis: ' + projectVariables.map(v => v.name).join(', ') + '\nColunas CSV: ' + hdr.join(', ')); return;
         }
-        let count = 0;
+        let count = 0, maxAmostra = 1, ignoradas = 0;
         lines.slice(1).forEach(line => {
           const cols = line.split(sep).map(c => c.trim().replace(/^"+|"+$/g, ''));
           const rawId = cols[idIdx]?.trim(); if (!rawId) return;
           const unit = units.find(u => String(u.id) === rawId);
           if (!unit) return;
+          const s = sIdx >= 0 ? (parseInt(cols[sIdx]) || 1) : 1;
+          if (s > 20) { ignoradas++; return; }
+          const key = _cellKey(unit.id, s);
           varIdxMap.forEach(({id, idx}) => {
             const val = (cols[idx] || '').replace(',', '.').trim();
             if (val === '') return;
-            if (!collectionData[String(unit.id)]) collectionData[String(unit.id)] = {};
-            collectionData[String(unit.id)][id] = val;
+            if (!collectionData[key]) collectionData[key] = {};
+            collectionData[key][id] = val;
             count++;
           });
+          if (s > maxAmostra) maxAmostra = s;
         });
+        // O arquivo manda: se ele traz mais amostras do que a tela, a tela cresce
+        if (maxAmostra > _nSamples()) {
+          samplesPerUnit = maxAmostra;
+          const el = document.getElementById('numSamples');
+          if (el) el.value = maxAmostra;
+        }
         renderDataTab();
         if (currentProjectName) saveCurrentProject(true);
-        if (count) alert(`${count} valor(es) importado(s) com sucesso.`);
+        if (count) alert(`${count} valor(es) importado(s) com sucesso.` +
+          (maxAmostra > 1 ? `\nAmostras por parcela detectadas: ${maxAmostra}.` : '') +
+          (ignoradas ? `\n${ignoradas} linha(s) ignorada(s): amostra acima de 20.` : ''));
         else alert('Nenhum dado correspondente.\nVerifique IDs de unidade e nomes das variáveis.');
       } catch(err) { alert('Erro ao ler CSV: ' + err.message); }
     };
@@ -5582,6 +5753,31 @@ function exportScriptR() {
   s += `                  dec   = "${decimalSep}",\n`;
   s += `                  check.names = FALSE) # preserva nomes originais\n`;
   s += `str(dados)\n\n`;
+
+  if (_nSamples() > 1) {
+    const chaves = ['ID', ...(isLatice ? ['Rep'] : []), ...(hasBloco ? ['Bloco'] : []), 'Tratamento',
+                    ...((isFat || isSplit || isStrip) ? ['"Fator A"', '"Fator B"'] : []),
+                    ...(isDQL ? [`"${dqlRowFactorName || 'Linha_DQL'}"`, `"${dqlColFactorName || 'Coluna_DQL'}"`] : [])];
+    const respostas = numVars.length ? numVars.map(v => `"${v.name}"`).join(', ') : '"Variavel1"';
+    s += `# 2b. Subamostras ────────────────────────────────────────────\n`;
+    s += `# O arquivo traz ${_nSamples()} amostras por parcela (coluna "Amostra").\n`;
+    s += `# ATENÇÃO: subamostra NÃO é repetição. Analisar as linhas como se fossem\n`;
+    s += `# repetições infla os graus de liberdade do resíduo e o teste F passa a\n`;
+    s += `# acusar diferença que não existe (pseudorreplicação).\n`;
+    s += `# Padrão: média das amostras -> a PARCELA volta a ser a unidade experimental.\n`;
+    s += `dados_amostras <- dados   # guarda as subamostras (para o modelo misto abaixo)\n`;
+    s += `chaves  <- c(${chaves.map(c => c.startsWith('"') ? c : `"${c}"`).join(', ')})\n`;
+    s += `respost <- c(${respostas})\n`;
+    s += `dados <- aggregate(dados_amostras[respost],\n`;
+    s += `                   by = dados_amostras[chaves],\n`;
+    s += `                   FUN = mean, na.rm = TRUE)\n`;
+    s += `cat("Parcelas após agregar as subamostras:", nrow(dados), "\\n")\n\n`;
+    s += `# Alternativa — modelo misto usando a variação DENTRO da parcela\n`;
+    s += `# (não agregue; rode sobre 'dados_amostras', com a parcela como aleatório):\n`;
+    s += `# if (!require(lme4)) install.packages("lme4"); library(lme4); library(lmerTest)\n`;
+    s += `# m <- lmer(${numVars.length ? _safeName(numVars[0].name) : 'Variavel1'} ~ Tratamento${hasBloco ? ' + Bloco' : ''} + (1|ID), data = dados_amostras)\n`;
+    s += `# anova(m)\n\n`;
+  }
 
   s += `# 3. Fatores ────────────────────────────────────────────────\n`;
   if (hasBloco)    s += `dados$Bloco      <- factor(dados$Bloco)\n`;
@@ -5701,6 +5897,29 @@ function exportScriptSAS() {
   s += `    GUESSINGROWS = MAX;\n`;
   s += `RUN;\n\n`;
 
+  if (_nSamples() > 1) {
+    const classe = ['ID', ...(isLatice ? ['Rep'] : []), ...(hasBloco ? ['Bloco'] : []), 'Tratamento',
+                    ...((isFat || isSplit || isStrip) ? ['Fator_A', 'Fator_B'] : []),
+                    ...(isDQL ? [_safeName(dqlRowFactorName || 'Linha_DQL'), _safeName(dqlColFactorName || 'Coluna_DQL')] : [])].join(' ');
+    const respostas = (numVars.length ? numVars.map(v => _safeName(v.name)) : ['Variavel1']).join(' ');
+    s += `/* 1b. Subamostras — ${_nSamples()} amostras por parcela (coluna Amostra)\n`;
+    s += `   ATENÇÃO: subamostra NÃO é repetição. Rodar a ANOVA sobre as linhas brutas\n`;
+    s += `   infla os GL do resíduo (pseudorreplicação). Média por parcela primeiro: */\n`;
+    s += `DATA dados_amostras; SET dados; RUN;   /* guarda as subamostras */\n`;
+    s += `PROC SORT DATA = dados_amostras; BY ${classe}; RUN;\n`;
+    s += `PROC MEANS DATA = dados_amostras NOPRINT;\n`;
+    s += `    BY  ${classe};\n`;
+    s += `    VAR ${respostas};\n`;
+    s += `    OUTPUT OUT = dados (DROP = _TYPE_ _FREQ_) MEAN = ${respostas};\n`;
+    s += `RUN;\n\n`;
+    s += `/* Alternativa — usar a variação dentro da parcela (não agregue):\n`;
+    s += `PROC MIXED DATA = dados_amostras;\n`;
+    s += `    CLASS ID ${hasBloco ? 'Bloco ' : ''}Tratamento;\n`;
+    s += `    MODEL ${numVars.length ? _safeName(numVars[0].name) : 'Variavel1'} = Tratamento${hasBloco ? ' Bloco' : ''} / DDFM=KR;\n`;
+    s += `    RANDOM ID;\n`;
+    s += `RUN; */\n\n`;
+  }
+
   const respVars = numVars.length ? numVars : [{ name:'Variavel1', _template:true }];
   respVars.forEach((v, i) => {
     const vn  = _safeName(v.name);
@@ -5816,6 +6035,27 @@ function exportScriptPy() {
   s += `df["Tratamento"] = df["Tratamento"].astype(str)\n`;
   if (isFat || isSplit || isStrip) { s += `df["Fator A"]    = df["Fator A"].astype(str)\n`; s += `df["Fator B"]    = df["Fator B"].astype(str)\n`; }
   s += `print(df.head())\n\n`;
+
+  if (_nSamples() > 1) {
+    const chaves = ['ID', ...(isLatice ? ['Rep'] : []), ...(hasBloco ? ['Bloco'] : []), 'Tratamento',
+                    ...((isFat || isSplit || isStrip) ? ['Fator A', 'Fator B'] : []),
+                    ...(isDQL ? [dqlRowFactorName || 'Linha_DQL', dqlColFactorName || 'Coluna_DQL'] : [])];
+    const respostas = numVars.length ? numVars.map(v => v.name) : ['Variavel1'];
+    s += `# 2b. Subamostras ───────────────────────────────────────────\n`;
+    s += `# ${_nSamples()} amostras por parcela (coluna "Amostra").\n`;
+    s += `# Subamostra NÃO é repetição: analisar as linhas brutas infla os graus de\n`;
+    s += `# liberdade do resíduo e o teste F acusa diferença que não existe.\n`;
+    s += `# Padrão: média por parcela — a parcela volta a ser a unidade experimental.\n`;
+    s += `df_amostras = df.copy()   # guarda as subamostras\n`;
+    s += `chaves   = ${JSON.stringify(chaves)}\n`;
+    s += `resposta = ${JSON.stringify(respostas)}\n`;
+    s += `df = df_amostras.groupby(chaves, as_index=False)[resposta].mean()\n`;
+    s += `print(f"Parcelas após agregar as subamostras: {len(df)}")\n\n`;
+    s += `# Alternativa — modelo misto com a parcela como efeito aleatório:\n`;
+    s += `# import statsmodels.formula.api as smf\n`;
+    s += `# m = smf.mixedlm("${_safeName(respostas[0])} ~ Tratamento${hasBloco ? ' + Bloco' : ''}", df_amostras, groups=df_amostras["ID"]).fit()\n`;
+    s += `# print(m.summary())\n\n`;
+  }
 
   const respVars = numVars.length ? numVars : [{ name:'Variavel1', _template:true }];
   respVars.forEach((v, i) => {

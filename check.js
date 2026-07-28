@@ -264,6 +264,10 @@ async function boot(jsdom, arquivo) {
       w.URL.createObjectURL = () => 'blob:stub'; w.URL.revokeObjectURL = () => {};
       w.fetch = async () => ({ ok: false, status: 0, json: async () => ({}), text: async () => '' });
 
+      /* Captura o conteúdo dos downloads (scripts, CSV) sem baixar arquivo */
+      const RealBlob = w.Blob;
+      w.Blob = function (parts, opts) { w.__lastBlob = (parts || []).join(''); return new RealBlob(parts, opts); };
+
       /* Supabase (reviews/app_config/pings) e XLSX vêm de CDN — stub no lugar */
       const q = { select() { return this; }, eq() { return this; }, order() { return this; },
         limit: async () => ({ data: [], error: null }), single: async () => ({ data: null, error: true }),
@@ -365,6 +369,93 @@ async function smokeCampo(jsdom) {
   ok(depois[0] === antes[1] && depois[1] === antes[0], 'Campo/Reposicionar: os tratamentos não trocaram de posição');
   ok(ev('_customLayout') === true, 'Campo/Reposicionar: _customLayout não ficou verdadeiro');
   ok(!!ev("localStorage.getItem('agrodesign_autosave')"), 'Campo/Reposicionar: arranjo manual não foi persistido no autosave');
+
+  /* ── Coleta: ordenação e subamostras ──────────────────────────────────
+     DBC 3 tratamentos × 3 blocos, com uma variável numérica. */
+  ev(`document.getElementById('selDesign').value='DBC'; onDesignChange();
+      document.getElementById('txtTreatments').value=['T1','T2','T3'].join('\\n');
+      document.getElementById('numReps').value='3';
+      document.getElementById('numSeed').value='42';
+      generateCroqui();
+      projectVariables=[{id:'vA',name:'Altura',type:'numeric',unit:'cm',decimals:2,options:[]}];
+      collectionData={};
+      document.getElementById('numSamples').value='1'; onSamplesChange();
+      document.getElementById('selColetaSort').value='trat'; onColetaSortChange();`);
+
+  const trats = () => JSON.parse(ev("JSON.stringify(_coletaRows().map(r=>r.u.treatment))"));
+  const blocos = () => JSON.parse(ev("JSON.stringify(_coletaRows().map(r=>r.u.block))"));
+  ok(JSON.stringify(trats()) === JSON.stringify(['T1','T1','T1','T2','T2','T2','T3','T3','T3']),
+     `Campo/Coleta: ordem por tratamento saiu ${trats().join(',')}`);
+  ok(JSON.stringify(blocos()) === JSON.stringify([1,2,3,1,2,3,1,2,3]),
+     `Campo/Coleta: dentro do tratamento os blocos não saíram em ordem → ${blocos().join(',')}`);
+
+  ev("document.getElementById('selColetaSort').value='campo'; onColetaSortChange();");
+  const ids = JSON.parse(ev("JSON.stringify(_coletaRows().map(r=>r.u.id))"));
+  ok(JSON.stringify(ids) === JSON.stringify([...ids].sort((a, b) => a - b)),
+     'Campo/Coleta: ordem "Campo (ID)" não saiu por ID crescente');
+
+  ev("document.getElementById('selColetaSort').value='bloco'; onColetaSortChange();");
+  const b2 = blocos();
+  ok(JSON.stringify(b2) === JSON.stringify([1,1,1,2,2,2,3,3,3]),
+     `Campo/Coleta: ordem por bloco saiu ${b2.join(',')}`);
+
+  /* Ordem dos tratamentos é a DECLARADA, não a alfabética (T2 antes de T10) */
+  ev(`document.getElementById('selDesign').value='DIC'; onDesignChange();
+      document.getElementById('txtTreatments').value=['T1','T2','T10'].join('\\n');
+      document.getElementById('numReps').value='2'; generateCroqui();
+      document.getElementById('selColetaSort').value='trat'; onColetaSortChange();`);
+  ok(JSON.stringify(trats()) === JSON.stringify(['T1','T1','T2','T2','T10','T10']),
+     `Campo/Coleta: T10 deveria vir depois de T2 (ordem declarada), veio ${trats().join(',')}`);
+
+  /* Subamostras */
+  ev(`document.getElementById('selDesign').value='DBC'; onDesignChange();
+      document.getElementById('txtTreatments').value=['T1','T2','T3'].join('\\n');
+      document.getElementById('numReps').value='3'; generateCroqui();
+      projectVariables=[{id:'vA',name:'Altura',type:'numeric',unit:'cm',decimals:2,options:[]}];
+      collectionData={};
+      document.getElementById('selColetaSort').value='trat'; onColetaSortChange();
+      document.getElementById('numSamples').value='4'; onSamplesChange();`);
+  ok(ev('_coletaRows().length') === 36, `Campo/Amostras: 9 parcelas × 4 amostras deveria dar 36 linhas, deu ${ev('_coletaRows().length')}`);
+  ok(ev("document.querySelectorAll('#dataBody tr').length") === 36, 'Campo/Amostras: a tabela renderizada não tem 36 linhas');
+  ok(ev("document.getElementById('dataHead').textContent").includes('Amostra'), 'Campo/Amostras: cabeçalho sem a coluna Amostra');
+  const amostras = JSON.parse(ev("JSON.stringify(_coletaRows().slice(0,5).map(r=>r.s))"));
+  ok(JSON.stringify(amostras) === JSON.stringify([1,2,3,4,1]),
+     `Campo/Amostras: as amostras deveriam correr dentro da parcela → ${amostras.join(',')}`);
+
+  /* Chave retrocompatível: amostra 1 continua na chave antiga (só o id) */
+  ev("collectionData={}; _coletaRows().forEach((r,i)=>{ const k=_cellKey(r.u.id,r.s); (collectionData[k]=collectionData[k]||{}).vA = String(10+i); });");
+  const primeiraChave = ev("_cellKey(units[0].id,1)");
+  ok(primeiraChave === String(ev('units[0].id')), `Campo/Amostras: amostra 1 mudou de chave (${primeiraChave}) — quebraria projeto salvo`);
+  ok(ev("_cellKey(units[0].id,3)") === ev('units[0].id') + '#3', 'Campo/Amostras: chave da amostra 3 fora do formato "<id>#3"');
+
+  /* Média da parcela = média das subamostras (a parcela é a unidade experimental) */
+  ev("collectionData={}; const u0=units[0]; [2,4,6,8].forEach((v,i)=>{ const k=_cellKey(u0.id,i+1); (collectionData[k]=collectionData[k]||{}).vA=String(v); });");
+  ok(ev("_plotMean(units[0].id,'vA')") === 5, `Campo/Amostras: média da parcela deveria ser 5, veio ${ev("_plotMean(units[0].id,'vA')")}`);
+
+  /* Export segue a ordem escolhida e ganha a coluna Amostra */
+  const exp = JSON.parse(ev("JSON.stringify(_buildDataRows())"));
+  ok(exp.headers.includes('Amostra'), 'Campo/Export: CSV sem a coluna Amostra com subamostras ligadas');
+  ok(exp.rows.length === 36, `Campo/Export: esperava 36 linhas, veio ${exp.rows.length}`);
+  const colTrat = exp.headers.indexOf('Tratamento');
+  ok(exp.rows[0][colTrat] === 'T1' && exp.rows[35][colTrat] === 'T3', 'Campo/Export: o arquivo não saiu na ordem da tela');
+
+  /* Script R declara a agregação — subamostra não pode virar repetição */
+  ev('exportScriptR();');
+  const rScript = ev('window.__lastBlob') || '';
+  ok(/aggregate\(/.test(rScript) && /pseudorreplica/i.test(rScript),
+     'Campo/Script R: sem o bloco de agregação das subamostras (viraria pseudorreplicação)');
+  ok(/lmer\(/.test(rScript), 'Campo/Script R: sem a alternativa de modelo misto');
+
+  /* M&M declara as subamostras */
+  ok(/subamostras/i.test(ev("buildPublicationText('pt').mm")), 'Campo/M&M: não declara as subamostras');
+  ok(/subsample/i.test(ev("buildPublicationText('en').mm")), 'Campo/M&M (EN): não declara as subamostras');
+
+  /* Voltar para 1 amostra: some a coluna e o CSV volta ao formato antigo */
+  ev("document.getElementById('numSamples').value='1'; onSamplesChange();");
+  ok(!JSON.parse(ev("JSON.stringify(_buildDataRows().headers)")).includes('Amostra'),
+     'Campo/Amostras: com 1 amostra o CSV não pode ter a coluna Amostra (retrocompatibilidade)');
+  ev('exportScriptR();');
+  ok(!/aggregate\(/.test(ev('window.__lastBlob') || ''), 'Campo/Script R: agregação apareceu sem subamostras');
 
   /* Exemplo interno carrega e alimenta a aba Coleta */
   ev("loadExample('milho');");
