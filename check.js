@@ -13,6 +13,11 @@
         dirige os fluxos (gerar croqui, trocar aba, reposicionar, gerar placa),
         assertando o DOM e o estado interno via window.eval.
 
+   Três vereditos, não dois (r74a): ✓ · ✗ · ⚠ INCONCLUSIVA. Seção que ABORTA não
+   produz ✗ nenhum no stdout e por isso é idêntica a "passou" — mas as asserções
+   depois do ponto de erro não rodaram. Por isso toda leitura e todo passo que
+   dirige o app passam por `leitor()`, que transforma o estouro em ✗ localizado.
+
    No CI (`process.env.CI`) a ausência do jsdom é ERRO: teste que "passa" por não
    ter rodado é pior que teste vermelho (§35 / r57d). O workflow instala o jsdom
    com `npm install --no-save --no-package-lock jsdom` — o repositório continua
@@ -38,6 +43,7 @@ const MODULES = [
 
 let pass = 0;
 const fails = [];
+const harness = [];   // falhas do PRÓPRIO harness (r74a) — veredito à parte, nunca verde
 const ok = (cond, msg) => { if (cond) pass++; else { fails.push(msg); console.log('   ✗ ' + msg); } };
 const secao = t => console.log('\n' + t);
 
@@ -136,12 +142,23 @@ function estatico() {
     const sumidos = [...new Set(refs)].filter(u => !exists(u.replace(/^\.\//, '').split('#')[0]));
     ok(sumidos.length === 0, `${mod.nome}: referência local inexistente → ${sumidos.join(', ')}`);
 
-    /* 5. Versão: constante do código × rótulo estático do rodapé */
+    /* 5. Versão: a constante embutida é a ÚNICA fonte do rótulo */
     const vConst = (new RegExp(`${mod.versionConst}\\s*=\\s*'([\\d.]+)'`).exec(html) || [])[1];
     ok(!!vConst, `${mod.nome}: ${mod.versionConst} não encontrado`);
     if (vConst) versoes.add(vConst);
-    const vRodape = (/<span id="appVersion">[^<]*?v([\d.]+)<\/span>/.exec(html) || [])[1];
-    ok(vRodape === vConst, `${mod.nome}: rodapé estático (v${vRodape}) ≠ ${mod.versionConst} (v${vConst})`);
+
+    /* 5a. O espelho não pode NASCER com o valor que ele existe para exibir
+           (r72a/r74b). Com o número no HTML, a asserção dinâmica do jsdom
+           ("o rodapé mostra a versão") fica VERDE mesmo com o mecanismo
+           desligado — o placeholder sozinho já a satisfaz —, e ainda envelhece
+           por conta própria: qualquer atraso ou falha do script exibe a versão
+           de N releases atrás. Quem defende a regra é ESTA asserção estática;
+           a dinâmica só pega o placeholder já envelhecido, que é o caso fácil.
+           Vale para todo texto espelho de estado (contador, badge, rótulo). */
+    const rotuloInicial = (/<span id="appVersion"[^>]*>([^<]*)</.exec(html) || [])[1];
+    ok(rotuloInicial !== undefined, `${mod.nome}: <span id="appVersion"> não encontrado`);
+    ok(!/\d+\.\d+/.test(rotuloInicial || ''),
+       `${mod.nome}: o rodapé nasce com a versão no HTML ("${rotuloInicial}") — deixe o placeholder neutro; o número tem de vir de ${mod.versionConst}`);
 
     /* 5b. A versão EXIBIDA vem da constante embutida, nunca de fetch cacheado.
            Regra derivada do código: ninguém pode voltar a montar o rótulo do
@@ -291,10 +308,34 @@ async function boot(jsdom, arquivo, opts = {}) {
 /* Conta ocorrências por chave */
 const contar = arr => arr.reduce((m, k) => (m[k] = (m[k] || 0) + 1, m), {});
 
+/* Leitura e direção TOLERANTES (r74a) — o harness não pode ESTOURAR.
+   Um `eval` que falha (função que sumiu, coleção que uma mutação esvaziou) mata
+   o processo ANTES da asserção-alvo rodar: o stdout sai sem nenhum ✗ e fica
+   INDISTINGUÍVEL de "passou" — e o preço do engano é apagar um teste que estava
+   bom. Não é só asserção: o passo que DIRIGE o app estoura igual. Aqui o erro
+   vira ✗ localizado (entra em `erros`, que cada smoke asserta no fim) e as
+   seções seguintes continuam rodando.
+   `ev.json(expr, vazio)` é o par para leitura serializada: `JSON.parse` de um
+   eval que falhou também derruba o harness. */
+function leitor(w, erros) {
+  const trecho = e => String(e).trim().split('\n')[0].slice(0, 70);
+  const ev = expr => {
+    try { return w.eval(expr); }
+    catch (e) { erros.push(`harness: eval estourou em «${trecho(expr)}» → ${e.message}`); return undefined; }
+  };
+  ev.json = (expr, vazio = []) => {
+    const s = ev(expr);
+    if (typeof s !== 'string') return vazio;
+    try { return JSON.parse(s); }
+    catch (e) { erros.push(`harness: JSON inválido em «${trecho(expr)}» → ${e.message}`); return vazio; }
+  };
+  return ev;
+}
+
 async function smokeCampo(jsdom) {
   secao('▸ jsdom — Campo (AgroDesign.html)');
   const { w, erros, fechar } = await boot(jsdom, 'AgroDesign.html');
-  const ev = expr => w.eval(expr);
+  const ev = leitor(w, erros);
 
   ok(erros.length === 0, `Campo: erro de runtime no boot → ${erros.join(' | ')}`);
   ok(ev('typeof generateCroqui') === 'function', 'Campo: generateCroqui não existe após o boot');
@@ -309,7 +350,7 @@ async function smokeCampo(jsdom) {
       document.getElementById('numSeed').value='42';
       generateCroqui();`);
   ok(ev('units.length') === 12, `Campo/DIC: esperava 12 UEs, veio ${ev('units.length')}`);
-  const dic = JSON.parse(ev('JSON.stringify(units.map(u=>u.treatment))'));
+  const dic = ev.json('JSON.stringify(units.map(u=>u.treatment))');
   ok(Object.values(contar(dic)).every(n => n === 3), 'Campo/DIC: alguma repetição fora de 3× por tratamento');
   ok(ev("document.getElementById('errMsg').classList.contains('hidden')"), 'Campo/DIC: #errMsg apareceu numa config válida');
 
@@ -332,7 +373,7 @@ async function smokeCampo(jsdom) {
       document.getElementById('numReps').value='4';
       document.getElementById('numSeed').value='2026';
       generateCroqui();`);
-  const dbc = JSON.parse(ev('JSON.stringify(units.map(u=>({b:u.block,t:u.treatment})))'));
+  const dbc = ev.json('JSON.stringify(units.map(u=>({b:u.block,t:u.treatment})))');
   ok(dbc.length === 20, `Campo/DBC: esperava 20 UEs, veio ${dbc.length}`);
   const blocosOk = [1, 2, 3, 4].every(b => {
     const ts = dbc.filter(u => u.b === b).map(u => u.t);
@@ -345,7 +386,7 @@ async function smokeCampo(jsdom) {
       document.getElementById('dqlTreatments').value=['A','B','C','D'].join('\\n');
       document.getElementById('dqlSeed').value='42';
       generateCroqui();`);
-  const dql = JSON.parse(ev('JSON.stringify(units.map(u=>({r:u.row,c:u.col,t:u.treatment})))'));
+  const dql = ev.json('JSON.stringify(units.map(u=>({r:u.row,c:u.col,t:u.treatment})))');
   ok(dql.length === 16, `Campo/DQL: esperava 16 UEs (4×4), veio ${dql.length}`);
   const latino = [0, 1, 2, 3].every(i =>
     new Set(dql.filter(u => u.r === i).map(u => u.t)).size === 4 &&
@@ -369,9 +410,9 @@ async function smokeCampo(jsdom) {
 
   /* Reposicionar (v2.1.0): troca dois tratamentos, marca layout personalizado e persiste */
   ev("showTab('croqui'); document.getElementById('chkReposition').checked=true; toggleReposition();");
-  const antes = JSON.parse(ev('JSON.stringify([units[0].treatment, units[1].treatment])'));
+  const antes = ev.json('JSON.stringify([units[0].treatment, units[1].treatment])');
   ev('handleSwapTap(units[0].id); handleSwapTap(units[1].id);');
-  const depois = JSON.parse(ev('JSON.stringify([units[0].treatment, units[1].treatment])'));
+  const depois = ev.json('JSON.stringify([units[0].treatment, units[1].treatment])');
   ok(depois[0] === antes[1] && depois[1] === antes[0], 'Campo/Reposicionar: os tratamentos não trocaram de posição');
   ok(ev('_customLayout') === true, 'Campo/Reposicionar: _customLayout não ficou verdadeiro');
   ok(!!ev("localStorage.getItem('agrodesign_autosave')"), 'Campo/Reposicionar: arranjo manual não foi persistido no autosave');
@@ -388,15 +429,15 @@ async function smokeCampo(jsdom) {
       document.getElementById('numSamples').value='1'; onSamplesChange();
       document.getElementById('selColetaSort').value='trat'; onColetaSortChange();`);
 
-  const trats = () => JSON.parse(ev("JSON.stringify(_coletaRows().map(r=>r.u.treatment))"));
-  const blocos = () => JSON.parse(ev("JSON.stringify(_coletaRows().map(r=>r.u.block))"));
+  const trats = () => ev.json("JSON.stringify(_coletaRows().map(r=>r.u.treatment))");
+  const blocos = () => ev.json("JSON.stringify(_coletaRows().map(r=>r.u.block))");
   ok(JSON.stringify(trats()) === JSON.stringify(['T1','T1','T1','T2','T2','T2','T3','T3','T3']),
      `Campo/Coleta: ordem por tratamento saiu ${trats().join(',')}`);
   ok(JSON.stringify(blocos()) === JSON.stringify([1,2,3,1,2,3,1,2,3]),
      `Campo/Coleta: dentro do tratamento os blocos não saíram em ordem → ${blocos().join(',')}`);
 
   ev("document.getElementById('selColetaSort').value='campo'; onColetaSortChange();");
-  const ids = JSON.parse(ev("JSON.stringify(_coletaRows().map(r=>r.u.id))"));
+  const ids = ev.json("JSON.stringify(_coletaRows().map(r=>r.u.id))");
   ok(JSON.stringify(ids) === JSON.stringify([...ids].sort((a, b) => a - b)),
      'Campo/Coleta: ordem "Campo (ID)" não saiu por ID crescente');
 
@@ -424,7 +465,7 @@ async function smokeCampo(jsdom) {
   ok(ev('_coletaRows().length') === 36, `Campo/Amostras: 9 parcelas × 4 amostras deveria dar 36 linhas, deu ${ev('_coletaRows().length')}`);
   ok(ev("document.querySelectorAll('#dataBody tr').length") === 36, 'Campo/Amostras: a tabela renderizada não tem 36 linhas');
   ok(ev("document.getElementById('dataHead').textContent").includes('Amostra'), 'Campo/Amostras: cabeçalho sem a coluna Amostra');
-  const amostras = JSON.parse(ev("JSON.stringify(_coletaRows().slice(0,5).map(r=>r.s))"));
+  const amostras = ev.json("JSON.stringify(_coletaRows().slice(0,5).map(r=>r.s))");
   ok(JSON.stringify(amostras) === JSON.stringify([1,2,3,4,1]),
      `Campo/Amostras: as amostras deveriam correr dentro da parcela → ${amostras.join(',')}`);
 
@@ -439,11 +480,12 @@ async function smokeCampo(jsdom) {
   ok(ev("_plotMean(units[0].id,'vA')") === 5, `Campo/Amostras: média da parcela deveria ser 5, veio ${ev("_plotMean(units[0].id,'vA')")}`);
 
   /* Export segue a ordem escolhida e ganha a coluna Amostra */
-  const exp = JSON.parse(ev("JSON.stringify(_buildDataRows())"));
+  const exp = ev.json("JSON.stringify(_buildDataRows())", { headers: [], rows: [] });
   ok(exp.headers.includes('Amostra'), 'Campo/Export: CSV sem a coluna Amostra com subamostras ligadas');
   ok(exp.rows.length === 36, `Campo/Export: esperava 36 linhas, veio ${exp.rows.length}`);
   const colTrat = exp.headers.indexOf('Tratamento');
-  ok(exp.rows[0][colTrat] === 'T1' && exp.rows[35][colTrat] === 'T3', 'Campo/Export: o arquivo não saiu na ordem da tela');
+  ok((exp.rows[0] || [])[colTrat] === 'T1' && (exp.rows[35] || [])[colTrat] === 'T3',
+     'Campo/Export: o arquivo não saiu na ordem da tela');
 
   /* Script R declara a agregação — subamostra não pode virar repetição */
   ev('exportScriptR();');
@@ -465,8 +507,8 @@ async function smokeCampo(jsdom) {
     const script = ev('window.__lastBlob') || '';
     const bruto  = (/chaves\s+<- c\(([^)]*)\)/.exec(script) || [])[1] || '';
     const chaves = bruto.split(',').map(s => s.trim().replace(/^"|"$/g, '')).filter(Boolean);
-    const headers = JSON.parse(ev("JSON.stringify(_buildDataRows().headers)"));
-    const nomesVars = JSON.parse(ev("JSON.stringify(projectVariables.map(v=>v.name))"));
+    const headers = ev.json("JSON.stringify(_buildDataRows().headers)");
+    const nomesVars = ev.json("JSON.stringify(projectVariables.map(v=>v.name))");
     const estruturais = headers.filter(h => h !== 'Amostra' && !nomesVars.includes(h));
     const orfas   = chaves.filter(k => !headers.includes(k));       // aponta p/ coluna inexistente
     const perdidas = estruturais.filter(k => !chaves.includes(k));  // coluna que o aggregate descarta
@@ -508,7 +550,7 @@ async function smokeCampo(jsdom) {
       projectVariables=[{id:'vA',name:'Altura',type:'numeric',unit:'cm',decimals:2,options:[]}];
       document.getElementById('numSamples').value='3'; onSamplesChange();`);
   chavesBatem('látice');
-  ok(JSON.parse(ev("JSON.stringify(_buildDataRows().headers)")).includes('Rep'),
+  ok(ev.json("JSON.stringify(_buildDataRows().headers)").includes('Rep'),
      'Campo/Export: látice perdeu a coluna Rep com subamostras');
 
   /* Volta ao DBC simples para os testes seguintes */
@@ -520,7 +562,7 @@ async function smokeCampo(jsdom) {
 
   /* Voltar para 1 amostra: some a coluna e o CSV volta ao formato antigo */
   ev("document.getElementById('numSamples').value='1'; onSamplesChange();");
-  ok(!JSON.parse(ev("JSON.stringify(_buildDataRows().headers)")).includes('Amostra'),
+  ok(!ev.json("JSON.stringify(_buildDataRows().headers)").includes('Amostra'),
      'Campo/Amostras: com 1 amostra o CSV não pode ter a coluna Amostra (retrocompatibilidade)');
   ev('exportScriptR();');
   ok(!/aggregate\(/.test(ev('window.__lastBlob') || ''), 'Campo/Script R: agregação apareceu sem subamostras');
@@ -536,14 +578,14 @@ async function smokeCampo(jsdom) {
   ev('toggleDark();');
   ok(!ev("document.documentElement.hasAttribute('data-dark')"), 'Campo: modo escuro não desligou');
 
-  ok(erros.length === 0, `Campo: erro de runtime durante os fluxos → ${erros.join(' | ')}`);
+  ok(erros.length === 0, `Campo: erro de runtime ou falha do harness durante os fluxos → ${erros.join(' | ')}`);
   fechar();
 }
 
 async function smokeLab(jsdom) {
   secao('▸ jsdom — Lab (AgroDesignLab.html)');
   const { w, erros, fechar } = await boot(jsdom, 'AgroDesignLab.html');
-  const ev = expr => w.eval(expr);
+  const ev = leitor(w, erros);
 
   ok(erros.length === 0, `Lab: erro de runtime no boot → ${erros.join(' | ')}`);
   ok(ev('typeof generatePlate') === 'function', 'Lab: generatePlate não existe após o boot');
@@ -574,7 +616,7 @@ async function smokeLab(jsdom) {
       document.getElementById('selDesignLab').value='RCBD-R'; onDesignChange();
       document.getElementById('numSeedLab').value='42';
       generatePlate(true);`);
-  const amostras = JSON.parse(ev("JSON.stringify(plateLayout.filter(p=>p.type==='sample').map(p=>({b:p.block,t:p.treatment})))"));
+  const amostras = ev.json("JSON.stringify(plateLayout.filter(p=>p.type==='sample').map(p=>({b:p.block,t:p.treatment})))");
   ok(amostras.length === 12, `Lab/RCBD-R: esperava 12 poços de amostra, veio ${amostras.length}`);
   const blocos = [...new Set(amostras.map(a => a.b))];
   ok(blocos.length === 3, `Lab/RCBD-R: esperava 3 blocos, veio ${blocos.length}`);
@@ -585,14 +627,14 @@ async function smokeLab(jsdom) {
 
   /* MTT — borda sacrificial vira buffer */
   ev("loadTemplate('mtt');");
-  const borda = JSON.parse(ev("JSON.stringify(plateLayout.filter(p=>p.row==='A'||p.row==='H'||p.col===1||p.col===12).map(p=>p.type))"));
+  const borda = ev.json("JSON.stringify(plateLayout.filter(p=>p.row==='A'||p.row==='H'||p.col===1||p.col===12).map(p=>p.type))");
   ok(borda.length === 36 && borda.every(t => t === 'buffer'),
      'Lab/MTT: borda sacrificial não marcou os 36 poços periféricos como buffer');
 
   /* EcoPlate — layout fixo com os 3 controles de água */
   ev("loadTemplate('ecoplate');");
   ok(ev('plateLayout.length') === 96, 'Lab/EcoPlate: placa não tem 96 poços');
-  const agua = JSON.parse(ev("JSON.stringify(['A1','A5','A9'].map(id=>(plateLayout.find(p=>p.id===id)||{}).treatment))"));
+  const agua = ev.json("JSON.stringify(['A1','A5','A9'].map(id=>(plateLayout.find(p=>p.id===id)||{}).treatment))");
   ok(agua.every(t => /gua|H₂O|H2O/i.test(String(t))), `Lab/EcoPlate: A1/A5/A9 deveriam ser controle de água, vieram ${agua.join(', ')}`);
 
   /* Abas */
@@ -607,7 +649,7 @@ async function smokeLab(jsdom) {
   ok(ev("localStorage.getItem('agrodesignlab_dark')") === '1', 'Lab: modo escuro não persistiu');
   ev('toggleDark();');
 
-  ok(erros.length === 0, `Lab: erro de runtime durante os fluxos → ${erros.join(' | ')}`);
+  ok(erros.length === 0, `Lab: erro de runtime ou falha do harness durante os fluxos → ${erros.join(' | ')}`);
   fechar();
 }
 
@@ -629,21 +671,25 @@ async function smokeBanner(jsdom) {
 
     // backend anunciando versão MAIOR → banner tem de aparecer
     let ctx = await boot(jsdom, arquivo, { cfgVersion: '99.0.0' });
+    let ev = leitor(ctx.w, ctx.erros);
     await espera(300);   // a checagem é assíncrona (fase tardia — r38b)
-    ok(ctx.w.eval(visivel), `${nome}: backend anunciando v99.0.0 e o banner de atualização não apareceu`);
-    ok(/99\.0\.0/.test(ctx.w.eval(texto)), `${nome}: banner apareceu sem dizer qual é a versão nova`);
+    ok(ev(visivel), `${nome}: backend anunciando v99.0.0 e o banner de atualização não apareceu`);
+    ok(/99\.0\.0/.test(ev(texto)), `${nome}: banner apareceu sem dizer qual é a versão nova`);
+    ok(ctx.erros.length === 0, `${nome}/banner: erro de runtime ou falha do harness → ${ctx.erros.join(' | ')}`);
     ctx.fechar();
 
     // backend com versão MENOR → nada de banner (nunca oferecer downgrade)
     ctx = await boot(jsdom, arquivo, { cfgVersion: '0.0.1' });
+    ev = leitor(ctx.w, ctx.erros);
     await espera(300);
-    ok(!ctx.w.eval(visivel), `${nome}: banner apareceu para uma versão MAIS ANTIGA que a local`);
+    ok(ev(visivel) === false, `${nome}: banner apareceu para uma versão MAIS ANTIGA que a local`);
     ctx.fechar();
 
     // backend na MESMA versão → nada de banner (é o estado de hoje em produção)
     ctx = await boot(jsdom, arquivo, { cfgVersion: null });
+    ev = leitor(ctx.w, ctx.erros);
     await espera(300);
-    ok(!ctx.w.eval(visivel), `${nome}: banner apareceu sem versão nova publicada`);
+    ok(ev(visivel) === false, `${nome}: banner apareceu sem versão nova publicada`);
     ctx.fechar();
   }
 }
@@ -664,11 +710,26 @@ async function smokeBanner(jsdom) {
       console.log('  Para o smoke completo: npm install --no-save --no-package-lock jsdom');
     }
   } else {
-    try { await smokeCampo(jsdom);  } catch (e) { ok(false, `Campo: smoke abortou — ${e.message}`); }
-    try { await smokeLab(jsdom);    } catch (e) { ok(false, `Lab: smoke abortou — ${e.message}`); }
-    try { await smokeBanner(jsdom); } catch (e) { ok(false, `Banner: smoke abortou — ${e.message}`); }
+    /* Seção que ABORTA não é ✗ nem ✓: é FALHA DO HARNESS, veredito próprio
+       (r74a). Sem isto, uma mutação que derruba o processo antes da asserção-alvo
+       sai do stdout sem nenhum ✗ — idêntica a "passou" — e o engano custa apagar
+       um teste bom. As asserções depois do ponto de erro simplesmente não rodaram:
+       o que se sabe do resto da seção é NADA, não "está verde". */
+    for (const [nome, fn] of [['Campo', smokeCampo], ['Lab', smokeLab], ['Banner', smokeBanner]]) {
+      try { await fn(jsdom); }
+      catch (e) {
+        harness.push(`${nome}: a seção abortou em «${String(e.message).slice(0, 90)}»`);
+        console.log(`   ⚠ ${nome}: FALHA DO HARNESS — ${e.message}`);
+      }
+    }
   }
 
-  console.log(`\n${fails.length === 0 ? '✓' : '✗'} ${pass} ✓ · ${fails.length} ✗`);
-  process.exit(fails.length === 0 ? 0 : 1);
+  const veredito = harness.length ? '⚠ INCONCLUSIVA' : (fails.length === 0 ? '✓' : '✗');
+  console.log(`\n${veredito}  ${pass} ✓ · ${fails.length} ✗` +
+              (harness.length ? ` · ${harness.length} seção(ões) sem veredito` : ''));
+  if (harness.length) {
+    console.log('  Falha do harness NÃO é verde — as asserções seguintes da seção não chegaram a rodar:');
+    harness.forEach(h => console.log('   ⚠ ' + h));
+  }
+  process.exit(fails.length || harness.length ? 1 : 0);
 })();
