@@ -464,6 +464,15 @@ async function smokeCampo(jsdom) {
       document.getElementById('numSamples').value='4'; onSamplesChange();`);
   ok(ev('_coletaRows().length') === 36, `Campo/Amostras: 9 parcelas × 4 amostras deveria dar 36 linhas, deu ${ev('_coletaRows().length')}`);
   ok(ev("document.querySelectorAll('#dataBody tr').length") === 36, 'Campo/Amostras: a tabela renderizada não tem 36 linhas');
+
+  /* Aviso de pseudorreplicação: a regra científica virou teste (r67c/r68b) —
+     quem ligar subamostras TEM de ver que as linhas não são repetições. */
+  const avisoVisivel = "!document.getElementById('pseudoWarn').classList.contains('hidden')";
+  ok(ev(avisoVisivel) === true, 'Campo/Amostras: aviso de pseudorreplicação não apareceu com 4 amostras/parcela');
+  ok(ev("document.getElementById('pseudoWarnN').textContent") === '4',
+     'Campo/Amostras: o aviso não diz quantas amostras por parcela estão ligadas');
+  ok(/pseudorreplica/i.test(ev("document.getElementById('pseudoWarn').textContent") || ''),
+     'Campo/Amostras: o aviso não nomeia a pseudorreplicação');
   ok(ev("document.getElementById('dataHead').textContent").includes('Amostra'), 'Campo/Amostras: cabeçalho sem a coluna Amostra');
   const amostras = ev.json("JSON.stringify(_coletaRows().slice(0,5).map(r=>r.s))");
   ok(JSON.stringify(amostras) === JSON.stringify([1,2,3,4,1]),
@@ -564,6 +573,7 @@ async function smokeCampo(jsdom) {
   ev("document.getElementById('numSamples').value='1'; onSamplesChange();");
   ok(!ev.json("JSON.stringify(_buildDataRows().headers)").includes('Amostra'),
      'Campo/Amostras: com 1 amostra o CSV não pode ter a coluna Amostra (retrocompatibilidade)');
+  ok(ev(avisoVisivel) === false, 'Campo/Amostras: aviso de pseudorreplicação continuou visível com 1 amostra/parcela');
   ev('exportScriptR();');
   ok(!/aggregate\(/.test(ev('window.__lastBlob') || ''), 'Campo/Script R: agregação apareceu sem subamostras');
 

@@ -31,6 +31,7 @@
   --border: #cde0d3;
   --danger: #c0392b;
   --warn: #e67e22;
+  --warn-pale: #fdf0dd;
   --radius: 8px;
   --shadow: 0 2px 8px rgba(0,0,0,.08);
 }
@@ -46,6 +47,7 @@
   --border: #2a3d32;
   --danger: #e05c4b;
   --warn: #f0a040;
+  --warn-pale: #2e2413;
   --shadow: 0 2px 8px rgba(0,0,0,.4);
 }
 [data-dark] .btn-danger { background: #3d1a1a; border-color: #6b2a2a; }
@@ -214,6 +216,11 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
 
 /* Info box */
 .info-box { background: var(--primary-pale); border-left: 3px solid var(--accent); padding: .5rem .75rem; border-radius: 0 var(--radius) var(--radius) 0; font-size: .82rem; }
+/* Variante de aviso: só troca a cor. Herda .info-box (e o modo escuro junto,
+   porque as duas cores são variáveis temáticas) — classe nova e independente
+   seria opt-out silencioso do tema. */
+.info-box.warn { background: var(--warn-pale); border-left-color: var(--warn); }
+.info-box.warn .warn-title { color: var(--warn); font-weight: 600; }
 
 /* Empty state */
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; color: var(--text-muted); padding: 2rem; text-align: center; }
@@ -906,6 +913,17 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <button class="btn btn-secondary btn-sm" onclick="exportScriptPy()"  title="Script Python com pingouin/scipy">⬇ Python</button>
         <button class="btn btn-ghost btn-sm"    onclick="openImportHelpModal()" title="Como importar em outros softwares">📖 Softwares</button>
         <span id="coletaHint" class="hint" style="margin-left:.25rem"></span>
+      </div>
+      <!-- Aparece só com subamostras ligadas: a tabela e os arquivos passam a ter
+           uma linha por AMOSTRA, e tratá-las como repetição é pseudorreplicação. -->
+      <div id="pseudoWarn" class="info-box warn hidden" style="margin:.5rem 0 0;flex-shrink:0">
+        <span class="warn-title">⚠️ <span id="pseudoWarnN">2</span> amostras por parcela — cada linha é uma
+        subamostra, não uma repetição.</span>
+        A unidade experimental continua sendo a <strong>parcela</strong> (coluna <strong>ID</strong>), e é a
+        <strong>média</strong> das amostras dela que entra na análise. Rodar ANOVA direto sobre estas linhas é
+        <strong>pseudorreplicação</strong>: infla os graus de liberdade do resíduo e o teste F passa a acusar
+        diferença que não existe. Os scripts <strong>⬇ R / SAS / Python</strong> gerados aqui já agregam por
+        parcela; em outro software, agregue antes — ou use modelo misto com a parcela como fator aleatório.
       </div>
       <div class="data-table-wrap">
         <table class="data-table"><thead id="dataHead"></thead><tbody id="dataBody"></tbody></table>
@@ -5259,6 +5277,18 @@ function _plotMean(unitId, varId) {
   return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
 }
 
+/* Aviso de pseudorreplicação: só existe quando há subamostras. Fica no
+   renderDataTab (e não no onSamplesChange) porque TODO caminho que muda a
+   coleta passa por lá — carregar projeto, importar CSV, trocar de aba —,
+   então o aviso não depende de ninguém lembrar de chamá-lo. */
+function _renderPseudoWarn() {
+  const box = document.getElementById('pseudoWarn');
+  if (!box) return;
+  const n = _nSamples();
+  box.classList.toggle('hidden', n <= 1);
+  if (n > 1) document.getElementById('pseudoWarnN').textContent = n;
+}
+
 /* Linhas da coleta: uma por parcela × amostra, já na ordem escolhida */
 function _coletaRows() {
   const n = _nSamples();
@@ -5473,6 +5503,7 @@ function renderDataTab() {
   document.getElementById('emptyColeta').classList.add('hidden');
   const content = document.getElementById('coletaContent');
   content.classList.remove('hidden');
+  _renderPseudoWarn();
 
   const hint = document.getElementById('coletaHint');
   if (!projectVariables.length) {
