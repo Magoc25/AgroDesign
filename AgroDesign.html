@@ -1196,6 +1196,14 @@ df = pd.read_csv("AgroDesign_dados.csv",
 /* ── Segurança ── */
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
+/* Valor que entra num LITERAL JS dentro de um atributo HTML — onclick="fn('${…}')".
+   O esc() sozinho NÃO basta: ele produz &#39;, e o parser de HTML decodifica a
+   entidade de volta para ' ANTES de o handler ser compilado, deixando o literal
+   com sintaxe inválida. O botão morre em silêncio (sem erro na tela) e só para
+   os nomes que trazem apóstrofo — "Ensaio d'água", "Área do D'Angelo". Escapa
+   para o literal JS PRIMEIRO e só então para HTML; a ordem inversa não funciona. */
+const escJs = s => esc(String(s ?? '').replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
+
 /* ── Constantes ── */
 const APP_VERSION  = '2.2.0';
 const APP_NAME     = 'AgroDesign';
@@ -5174,8 +5182,8 @@ function renderPresetList() {
   if (!names.length) { el.innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;text-align:center;padding:.5rem">Nenhum preset salvo.</p>'; return; }
   el.innerHTML = names.map(n => `
     <div style="display:flex;gap:.4rem;align-items:center">
-      <button class="btn btn-secondary btn-sm" style="flex:1;justify-content:flex-start" onclick="loadPreset('${esc(n)}')">${esc(n)}</button>
-      <button class="btn btn-danger btn-sm" onclick="deletePreset('${esc(n)}')">✕</button>
+      <button class="btn btn-secondary btn-sm" style="flex:1;justify-content:flex-start" onclick="loadPreset('${escJs(n)}')">${esc(n)}</button>
+      <button class="btn btn-danger btn-sm" onclick="deletePreset('${escJs(n)}')">✕</button>
     </div>`).join('');
 }
 
@@ -5383,7 +5391,7 @@ function renderVarList() {
         <strong>${esc(v.name)}</strong>
         <span style="color:var(--text-muted);font-size:.75rem"> · ${v.type === 'numeric' ? 'Num.' : 'Cat.'}${v.unit ? ' · ' + esc(v.unit) : ''}${v.options?.length ? ' · [' + v.options.slice(0,4).map(esc).join(', ') + (v.options.length > 4 ? '…' : '') + ']' : ''}</span>
       </div>
-      <button class="btn btn-danger btn-sm" onclick="deleteVariable('${esc(v.id)}')">✕</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteVariable('${escJs(v.id)}')">✕</button>
     </div>`).join('');
 }
 

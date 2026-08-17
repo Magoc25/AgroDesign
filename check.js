@@ -136,6 +136,23 @@ function estatico() {
     }
     ok(semDono.size === 0, `${mod.nome}: handler inline chama função inexistente → ${[...semDono].join(', ')}`);
 
+    /* 3a. Valor interpolado num LITERAL JS de handler inline não pode sair do
+           esc() (r78b). Ali o esc() é garantia FALSA: ele devolve &#39;, o
+           parser de HTML decodifica a entidade de volta para ' antes de o
+           handler compilar, e o literal fica com sintaxe inválida — o botão
+           morre em silêncio, só para os nomes com apóstrofo. O caminho certo é
+           escJs(), que escapa para o literal JS e só depois para HTML.
+           Asserção de AUSÊNCIA: a mutação que a valida é INSERIR o padrão
+           proibido, e aí o original tem de sobrar (r84b). Ela é um LINT — pega
+           a grafia, não o efeito, e morre a um rename; quem prova que o botão
+           dispara é a seção que renderiza e CLICA no jsdom (r78c). As duas. */
+    const escCru = [];
+    for (const m of html.matchAll(/\bon[a-z]+\s*=\s*"([^"]*)"/g)) {
+      for (const lit of m[1].matchAll(/'\$\{\s*esc\s*\(([^)]*)\)/g)) escCru.push(lit[1].trim());
+    }
+    ok(escCru.length === 0,
+       `${mod.nome}: handler inline monta literal JS com esc() em vez de escJs() → ${escCru.join(', ')} (apóstrofo no valor quebra o botão em silêncio)`);
+
     /* 4. Arquivo local referenciado (src/href) que não existe no disco */
     const refs = [...html.matchAll(/\b(?:src|href)\s*=\s*"([^"]+)"/g)].map(m => m[1])
       .filter(u => !/^(?:https?:|data:|blob:|mailto:|javascript:|#|\/\/)/.test(u) && !u.includes('${'));
@@ -339,9 +356,17 @@ async function smokeCampo(jsdom) {
 
   ok(erros.length === 0, `Campo: erro de runtime no boot → ${erros.join(' | ')}`);
   ok(ev('typeof generateCroqui') === 'function', 'Campo: generateCroqui não existe após o boot');
-  ok(ev('APP_VERSION').length > 0, 'Campo: APP_VERSION vazio');
-  ok(ev("document.getElementById('appVersion').textContent").includes('v' + ev('APP_VERSION')),
-     `Campo: rodapé mostra "${ev("document.getElementById('appVersion').textContent")}" em vez da versão do código (v${ev('APP_VERSION')})`);
+  /* Guarde o lido numa variável e trate o undefined ANTES de chamar método nele
+     (r91d): tolerar a leitura não basta. O `ev` devolve undefined quando o
+     identificador não existe — o que acontece ao rodar um build anterior como
+     baseline, justamente a execução que existe para provar que o teste mede o
+     bug — e o `.length`/`.includes` da linha seguinte estoura, decapitando a
+     fase inteira em vez de virar um ✗ localizado. */
+  const vCampo    = ev('APP_VERSION');
+  const rodapeTxt = ev("document.getElementById('appVersion').textContent");
+  ok(typeof vCampo === 'string' && vCampo.length > 0, 'Campo: APP_VERSION vazio ou ausente');
+  ok(typeof rodapeTxt === 'string' && typeof vCampo === 'string' && rodapeTxt.includes('v' + vCampo),
+     `Campo: rodapé mostra "${rodapeTxt}" em vez da versão do código (v${vCampo})`);
 
   /* DIC — 4 tratamentos × 3 repetições */
   ev(`document.getElementById('selDesign').value='DIC'; onDesignChange();
@@ -580,6 +605,46 @@ async function smokeCampo(jsdom) {
   /* Exemplo interno carrega e alimenta a aba Coleta */
   ev("loadExample('milho');");
   ok(ev('units.length') > 0, 'Campo: exemplo interno não gerou croqui');
+
+  /* Preset com APÓSTROFO no nome — o handler inline é montado por interpolação
+     dentro de um literal JS, então o valor precisa passar por escJs(). Com o
+     esc() sozinho o parser de HTML devolve o apóstrofo ao literal ANTES de o
+     handler compilar: o botão morre em silêncio, sem erro na tela e só para os
+     nomes que trazem apóstrofo (r78b). Esta seção renderiza, lê o onclick do
+     DOM JÁ PARSEADO e CLICA, porque a regra é de comportamento — o lint do
+     item 3a pega a grafia, não o efeito, e um `const escJs = esc` passaria
+     verde nele. Estática e dinâmica não são substitutas (r78c). */
+  const nomeApost = "Ensaio d'água";
+  ev(`localStorage.removeItem('agrodesign_presets');
+      document.getElementById('selDesign').value='DBC'; onDesignChange();
+      document.getElementById('txtTreatments').value=['T1','T2','T3'].join('\\n');
+      document.getElementById('numReps').value='4'; generateCroqui();
+      document.getElementById('presetName').value=${JSON.stringify(nomeApost)};
+      savePreset();`);
+  ok(ev.json('JSON.stringify(Object.keys(getPresetsFromStorage()))').includes(nomeApost),
+     'Campo/Preset: preset com apóstrofo no nome não chegou ao localStorage');
+  ok(ev("document.querySelectorAll('#presetList button').length") === 2,
+     'Campo/Preset: a lista não renderizou os dois botões do preset (carregar + excluir)');
+
+  const onclickAttr = ev("document.querySelector('#presetList button').getAttribute('onclick')");
+  ok(typeof onclickAttr === 'string' && /^\s*loadPreset\(/.test(onclickAttr),
+     `Campo/Preset: onclick do botão de carregar inesperado → ${onclickAttr}`);
+  let compila = false;
+  try { new Function(String(onclickAttr ?? '')); compila = true; } catch (e) { compila = false; }
+  ok(compila, `Campo/Preset: o onclick renderizado não compila como JS → ${onclickAttr}`);
+
+  /* E o clique tem de FAZER: muda a config, clica no botão e o croqui volta ao
+     que o preset guardou (3 tratamentos × 4 repetições = 12 UEs). */
+  ev("document.getElementById('numReps').value='2'; generateCroqui();");
+  ok(ev('units.length') === 6, 'Campo/Preset: pré-condição falhou — 3×2 deveria dar 6 UEs antes do clique');
+  ev("document.querySelector('#presetList button').click();");
+  ok(ev('units.length') === 12,
+     `Campo/Preset: clicar no preset "${nomeApost}" não restaurou a config (esperava 12 UEs, veio ${ev('units.length')})`);
+
+  /* O ✕ é montado pela mesma interpolação — e apaga o preset de verdade */
+  ev("openPresetsModal(); document.querySelectorAll('#presetList button')[1].click();");
+  ok(ev.json('JSON.stringify(Object.keys(getPresetsFromStorage()))').length === 0,
+     'Campo/Preset: clicar no ✕ não excluiu o preset com apóstrofo');
 
   /* Modo escuro liga/desliga e persiste */
   ev('toggleDark();');
