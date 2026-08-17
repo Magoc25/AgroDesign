@@ -36,6 +36,8 @@ Os apps já estão publicados online. Clique e use:
 
 Funciona em qualquer navegador moderno (Chrome, Edge, Firefox, Safari) — no celular, tablet ou computador. **Não precisa de cadastro, login, conta GitHub ou download de arquivos.** Após o primeiro acesso, o app funciona **offline**. Seus dados ficam **somente no seu dispositivo** (no armazenamento do próprio navegador).
 
+> 📖 **Antes de decidir, entenda como funciona:** a página **[Como funciona o AgroDesign](https://Magoc25.github.io/AgroDesign/apresentacao.html)** explica, em linguagem corrente (com um botão para a versão técnica), onde ficam os seus dados, o que sai do aparelho, como a randomização é reprodutível e quais são as limitações conhecidas.
+
 ### 📱 Instalar como app no seu dispositivo
 
 Depois de abrir uma das URLs acima, você pode instalar como aplicativo nativo, com ícone na tela inicial / área de trabalho:
@@ -73,6 +75,7 @@ Para você, basta clicar em uma das URLs acima na seção [▶ Abrir agora](#-ab
 |---|---|---|
 | **Campo** | `AgroDesign.html` | [Magoc25.github.io/AgroDesign/AgroDesign.html](https://Magoc25.github.io/AgroDesign/AgroDesign.html) |
 | **Lab** | `AgroDesignLab.html` | [Magoc25.github.io/AgroDesign/AgroDesignLab.html](https://Magoc25.github.io/AgroDesign/AgroDesignLab.html) |
+| _(explicação)_ | `apresentacao.html` | [Magoc25.github.io/AgroDesign/apresentacao.html](https://Magoc25.github.io/AgroDesign/apresentacao.html) — como o app funciona, para quem não vai abrir o GitHub |
 
 ---
 

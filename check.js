@@ -241,6 +241,120 @@ function estatico() {
   ok(iconesSumidos.length === 0, `manifest: ícone inexistente → ${iconesSumidos.join(', ')}`);
 }
 
+/* ═══════════ DEGRAU 1b — PÁGINA PÚBLICA DE APRESENTAÇÃO (§37) ═══════════
+
+   As três regras invioláveis da §37 (sem internals, sem número versionado, sem
+   recurso externo) precisam virar teste justamente aqui: NENHUM passo do
+   release toca este arquivo. Ele não é recompilado, não entra no smoke do app,
+   ninguém o reabre — apodrece sozinho, em público, sem nada acusar (r84c).
+
+   A lista de internals é DERIVADA do app, nunca escrita à mão: o identificador
+   que nascer amanhã já entra na varredura. Com dois cuidados que o r90 paga:
+
+   (1) FILTRO DE FORMA — metade dos internals de um app brasileiro é palavra
+       comum. Jogados crus na varredura, mandariam apagar frase honesta da
+       página, e o dono do teste passaria a escrever exceções à mão, que é o que
+       a derivação existia para evitar. Entra o que TEM CARA de identificador
+       (`_`, `-`, `.`, dígito, camelCase); a palavra nua fica fora — ela nunca
+       identificaria nada num texto corrido.
+   (2) GUARDA DE FONTE SECA (r72a) — derivação que seca em silêncio deixa a
+       regra passar de graça: "nenhum dos zero internals apareceu" é sempre
+       verdade. Por isso cada FONTE tem de devolver ao menos um item; fonte
+       morta desaparece dentro do total das outras. */
+
+const FORMA_DE_INTERNAL = /[_\-.\d]|[a-z][A-Z]/;   /* r90c: identificador, não palavra do idioma */
+
+function textoVisivel(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<[^>]+>/g, ' ');
+}
+
+function internaisDoApp() {
+  const html = MODULES.map(m => read(m.file)).join('\n');
+
+  const armazenamento = new Set([
+    ...[...html.matchAll(/localStorage\.(?:get|set|remove)Item\(\s*['"]([^'"]+)['"]/g)].map(m => m[1]),
+    ...[...html.matchAll(/localStorage\.(?:get|set|remove)Item\(\s*([A-Za-z_$][\w$]*)\s*[,)]/g)]
+      .map(m => (new RegExp(`\\b${m[1]}\\s*=\\s*['"]([^'"]+)['"]`).exec(html) || [])[1]).filter(Boolean),
+  ]);
+  const tabelas = new Set([...html.matchAll(/\.from\(\s*['"]([^'"]+)['"]\s*\)/g)].map(m => m[1]));
+  const colunas = new Set(
+    [...html.matchAll(/\.(?:insert|upsert)\(\s*\{([^}]*)\}/g)]
+      .flatMap(m => [...m[1].matchAll(/([A-Za-z_$][\w$]*)\s*:/g)].map(c => c[1])));
+  const cache = new Set([...read('sw.js').matchAll(/CACHE_NAME\s*=\s*['"]([^'"]+)['"]/g)].map(m => m[1]));
+
+  return { armazenamento: [...armazenamento], tabelas: [...tabelas], colunas: [...colunas], cache: [...cache] };
+}
+
+function paginaApresentacao() {
+  secao('▸ Estático — página pública de apresentação (§37)');
+
+  const arq = 'apresentacao.html';
+  ok(exists(arq), `${arq} não existe — a §37 está registrada como "sim" na memória do projeto`);
+  if (!exists(arq)) return;
+
+  const html    = read(arq);
+  const visivel = textoVisivel(html);
+  const fontes  = internaisDoApp();
+
+  /* Guarda de fonte seca ANTES de usar a lista (r90c/r72a) */
+  const secas = Object.entries(fontes).filter(([, itens]) => itens.length === 0).map(([nome]) => nome);
+  ok(secas.length === 0,
+     `§37: fonte de internals vazia → ${secas.join(', ')} — a varredura passaria de graça (regex envelhecida ou constante renomeada)`);
+
+  /* Regra 2 — nenhum nome de internal no texto visível */
+  const internos = [...new Set(Object.values(fontes).flat())].filter(n => FORMA_DE_INTERNAL.test(n));
+  const vazados  = internos.filter(n => visivel.includes(n));
+  ok(vazados.length === 0, `§37: nome de internal no texto visível da página → ${vazados.join(', ')}`);
+
+  /* Regra 3 — nenhum número versionado: a página viraria item do fluxo de bump,
+     do tipo que nada testa e nada avisa, e passaria a mentir sozinha */
+  const versionados = [...new Set([
+    ...(visivel.match(/\b\d+\.\d+\.\d+\b/g) || []),
+    ...(visivel.match(/\bv\s?\d+\.\d+\b/gi) || []),
+  ])];
+  ok(versionados.length === 0, `§37: número versionado no texto visível → ${versionados.join(', ')}`);
+
+  /* Regra "zero recurso externo" — a página tem de abrir offline e passar na
+     própria CSP; recurso de fora quebraria as duas coisas em silêncio */
+  const externos = [];
+  if (/<script[^>]+\bsrc\s*=/i.test(html))                     externos.push('<script src>');
+  if (/<link[^>]+rel\s*=\s*["']?stylesheet/i.test(html))       externos.push('<link stylesheet>');
+  if (/<img[^>]+\bsrc\s*=\s*["']https?:/i.test(html))          externos.push('<img src=http>');
+  if (/@import/i.test(html))                                    externos.push('@import');
+  if (/url\(\s*["']?https?:/i.test(html))                       externos.push('url(http)');
+  ok(externos.length === 0, `§37: a página carrega recurso externo → ${externos.join(', ')}`);
+
+  /* CSP própria — a do app vive no HTML dele e NÃO se estende a este arquivo */
+  /* O valor da CSP contém aspas SIMPLES (`'self'`), então a captura tem de ser
+     delimitada pelas aspas do atributo — um `["']([^"']+)["']` genérico para no
+     primeiro `'self'` e devolve só o primeiro pedaço da diretiva, deixando a
+     asserção de `frame-ancestors` verde para sempre. Pego por mutação. */
+  const metaCsp = (/<meta[^>]+http-equiv\s*=\s*["']Content-Security-Policy["'][^>]*>/i.exec(html) || [])[0] || '';
+  const csp = (/content\s*=\s*"([^"]*)"/i.exec(metaCsp) || /content\s*=\s*'([^']*)'/i.exec(metaCsp) || [])[1];
+  ok(!!csp, '§37: a página não traz CSP própria (a do app não se estende a ela)');
+  ok(!/frame-ancestors/i.test(csp || ''),
+     '§37: CSP com frame-ancestors — em <meta> o navegador IGNORA a diretiva, fica só a falsa sensação de proteção');
+
+  /* Tema nas DUAS formas + fundo de token no body: no estado "sistema" o
+     navegador não carimba data-theme nenhum, então cor definida só ali nunca
+     se aplica; e body transparente empresta o fundo do host */
+  ok(/@media\s*\(prefers-color-scheme:\s*dark\)/i.test(html), '§37: falta o bloco @media (prefers-color-scheme: dark)');
+  ok(/\[data-theme=["']dark["']\]/i.test(html), '§37: falta o bloco [data-theme="dark"] (o carimbo explícito)');
+  ok(/\bbody\s*\{[^}]*background:\s*var\(--/i.test(html), '§37: o body não tem background de token (empresta o fundo do host)');
+
+  /* Nenhuma cor pode ter sua ÚNICA definição dentro de @media/[data-theme] */
+  const tokensDe = txt => new Set([...txt.matchAll(/(--[\w-]+)\s*:/g)].map(m => m[1]));
+  const raizPura = tokensDe((/:root\s*\{([^}]*)\}/.exec(html) || [])[1] || '');
+  const escuros  = tokensDe(html.slice(html.indexOf('@media')));
+  const soNoEscuro = [...escuros].filter(t => !raizPura.has(t));
+  ok(soNoEscuro.length === 0,
+     `§37: token definido SÓ no bloco escuro → ${soNoEscuro.join(', ')} — no estado "sistema" ele nunca se aplica`);
+}
+
 /* ═════════════════════════ DEGRAU 2 — JSDOM ═════════════════════════ */
 
 function carregaJsdom() {
@@ -774,6 +888,7 @@ async function smokeBanner(jsdom) {
 (async () => {
   console.log('AgroDesign — verificação antes de subir (§35)');
   estatico();
+  paginaApresentacao();
 
   const jsdom = carregaJsdom();
   if (!jsdom) {

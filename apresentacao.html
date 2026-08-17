@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self';">
+<title>AgroDesign — como funciona</title>
+<meta name="description" content="Como o AgroDesign planeja e randomiza experimentos científicos: onde seus dados ficam, o que sai do aparelho, como a randomização é reprodutível e o que o app calcula sem servidor.">
+<meta name="theme-color" content="#f7f9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12160f" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="./icon-192.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="AgroDesign — como funciona">
+<meta property="og:description" content="Planejamento e randomização de experimentos nas Ciências Agrárias e da Saúde Animal. Sem cadastro, sem anúncios, e com os dados de experimento no seu aparelho.">
+<meta property="og:url" content="https://Magoc25.github.io/AgroDesign/apresentacao.html">
+<meta property="og:image" content="https://Magoc25.github.io/AgroDesign/icon-512.png">
+<meta name="twitter:card" content="summary">
+
+<style>
+/* ── Tokens: paleta clara COMPLETA no :root puro. O escuro redefine só os
+      tokens, e nas DUAS formas — no estado "sistema" o navegador não carimba
+      data-theme nenhum, então uma cor definida só dentro de [data-theme]
+      simplesmente nunca se aplica. O acento vem do mundo do app (verde). ── */
+:root {
+  --paper:      #f7f9f7;
+  --band:       #eef2ee;
+  --surface:    #ffffff;
+  --ink:        #1c231d;
+  --muted:      #5b6a5e;
+  --faint:      #8a978d;
+  --rule:       #cfd8d0;
+  --rule-soft:  #e3e9e4;
+  --accent:     #2d6a4f;
+  --accent-dim: #40916c;
+  --accent-pale:#e4f2ea;
+  --warn:       #8a5a12;
+  --warn-pale:  #fbf1de;
+  --shadow:     0 1px 2px rgba(28,35,29,.06), 0 8px 24px rgba(28,35,29,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #12160f;
+    --band:       #191f16;
+    --surface:    #1b2119;
+    --ink:        #e6ece5;
+    --muted:      #a3b0a3;
+    --faint:      #74836f;
+    --rule:       #333d31;
+    --rule-soft:  #262e23;
+    --accent:     #74c69d;
+    --accent-dim: #52b788;
+    --accent-pale:#1b3028;
+    --warn:       #e0b055;
+    --warn-pale:  #2a2213;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"] {
+  --paper:      #12160f;
+  --band:       #191f16;
+  --surface:    #1b2119;
+  --ink:        #e6ece5;
+  --muted:      #a3b0a3;
+  --faint:      #74836f;
+  --rule:       #333d31;
+  --rule-soft:  #262e23;
+  --accent:     #74c69d;
+  --accent-dim: #52b788;
+  --accent-pale:#1b3028;
+  --warn:       #e0b055;
+  --warn-pale:  #2a2213;
+  --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Três papéis tipográficos, todos com fonte do sistema — a página não carrega
+   recurso externo nenhum, e a própria CSP acima bloquearia. */
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);      /* fundo explícito de token: sem ele a página empresta o fundo do host */
+  color: var(--ink);
+  font: 400 clamp(1rem, .96rem + .2vw, 1.075rem)/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-variant-numeric: oldstyle-nums;
+}
+h1, h2, h3, .display {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -.01em;
+}
+code, .dado, table {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+code { font-size: .9em; background: var(--band); padding: .1em .35em; border-radius: 4px; }
+
+/* ── Grade: coluna de texto de ~66ch com uma coluna de margem à esquerda que
+      carrega a numeração das seções. Empilha no mobile. ── */
+#page { max-width: 78rem; margin: 0 auto; padding: 0 1.25rem 5rem; }
+.faixa { max-width: 66ch; }
+section { border-top: 1px solid var(--rule-soft); padding-top: 2.25rem; margin-top: 2.75rem; }
+@media (min-width: 1000px) {
+  section { display: grid; grid-template-columns: 8rem minmax(0, 66ch); gap: 2.5rem; align-items: start; }
+  .marginalia { grid-column: 1; text-align: right; position: sticky; top: 1.5rem; }
+  .corpo { grid-column: 2; }
+}
+.marginalia { color: var(--faint); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; padding-bottom: .75rem; }
+.marginalia .num { display: block; font-size: 1.5rem; letter-spacing: 0; color: var(--rule); font-variant-numeric: lining-nums; }
+
+/* ── Cabeçalho ── */
+header { padding: 4rem 0 1rem; }
+h1 { font-size: clamp(2.3rem, 1.6rem + 3.2vw, 3.6rem); margin: 0 0 .5rem; }
+h1 .marca { color: var(--accent); }
+.tagline { font-size: clamp(1.1rem, 1rem + .6vw, 1.35rem); color: var(--muted); margin: 0 0 1.75rem; max-width: 44ch; }
+.invariantes { display: flex; flex-wrap: wrap; gap: .4rem .5rem; margin: 0 0 2rem; padding: 0; list-style: none; }
+.invariantes li {
+  font-size: .8rem; letter-spacing: .01em; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: 999px; padding: .22rem .7rem; background: var(--surface);
+}
+.acoes { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.botao {
+  display: inline-block; text-decoration: none; font-size: .95rem; font-weight: 600;
+  padding: .6rem 1.15rem; border-radius: 8px; border: 1px solid var(--accent);
+  background: var(--accent); color: var(--paper); box-shadow: var(--shadow);
+}
+.botao.secundario { background: var(--surface); color: var(--accent); }
+.botao:hover { border-color: var(--accent-dim); }
+
+/* ── O interruptor simples ⇄ técnico ── */
+.interruptor { display: flex; align-items: center; gap: .5rem; margin: 2.5rem 0 0; flex-wrap: wrap; }
+.interruptor .rotulo { font-size: .8rem; color: var(--faint); text-transform: uppercase; letter-spacing: .1em; }
+.interruptor .grupo { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.interruptor button {
+  font: inherit; font-size: .88rem; padding: .35rem .9rem; border: 0; cursor: pointer;
+  background: transparent; color: var(--muted);
+}
+.interruptor button[aria-pressed="true"] { background: var(--accent-pale); color: var(--accent); font-weight: 600; }
+.interruptor button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+h2 { font-size: clamp(1.5rem, 1.3rem + .8vw, 1.9rem); margin: 0 0 .9rem; }
+h3 { font-size: 1.1rem; margin: 2rem 0 .5rem; }
+p { margin: 0 0 1rem; }
+.corpo > p:last-child, .corpo > ul:last-child { margin-bottom: 0; }
+ul, ol { margin: 0 0 1rem; padding-left: 1.3rem; }
+li { margin-bottom: .35rem; }
+strong { font-weight: 600; }
+a { color: var(--accent); text-underline-offset: 2px; }
+
+/* Ficha técnica — só aparece com o modo técnico ligado */
+.tech {
+  background: var(--surface); border: 1px solid var(--rule-soft); border-left: 3px solid var(--accent-dim);
+  border-radius: 6px; padding: .9rem 1.1rem; margin: 1.25rem 0; font-size: .93rem;
+}
+.tech .titulo { display: block; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin-bottom: .4rem; }
+.tech p:last-child, .tech ul:last-child { margin-bottom: 0; }
+#page[data-mode="simples"] .tech { display: none; }
+
+.nota { background: var(--warn-pale); border: 1px solid var(--warn); border-radius: 6px; padding: .9rem 1.1rem; margin: 1.25rem 0; font-size: .95rem; }
+.nota strong { color: var(--warn); }
+
+/* Conteúdo largo rola dentro do próprio contêiner — o corpo da página nunca */
+.rola { overflow-x: auto; margin: 1.5rem 0; }
+table { width: 100%; border-collapse: collapse; font-size: .88rem; min-width: 34rem; }
+th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+th { color: var(--faint); font-weight: 600; font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+
+figure { margin: 1.75rem 0; }
+figure svg { display: block; width: 100%; height: auto; max-width: 42rem; color: var(--ink); }
+figcaption { font-size: .82rem; color: var(--faint); margin-top: .6rem; max-width: 52ch; }
+
+footer { border-top: 1px solid var(--rule-soft); margin-top: 4rem; padding-top: 2rem; color: var(--muted); font-size: .9rem; }
+footer .assinatura { color: var(--faint); font-size: .82rem; margin-top: 1.5rem; }
+</style>
+</head>
+
+<body>
+<div id="page" data-mode="simples">
+
+<header class="faixa">
+  <h1><span class="marca">AgroDesign</span></h1>
+  <p class="tagline">Planejamento e randomização de experimentos científicos — do ensaio de campo à microplaca de 96 poços.</p>
+
+  <ul class="invariantes">
+    <li>Dois módulos</li>
+    <li>Um arquivo cada</li>
+    <li>Sem cadastro</li>
+    <li>Sem anúncios</li>
+    <li>Sem mensalidade</li>
+    <li>Dados de experimento no aparelho</li>
+    <li>Funciona offline</li>
+  </ul>
+
+  <div class="acoes">
+    <a class="botao" href="./AgroDesign.html">Abrir o módulo Campo</a>
+    <a class="botao secundario" href="./AgroDesignLab.html">Abrir o módulo Lab</a>
+  </div>
+
+  <div class="interruptor">
+    <span class="rotulo" id="modoRotulo">Leitura</span>
+    <div class="grupo" role="group" aria-labelledby="modoRotulo">
+      <button type="button" id="btnSimples" aria-pressed="true"  onclick="setModo('simples')">Simples</button>
+      <button type="button" id="btnTecnico" aria-pressed="false" onclick="setModo('tecnico')">Técnica</button>
+    </div>
+    <span class="rotulo" aria-hidden="true">— a versão técnica acrescenta fichas com o detalhe de implementação</span>
+  </div>
+</header>
+
+<section>
+  <div class="marginalia"><span class="num">01</span>O problema</div>
+  <div class="corpo">
+    <h2>Sortear direito é a parte que decide o resultado</h2>
+    <p>
+      Um experimento mal sorteado não tem conserto na análise. Se os tratamentos caem sempre no mesmo canto
+      da área, se o bloco não é homogêneo, se a subamostra é contada como repetição — a estatística até roda,
+      mas responde outra pergunta. O trabalho de decidir <em>o que vai onde</em> acontece antes de existir um
+      único dado, e normalmente é feito à mão, num papel quadriculado ou numa planilha improvisada.
+    </p>
+    <p>
+      O AgroDesign faz esse desenho: você descreve o experimento na linguagem da área — tratamentos,
+      repetições, blocos, parcela subdividida, bordadura, baia, piquete, quadrat — e ele devolve o croqui
+      sorteado, a planilha de campo, o texto de Material e Métodos e o script pronto para a análise.
+    </p>
+    <p>
+      São dois módulos independentes, cada um pensado para uma bancada diferente:
+    </p>
+    <ul>
+      <li><strong>Campo</strong> — experimentos a campo, casa de vegetação, instalações animais, ecologia e
+        floresta. Cobre inteiramente casualizado, blocos casualizados, quadrado latino, fatoriais, parcelas
+        subdivididas, faixas cruzadas e látice simples.</li>
+      <li><strong>Lab</strong> — delineamento em microplaca de 96 poços, com modelos prontos para ensaio de
+        concentração inibitória mínima, viabilidade celular, fitotoxicidade, ELISA, dose-resposta,
+        checkerboard de sinergismo e perfil fisiológico comunitário.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="marginalia"><span class="num">02</span>Arquitetura</div>
+  <div class="corpo">
+    <h2>Onde os seus dados moram</h2>
+    <p>
+      O app inteiro é um arquivo que o navegador baixa e executa. Não há conta, não há servidor de
+      aplicação, e <strong>nenhum dado de experimento é enviado para lugar nenhum</strong>: os projetos, os
+      croquis, as coletas e as preferências ficam no armazenamento do próprio navegador, no seu aparelho.
+    </p>
+    <p>
+      Existe um servidor no desenho, mas ele é pequeno e público de propósito. Ele guarda três coisas —
+      as avaliações que as pessoas escrevem sobre o app, uma contagem anônima de aparelhos ativos, e o
+      número da versão mais recente publicada, que é o que faz o aviso de atualização aparecer. Nada disso
+      tem qualquer relação com o seu experimento.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 640 300" role="img" aria-labelledby="ttlCamadas descCamadas">
+        <title id="ttlCamadas">As duas camadas do AgroDesign</title>
+        <desc id="descCamadas">Os dados de experimento ficam no aparelho. Para o servidor compartilhado sobem apenas a avaliação escrita pelo usuário e um ping anônimo; de volta vem o número da versão publicada. O caminho dos dados de experimento até o autor não existe.</desc>
+        <defs>
+          <marker id="setaCheia" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <g stroke="currentColor" fill="none">
+          <rect x="10" y="30" width="250" height="240" rx="10" stroke-width="1.5" opacity=".75"/>
+          <rect x="380" y="70" width="250" height="120" rx="10" stroke-width="1.5" opacity=".35" stroke-dasharray="1 0"/>
+        </g>
+
+        <text x="26" y="55" font-size="15" font-weight="600" fill="currentColor">Seu aparelho</text>
+        <text x="26" y="76" font-size="11.5" fill="currentColor" opacity=".65">navegador, offline inclusive</text>
+        <g font-size="12.5" fill="currentColor">
+          <text x="30" y="108">Projetos e croquis salvos</text>
+          <text x="30" y="132">Dados de coleta digitados</text>
+          <text x="30" y="156">Modelos de configuração</text>
+          <text x="30" y="180">Preferências (tema, separador decimal)</text>
+          <text x="30" y="204">Identificador aleatório do aparelho</text>
+        </g>
+        <text x="30" y="240" font-size="11.5" fill="currentColor" opacity=".65">Backup = o arquivo que você exporta</text>
+
+        <text x="396" y="95" font-size="15" font-weight="600" fill="currentColor">Servidor compartilhado</text>
+        <g font-size="12.5" fill="currentColor">
+          <text x="396" y="124">Avaliações públicas do app</text>
+          <text x="396" y="148">Contagem anônima de aparelhos</text>
+          <text x="396" y="172">Número da versão publicada</text>
+        </g>
+
+        <g stroke="currentColor" fill="none" stroke-width="1.5">
+          <path d="M264,110 L376,110" marker-end="url(#setaCheia)"/>
+          <path d="M376,150 L264,150" marker-end="url(#setaCheia)"/>
+        </g>
+        <text x="270" y="103" font-size="11" fill="currentColor" opacity=".8">avaliação que você escreve · ping anônimo</text>
+        <text x="270" y="168" font-size="11" fill="currentColor" opacity=".8">número da versão mais recente</text>
+
+        <g stroke="currentColor" fill="none" stroke-width="1.5" stroke-dasharray="6 5" opacity=".5">
+          <path d="M264,222 L376,222"/>
+        </g>
+        <g stroke="currentColor" stroke-width="2" opacity=".8">
+          <path d="M312,213 L328,231"/><path d="M328,213 L312,231"/>
+        </g>
+        <text x="264" y="255" font-size="11.5" fill="currentColor" opacity=".8">dados de experimento → autor: este caminho não existe</text>
+      </svg>
+      <figcaption>
+        O caminho tracejado e marcado é o que o app <em>não</em> faz: não há rota pela qual um projeto,
+        uma coleta ou um croqui saia do aparelho por conta própria.
+      </figcaption>
+    </figure>
+
+    <div class="tech">
+      <span class="titulo">Ficha técnica — armazenamento</span>
+      <p>
+        A persistência usa o <code>localStorage</code> do navegador, com todas as chaves prefixadas pelo nome
+        do projeto. Isso importa porque o armazenamento é isolado <strong>por origem</strong>, não por app:
+        os módulos publicados no mesmo endereço dividem a mesma caixa, e chave sem prefixo colidiria com a
+        de um app vizinho. Cada módulo mantém ainda um salvamento automático do estado corrente, além dos
+        projetos que você nomeia e salva.
+      </p>
+      <p>
+        Não há banco de dados embutido, criptografia local nem senha: quem tem acesso ao navegador
+        desbloqueado tem acesso ao conteúdo. Para trabalho sigiloso, o controle certo é o do próprio
+        aparelho — sessão de usuário, bloqueio de tela, disco criptografado.
+      </p>
+    </div>
+
+    <div class="nota">
+      <strong>Não existe cópia na nuvem — o backup é você quem faz.</strong> Limpar os dados do navegador
+      apaga os projetos definitivamente. Exporte o arquivo do projeto de vez em quando; é ele que serve de
+      backup e é ele que leva o trabalho para outro computador. E, ao desinstalar o app instalado, não marque
+      a opção de limpar também os dados do navegador: ela apaga o armazenamento do endereço inteiro, junto
+      com o dos outros apps publicados ali.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="marginalia"><span class="num">03</span>Privacidade</div>
+  <div class="corpo">
+    <h2>O que sai do aparelho — a lista inteira</h2>
+    <p>
+      “Seus dados não saem do aparelho” é uma frase fácil de escrever e difícil de sustentar, porque um
+      endereço montado dentro de uma imagem já é uma requisição, mesmo sem nenhuma chamada explícita no
+      código. Então aqui está a lista completa, conferida no código-fonte, do que o app busca fora:
+    </p>
+
+    <div class="rola">
+      <table>
+        <thead>
+          <tr><th>Quando</th><th>O que é buscado</th><th>O que viaja junto</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>A cada abertura</td>
+            <td>Duas bibliotecas públicas (planilha e cliente do banco)</td>
+            <td>Nada além do endereço da própria biblioteca. Sem elas o app continua funcionando — só a
+              exportação de planilha e as avaliações ficam indisponíveis</td>
+          </tr>
+          <tr>
+            <td>Uma vez por dia</td>
+            <td>Ping de aparelho ativo e conferência da versão publicada</td>
+            <td>Um identificador aleatório gerado no primeiro uso, o nome do módulo e a data — sem hora,
+              sem localização, sem nada que você tenha digitado</td>
+          </tr>
+          <tr>
+            <td>Ao abrir a tela de apoio</td>
+            <td>Imagem do QR de pagamento, num gerador externo</td>
+            <td>O código de pagamento <strong>do autor</strong>, que é constante do app. Nenhum dado seu —
+              nem nome, nem valor, nem conteúdo do experimento</td>
+          </tr>
+          <tr>
+            <td>Só se você enviar</td>
+            <td>Avaliação do app</td>
+            <td>O nome e o comentário que você mesmo escreveu no formulário, que ficam públicos</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      Quem prefere não contatar o gerador de QR tem a alternativa dentro do próprio app: o botão que copia o
+      código de pagamento em texto monta o mesmo código <strong>no aparelho</strong>, sem requisição nenhuma.
+      E, uma vez carregado, o app funciona offline — o que corta todas as linhas da tabela de uma vez.
+    </p>
+
+    <div class="tech">
+      <span class="titulo">Ficha técnica — o que trava isso</span>
+      <p>
+        O HTML de cada módulo carrega uma política de segurança de conteúdo própria, que restringe o que o
+        app pode buscar: script apenas do repositório público de bibliotecas, imagem apenas dos dois
+        geradores de QR, e conexão de dados apenas para o serviço de banco. Endereço fora dessa lista é
+        bloqueado pelo navegador, não por convenção de código — inclusive um que fosse introduzido por
+        engano numa versão futura.
+      </p>
+      <p>
+        Do lado do servidor, a tabela de avaliações aceita apenas inserir e ler: não há permissão de
+        alteração nem de exclusão para o app. Isso protege o histórico contra adulteração, e tem a
+        contrapartida honesta de que <strong>uma avaliação enviada não pode ser editada nem apagada por
+        quem a escreveu</strong> — para retirar uma, é preciso escrever para o autor. Há ainda restrições
+        de tamanho e um bloqueio de marcação executável nos campos de texto.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="marginalia"><span class="num">04</span>Randomização</div>
+  <div class="corpo">
+    <h2>O sorteio é reprodutível de propósito</h2>
+    <p>
+      Sorteio de experimento tem uma exigência incomum: precisa ser aleatório <em>e</em> precisa poder ser
+      repetido exatamente. Sem o segundo, você não consegue reimprimir o mesmo croqui meses depois, não
+      consegue mandar a mesma disposição para um colega, e não tem como um revisor conferir o que foi feito.
+    </p>
+    <p>
+      A saída é a <strong>semente</strong>: um número que você escolhe e que alimenta o sorteio. Mesma
+      semente, mesma disposição — no seu computador, no celular do orientando, hoje ou no ano que vem.
+      Trocou a semente, sai outro sorteio, igualmente válido.
+    </p>
+
+    <figure>
+      <svg viewBox="0 0 640 190" role="img" aria-labelledby="ttlSemente descSemente">
+        <title id="ttlSemente">Da semente ao croqui</title>
+        <desc id="descSemente">A semente escolhida alimenta um gerador determinístico, que embaralha a lista de tratamentos e produz a disposição do croqui. A mesma semente reproduz exatamente o mesmo croqui.</desc>
+        <g stroke="currentColor" fill="none" stroke-width="1.5">
+          <rect x="10"  y="45" width="120" height="56" rx="8" opacity=".75"/>
+          <rect x="182" y="45" width="140" height="56" rx="8" opacity=".75"/>
+          <rect x="374" y="45" width="120" height="56" rx="8" opacity=".75"/>
+          <rect x="546" y="45" width="84"  height="56" rx="8" opacity=".75"/>
+        </g>
+        <g font-size="12.5" fill="currentColor" text-anchor="middle">
+          <text x="70"  y="70">Semente</text>
+          <text x="70"  y="88" font-size="11" opacity=".65">número que você escolhe</text>
+          <text x="252" y="70">Gerador determinístico</text>
+          <text x="252" y="88" font-size="11" opacity=".65">mesma entrada, mesma saída</text>
+          <text x="434" y="70">Embaralhamento</text>
+          <text x="434" y="88" font-size="11" opacity=".65">posição a posição</text>
+          <text x="588" y="78">Croqui</text>
+        </g>
+        <g stroke="currentColor" fill="none" stroke-width="1.5">
+          <defs>
+            <marker id="seta2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+          <path d="M134,73 L178,73" marker-end="url(#seta2)"/>
+          <path d="M326,73 L370,73" marker-end="url(#seta2)"/>
+          <path d="M498,73 L542,73" marker-end="url(#seta2)"/>
+          <path d="M588,105 C588,150 70,150 70,107" marker-end="url(#seta2)" stroke-dasharray="5 4" opacity=".6"/>
+        </g>
+        <text x="329" y="170" font-size="11.5" fill="currentColor" text-anchor="middle" opacity=".8">anote a semente e o croqui volta idêntico, em qualquer aparelho</text>
+      </svg>
+      <figcaption>O sorteio é aleatório para o experimento e determinístico para você — as duas coisas ao mesmo tempo.</figcaption>
+    </figure>
+
+    <div class="tech">
+      <span class="titulo">Ficha técnica — o sorteio</span>
+      <p>
+        A semente alimenta um gerador congruencial linear, e a lista de tratamentos passa por um
+        embaralhamento de Fisher-Yates, que percorre as posições do fim para o começo trocando cada uma com
+        outra sorteada entre as restantes. É o embaralhamento sem viés — ao contrário do truque comum de
+        ordenar por um comparador aleatório, que produz distribuição desigual das permutações.
+      </p>
+      <p>
+        A restrição de cada delineamento entra <em>na</em> aleatorização, não depois dela: em blocos
+        casualizados o sorteio é independente dentro de cada bloco; no quadrado latino a disposição respeita
+        linha e coluna; em parcelas subdivididas a parcela principal permanece fixa no terreno e só a
+        subparcela é sorteada dentro dela. No rearranjo manual, a troca move o tratamento e o que o
+        acompanha, mas nunca a parcela principal — ela é física.
+      </p>
+      <p>
+        Um gerador congruencial linear é a escolha certa aqui e a escolha errada para outra coisa: ele é
+        reprodutível e uniforme o bastante para sortear parcelas, e <strong>não serve para uso
+        criptográfico</strong>. Ninguém deve usá-lo para gerar segredo — e o app não usa.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="marginalia"><span class="num">05</span>Cálculo</div>
+  <div class="corpo">
+    <h2>O que o navegador calcula sozinho</h2>
+    <p>
+      Depois do croqui vem o resto do trabalho, e ele também acontece no aparelho: a planilha de campo, a
+      digitação da coleta, a conferência dos valores estranhos, o texto do artigo e o script de análise.
+    </p>
+    <ul>
+      <li><strong>Planilha de campo e coleta</strong> — variáveis que você define, com tipo, unidade e casas
+        decimais; entrada por parcela ou por poço; importação e exportação de tabela.</li>
+      <li><strong>Valores fora do padrão</strong> — marcação automática por amplitude interquartílica, que
+        aponta o candidato a erro de digitação sem apagar nada.</li>
+      <li><strong>Curva dose-resposta</strong> — ajuste sigmoide de quatro parâmetros feito dentro do
+        navegador, com a concentração inibitória e os patamares estimados a partir dos seus dados.</li>
+      <li><strong>Perfil fisiológico comunitário</strong> — desenvolvimento médio de cor dos poços e índices
+        de diversidade funcional calculados a partir das leituras de absorbância.</li>
+      <li><strong>Texto e citação</strong> — Material e Métodos em português e inglês, legenda de figura e
+        “como citar” em formatos correntes, já preenchidos com o delineamento que você montou.</li>
+      <li><strong>Script pronto</strong> — código de análise para os ambientes estatísticos usuais, coerente
+        com o delineamento e com a estrutura da planilha exportada.</li>
+    </ul>
+
+    <div class="tech">
+      <span class="titulo">Ficha técnica — subamostra não é repetição</span>
+      <p>
+        Quando você declara mais de uma amostra por parcela, a tabela de coleta passa a ter uma linha por
+        amostra — e é aí que mora um dos erros mais caros da análise experimental: tratar essas linhas como
+        repetições infla os graus de liberdade do resíduo e faz o teste acusar diferença que não existe.
+      </p>
+      <p>
+        O app avisa isso na própria tela em que o risco aparece, e os scripts gerados já agregam por parcela
+        antes da análise, deixando comentado o modelo misto com a parcela como fator aleatório para quem
+        preferir esse caminho. A lista de colunas dessa agregação é <em>derivada</em> da mesma função que
+        monta o arquivo exportado, e não remontada à mão: coluna nova no arquivo entra na agregação sozinha.
+      </p>
+    </div>
+
+    <div class="tech">
+      <span class="titulo">Ficha técnica — ajuste dose-resposta</span>
+      <p>
+        O ajuste sigmoide de quatro parâmetros é resolvido por Levenberg-Marquardt em espaço de
+        log-concentração, com amortecimento adaptativo: o passo é aceito quando reduz a soma dos quadrados
+        dos resíduos, e o amortecimento sobe quando não reduz. É otimização não linear rodando no
+        navegador, sem servidor de cálculo e sem enviar as leituras a lugar nenhum.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="marginalia"><span class="num">06</span>Distribuição</div>
+  <div class="corpo">
+    <h2>Um arquivo, sem instalação e sem loja</h2>
+    <p>
+      Cada módulo é um único arquivo HTML autossuficiente — estilos, scripts e fontes embutidos. Abrir a URL
+      já é usar o app; não há cadastro, download obrigatório nem etapa de configuração. Se quiser, dá para
+      salvar o arquivo e abrir por duplo clique, que funciona igual, inclusive sem internet.
+    </p>
+    <p>
+      No celular ou no desktop, o app pode ser instalado a partir do próprio navegador e ganha ícone na tela
+      inicial, abrindo em janela própria. A partir do primeiro acesso ele funciona <strong>offline</strong>,
+      que é o caso normal de quem trabalha em campo, galpão ou laboratório sem rede.
+    </p>
+
+    <div class="tech">
+      <span class="titulo">Ficha técnica — atualização e cache</span>
+      <p>
+        A estratégia de cache é “rede primeiro”: com conexão, o app sempre busca a versão publicada e guarda
+        uma cópia; sem conexão, serve a cópia guardada. É o oposto do padrão “cache primeiro”, e a escolha é
+        deliberada — em app de arquivo único, cache primeiro é o que faz uma correção levar dias para chegar
+        a quem já instalou.
+      </p>
+      <p>
+        O aviso de nova versão compara o número embutido no arquivo que está rodando com o número publicado,
+        consultado uma vez por dia. É a única razão dessa consulta: ela não envia o que você faz no app, e a
+        contagem de aparelhos ativos é separada, anônima e agregada.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="marginalia"><span class="num">07</span>Limites</div>
+  <div class="corpo">
+    <h2>Limitações conhecidas</h2>
+    <p>
+      Esta seção existe porque material que só lista qualidades não ajuda ninguém a decidir. O que segue é o
+      que o app hoje <em>não</em> faz bem, ou não faz:
+    </p>
+    <ul>
+      <li><strong>Está em validação.</strong> O app é funcional e de uso livre, mas ainda não passou por
+        validação completa. Confira os resultados antes de usá-los em laudo, trabalho técnico ou publicação —
+        o uso é por sua conta e risco.</li>
+      <li><strong>Não há sincronização entre aparelhos, e isso é desenho, não pendência.</strong> A
+        contrapartida de nada sair do aparelho é que levar o trabalho para outro dispositivo exige exportar e
+        importar o arquivo do projeto.</li>
+      <li><strong>Limpar o armazenamento do navegador apaga os projetos.</strong> Não existe cópia de
+        segurança do lado do autor para restaurar.</li>
+      <li><strong>Croqui grande é difícil de navegar por leitor de tela.</strong> A representação é gráfica;
+        há descrição nos elementos, mas a leitura sequencial de um experimento grande continua trabalhosa.</li>
+      <li><strong>A imagem exportada não carrega texto alternativo</strong>, e a dica por unidade ainda
+        depende de clique ou toque — o atalho de teclado equivalente está pendente.</li>
+      <li><strong>Exportação de planilha e avaliações precisam de internet</strong>, porque dependem de
+        bibliotecas públicas carregadas na abertura. O planejamento, o croqui e a coleta não precisam.</li>
+      <li><strong>Avaliação enviada não pode ser editada nem apagada por quem escreveu</strong> — a
+        permissão de escrita é só de inserção, o que protege o histórico e cobra esse preço.</li>
+      <li><strong>Não há senha, criptografia local nem separação por usuário.</strong> Quem abre o navegador
+        do aparelho vê o que está salvo.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="marginalia"><span class="num">08</span>Projeto</div>
+  <div class="corpo">
+    <h2>Quem faz, e sob quais termos</h2>
+    <p>
+      O AgroDesign é um projeto pessoal de <strong>Marlon Gomes da Costa (MGC Dev)</strong>, desenvolvido de
+      forma independente, sem financiamento e sem vínculo institucional. É gratuito, não tem anúncios e não
+      tem versão paga.
+    </p>
+    <p>
+      O código-fonte está disponível para estudo, uso pessoal, educacional, acadêmico e avaliação técnica.
+      <strong>Não é uma licença permissiva:</strong> uso comercial, redistribuição comercial, white-label e
+      exploração econômica de derivados dependem de autorização prévia e por escrito do autor.
+    </p>
+    <p>
+      Encontrou um erro, um resultado que não bate ou uma barreira de acessibilidade? Relatos são a forma
+      mais útil de contribuir — pela avaliação dentro do app, pelo repositório ou por e-mail.
+    </p>
+    <div class="acoes" style="margin-top:1.5rem">
+      <a class="botao" href="./AgroDesign.html">Abrir o módulo Campo</a>
+      <a class="botao secundario" href="./AgroDesignLab.html">Abrir o módulo Lab</a>
+      <a class="botao secundario" href="https://github.com/Magoc25/AgroDesign">Repositório</a>
+    </div>
+  </div>
+</section>
+
+<footer class="faixa">
+  <p>
+    Documentos completos no repositório: aviso de privacidade, termos de uso, declaração de acessibilidade,
+    inventário de tratamento de dados, política de segurança e histórico de mudanças.
+  </p>
+  <p class="assinatura">© MGC Dev — Marlon Gomes da Costa · marlongc25@protonmail.com · Feito no Maranhão</p>
+</footer>
+
+</div>
+
+<script>
+'use strict';
+function setModo(modo) {
+  var page = document.getElementById('page');
+  page.setAttribute('data-mode', modo);
+  document.getElementById('btnSimples').setAttribute('aria-pressed', String(modo === 'simples'));
+  document.getElementById('btnTecnico').setAttribute('aria-pressed', String(modo === 'tecnico'));
+}
+</script>
+</body>
+</html>

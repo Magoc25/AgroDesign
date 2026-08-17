@@ -32,7 +32,7 @@ Inventário simplificado elaborado em conformidade com o art. 37 da [LGPD (Lei n
 | **Compartilhamento** | Exibido publicamente a todos os usuários do app |
 | **Transferência internacional** | Supabase Inc. (EUA) — provedor de infraestrutura |
 | **Retenção** | Indefinida enquanto o projeto Supabase estiver ativo |
-| **Medidas de segurança** | Constraints SQL anti-XSS, rate limiting, validação de tamanho |
+| **Medidas de segurança** | RLS permitindo **apenas** leitura e inserção (sem UPDATE/DELETE — avaliação enviada não pode ser alterada nem apagada pelo app); constraints de tamanho (nome ≤ 40, comentário ≤ 200) e de faixa (estrelas 0–5); constraint anti-XSS barrando `<script`, `<iframe`, `javascript:` e handlers `on…=` nos campos de texto. **Não há rate limiting** — nem no cliente, nem no banco |
 
 ### 2.2 Ping anônimo de dispositivo ativo (Camada 1 — Supabase compartilhado)
 
