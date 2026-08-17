@@ -1,5 +1,13 @@
 name: Supabase Keep-Alive
 
+# Mantém o projeto Supabase COMPARTILHADO (avaliações, app_config, app_pings)
+# fora da suspensão por inatividade. O que conta é acesso ao SERVIÇO — um job
+# interno de banco (pg_cron) NÃO conta e não evita a suspensão (guia r88).
+#
+# Aqui há só ESTE projeto para pingar: o AgroDesign não tem Camada 3 (Supabase
+# pessoal do usuário) — os dados de experimento nunca saem do aparelho. Por isso
+# o 2º passo de ping do guia (r86a) não existe neste repositório; não é omissão.
+
 on:
   schedule:
     - cron: '0 8 * * *'    # 05:00 Brasília
@@ -10,15 +18,29 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase reviews
+      - name: Ping Supabase compartilhado (reviews)
+        # URL e chave entram SÓ por env (guia r86a): interpoladas na linha do
+        # curl, elas viram texto do próprio script e vazam em qualquer erro de
+        # shell. Como variável, o Actions mascara o valor no log.
+        env:
+          SB_URL: ${{ secrets.REV_SB_URL }}
+          SB_KEY: ${{ secrets.REV_SB_KEY }}
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${{ secrets.REV_SB_URL }}/rest/v1/app_reviews?select=id&limit=1" \
-            -H "apikey: ${{ secrets.REV_SB_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.REV_SB_KEY }}")
-          echo "Status HTTP: $STATUS"
-          if [ "$STATUS" != "200" ]; then
-            echo "Aviso: resposta inesperada ($STATUS)"
+          # Secret ausente é FALHA, não "pulei": keep-alive que silenciosamente
+          # não roda é exatamente como o projeto pausa de novo, sem ninguém ver.
+          if [ -z "$SB_URL" ] || [ -z "$SB_KEY" ]; then
+            echo "Secret REV_SB_URL/REV_SB_KEY ausente — o keep-alive NÃO rodou."
             exit 1
           fi
-          echo "Supabase reviews ativo."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${SB_URL}/rest/v1/app_reviews?select=id&limit=1" \
+            -H "apikey: ${SB_KEY}" \
+            -H "Authorization: Bearer ${SB_KEY}")
+          echo "Status HTTP: $STATUS"
+          # Também serve de detector: projeto pausado responde diferente de 200
+          # e avisa aqui, antes de o usuário descobrir pelo app quebrado.
+          if [ "$STATUS" != "200" ]; then
+            echo "Aviso: resposta inesperada ($STATUS) — projeto pausado ou indisponível."
+            exit 1
+          fi
+          echo "Supabase compartilhado ativo."

@@ -70,6 +70,30 @@ Esses dados **nunca saem do dispositivo** sem ação explícita do usuário (exp
 
 ---
 
+## 4.1 Requisições a serviços de terceiros
+
+Nenhum dado de experimento sai do aparelho, mas o app **abre endereços externos** em três situações — e
+toda requisição a um servidor revela o **endereço IP** de quem a faz. A lista abaixo é exaustiva e foi
+conferida no código, não na documentação:
+
+| Quando | Endereço | O que viaja no endereço |
+|---|---|---|
+| A cada abertura do app | `cdn.jsdelivr.net` | Nada além da URL da biblioteca (`xlsx`, `supabase-js`). Sem os dois arquivos o app continua funcionando — só a exportação `.xlsx` e as avaliações ficam indisponíveis |
+| Ao abrir **☕ Apoiar** | `api.qrserver.com` (e `chart.googleapis.com`, se o primeiro falhar) | O **código PIX do autor** (chave, nome e cidade — constantes do próprio app), para desenhar o QR. **Nenhum dado do usuário**: nem nome, nem valor, nem qualquer coisa digitada no app |
+| Ao enviar/ler avaliações e no ping diário | `qvddbmlhucxndvbakvyd.supabase.co` | O descrito nas seções 3.1 e 3.2 |
+
+> **Não quer contatar o gerador de QR?** O modal **☕ Apoiar** traz o botão **"Copiar código PIX"**, que
+> monta o mesmo código **dentro do aparelho** e não faz requisição nenhuma. Basta colá-lo no aplicativo do
+> banco. Para bloquear tudo de uma vez, o app funciona **offline** depois do primeiro acesso.
+
+O app não carrega fontes externas, rastreadores, pixels de análise, mapas nem publicidade. A política de
+segurança de conteúdo (CSP) embutida no HTML limita **o que o app pode carregar**: scripts só de
+`cdn.jsdelivr.net`, imagens só dos dois geradores de QR, e conexões (`fetch`) só para o Supabase —
+qualquer outro endereço é **bloqueado pelo próprio navegador**. Os links para o GitHub e para o e-mail do
+autor, no rodapé, são navegações que só acontecem se você clicar neles.
+
+---
+
 ## 5. Transferência internacional
 
 As avaliações e pings são armazenados em servidores do Supabase Inc. (EUA), com proteção de dados conforme os termos de serviço da plataforma. O Supabase possui conformidade com padrões como SOC 2 Type II.
