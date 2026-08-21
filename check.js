@@ -804,15 +804,25 @@ async function smokeCampo(jsdom) {
   ok(svgUe().includes('<use '),
      'Campo/Glifo: escolher a cultura pelo handler não desenhou nada — o caminho real do usuário não chega ao desenho');
 
-  /* Quando o app decide NÃO desenhar, ele tem de DIZER, e com o número: silêncio
-     aqui é indistinguível de defeito (r112). */
+  /* NÃO existe mais recusa por legibilidade — esta asserção tranca isso. A
+     tentação de reintroduzir "abaixo de N não desenha" é permanente, e o número
+     seria errado de novo pelo mesmo motivo: ele decide em unidade de VIEWBOX
+     enquanto o croqui é escalado por fitScale × zoom (25 %–400 %). Espaçamento
+     de 0,15 m era exatamente o caso que o app recusava do usuário. */
   ev("document.getElementById('plantSpacing').value = '0.15'; rerenderCroqui();");
-  const dica = String(ev("document.getElementById('ueGlyphHint').textContent") ?? '');
-  ok(!svgUe().includes('<use ') && /\d/.test(dica) && dica.length > 0,
-     `Campo/Glifo: caiu para ponto sem explicar — a dica veio "${dica}" e precisa dizer o porquê COM o número de px por planta`);
-  ev("document.getElementById('plantSpacing').value = '0.2'; rerenderCroqui();");
+  ok(svgUe().includes('<use '),
+     'Campo/Glifo: espaçamento de 0,15 m voltou a ser recusado — o limiar de legibilidade não pode voltar (decide em unidade de viewBox, e o zoom vai de 25 % a 400 %)');
   ok(String(ev("document.getElementById('ueGlyphHint').textContent") ?? '') === '',
-     'Campo/Glifo: a dica não sumiu quando o desenho voltou a caber — aviso que fica ligado vira ruído');
+     'Campo/Glifo: apareceu aviso numa configuração que desenha normalmente — aviso sem motivo vira ruído');
+
+  /* Quando o app REALMENTE não desenha, ele diz, e diz algo acionável. O único
+     caso que sobra é geométrico: plantas encostadas viram linha contínua. */
+  ev("document.getElementById('plotLength').value = '20'; document.getElementById('plantSpacing').value = '0.05'; rerenderCroqui();");
+  const denso = svgUe();
+  const dica = String(ev("document.getElementById('ueGlyphHint').textContent") ?? '');
+  ok(!denso.includes('<use ') && denso.includes('<line ') && dica.length > 0,
+     `Campo/Glifo: com as plantas encostadas o app não desenhou e não explicou — a dica veio "${dica}"`);
+  ev("document.getElementById('plotLength').value = '5'; document.getElementById('plantSpacing').value = '0.2'; rerenderCroqui();");
 
   /* 2. O degradê: com espaço, desenha; sem espaço, CAI PARA PONTO sozinho.
         É o guarda que impede a silhueta de virar borrão num croqui denso, e
@@ -824,20 +834,28 @@ async function smokeCampo(jsdom) {
      `Campo/Glifo: com espaço de sobra, esperava ${pontos} silhuetas (uma por planta), veio ${usos}`);
   ok(comGlifo.includes('<symbol id="ueGlyph-milho"'), 'Campo/Glifo: o <symbol> do milho não foi para o <defs> — o <use> aponta para nada');
 
-  /* Config escolhida para cair DENTRO da janela do limiar, não fora dela:
-     showDots continua VERDADEIRO aqui (pSpacePx 5,2 ≥ 2,5 e rowH 12,9 ≥ 4) e
-     ainda assim gPx = 5,2 < UE_GLYPH_MIN_PX. A 1ª versão deste teste usava uma
-     config apertada demais (20 m · 0,05 m): o showDots barrava antes, o limiar
-     nunca era exercitado, e a mutação que o removia ficava VERDE — asserção
-     morta que ninguém veria (r90b). A 2ª asserção abaixo tranca isso: se alguém
-     mexer nestes números e o showDots passar a barrar, some o círculo e ela cai. */
+  /* O degradê que SOBROU é geométrico, e é de outra espécie que o removido:
+     abaixo de 2,5 px de espaçamento os pontos se encostam e a fileira já É uma
+     linha — desenhá-la como linha diz a verdade, não é veredito sobre o que dá
+     para ler. */
+  cfgUe('milho', 20, 0.05, 4, 0.5);
+  const encostadas = svgUe();
+  /* Conta MARCAS DE PLANTA, não `<line`: o croqui tem linhas de cota que existem
+     sempre, então `includes('<line ')` é verdade em qualquer configuração e a
+     asserção passaria de graça — foi o que aconteceu na 1ª redação, e só a
+     mutação do guarda estrutural mostrou. "Virou linha" = zero marcas. */
+  ok((encostadas.match(/<use /g) || []).length === 0 && (encostadas.match(/<circle/g) || []).length === 0,
+     `Campo/Glifo: com as plantas encostadas (showDots falso) o quadro deveria virar linha contínua, mas emitiu ${(encostadas.match(/<use /g)||[]).length} <use> e ${(encostadas.match(/<circle/g)||[]).length} <circle>`);
+  /* E o <g> do glifo é emitido FORA do laço, então ele não é protegido pelo
+     guarda estrutural — sem o `&& showDots` no showGlyph sobraria um <g> vazio. */
+  ok(!encostadas.includes('aria-hidden="true"'),
+     'Campo/Glifo: sobrou um <g aria-hidden> vazio numa configuração que não desenha silhueta nenhuma');
+
+  /* E uma config apertada mas AINDA com espaço continua desenhando: é a fronteira
+     entre o degrau geométrico legítimo e a recusa por legibilidade que foi removida. */
   cfgUe('milho', 1, 0.2, 9, 0.5);
-  const apertado = svgUe();
-  ok(!apertado.includes('<use '),
-     'Campo/Glifo: abaixo do limiar de px por planta a silhueta continuou sendo desenhada (vira borrão)');
-  const pontosApertado = (apertado.match(/<circle/g) || []).length;
-  ok(pontosApertado > 0,
-     'Campo/Glifo: abaixo do limiar deveria cair para PONTO (o showDots ainda vale nesta config) — não sobrou círculo, então o teste saiu da janela do limiar');
+  ok(svgUe().includes('<use '),
+     'Campo/Glifo: config apertada mas com espaço (showDots verdadeiro) deixou de desenhar — voltou algum limiar de legibilidade');
 
   /* 2b. A legenda declara o n. A marca é contagem REAL — o comentário do código
          diz "count real, sem caps" — e a silhueta convida ainda mais que o ponto

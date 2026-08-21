@@ -2085,11 +2085,25 @@ const GLIFOS = {
   cao:        { rotulo: 'Cão', emoji: '🐕', svg: '<path d="M7 11h8.4c1.7 0 3 1.3 3 3v2c0 1.7-1.3 3-3 3H7c-1.7 0-3-1.3-3-3v-2c0-1.7 1.3-3 3-3Z"/><path d="M17.4 10.6h3.2c1.2 0 2.2 1 2.2 2.2v2c0 1.2-1 2.2-2.2 2.2h-3.2Z"/><path d="M18.4 10.8c-.6-2.2 0-3.8 1.8-4.8.8 1.8.6 3.4-.6 4.8Z"/><path d="M22.6 13.4H24v1.8h-1.4Z"/><path d="M6.4 19h1.8v4H6.4Zm3.4 0h1.8v4H9.8Zm3.6 0h1.8v4h-1.8Z"/><path d="M4.2 11.4C3 9.8 3 8.2 4.2 6.6l1.4 1c-.8 1-.8 2 0 3Z"/>' },
 };
 
-/* Espaço mínimo por planta, em px de tela, para desenhar a silhueta em vez do
-   ponto. Abaixo disto o desenho vira borrão e o ponto informa mais — então cai
-   para ponto, e mais abaixo o showDots já cai para linha. Orçamento EXPLÍCITO
-   com o critério ao lado, não limite implícito: mudar é esta linha. */
-const UE_GLYPH_MIN_PX = 7;
+/* NÃO existe limiar de legibilidade aqui, e a ausência é deliberada.
+   Houve um `UE_GLYPH_MIN_PX = 7` e ele estava errado por CONSTRUÇÃO, não por
+   estar calibrado alto:
+     · o comentário dizia "px de tela" e o número era em unidade de VIEWBOX. O
+       croqui é renderizado a `fitScale * zoom` e o zoom vai de 25 % a 400 %
+       (o slider), e o exportPNG ainda rasteriza a 2× por cima — o mesmo glifo
+       tem 4 tamanhos diferentes na tela com a mesma constante. Um número fixo
+       aqui não consegue dizer "legível", que é o que ele prometia;
+     · medido: ele recusava 64,5 % de todas as configurações em que os pontos
+       já eram desenhados. Isso não é uma borda, é a maioria do domínio;
+     · e o que ele oferecia no lugar tinha MENOS tinta que o glifo recusado.
+   O degrau que sobra é o `showDots`, e ele é de outra espécie: constatação
+   GEOMÉTRICA (abaixo de 2,5 px os pontos se encostam e a fileira já é uma
+   linha, então desenhá-la como linha diz a verdade). O resto do croqui — cotas
+   em font-size 7.5, hachuras, setas — nunca perguntou se dá para ler; desenha
+   em escala e deixa o zoom resolver. O glifo passa a seguir a mesma regra.
+   O que de fato limita a leitura é o DESENHO, não o tamanho: os quatro animais
+   só se distinguem entre si perto de 12 px, contra 6 px das oito plantas.
+   Isso se conserta redesenhando, não recusando. */
 
 /* `info` é saída OPCIONAL: quem chama passa um objeto e recebe de volta a
    decisão sobre o glifo (desenhou? com quantos px por planta? qual o limiar?).
@@ -2184,9 +2198,9 @@ function buildUeSchematic(params, theme, W, H, isEng = false, info = null) {
        showDots cai para linha — o mesmo degradê que a função já fazia. */
     const gPx       = Math.min(pSpacePx, rowH);
     const gId       = params.ueGlyph || '';
-    const showGlyph = !!gId && !!GLIFOS[gId] && showDots && gPx >= UE_GLYPH_MIN_PX;
+    const showGlyph = !!gId && !!GLIFOS[gId] && showDots;
     const gS        = Math.min(gPx * 0.92, 14);   // lado do glifo, com folga entre vizinhos
-    if (info) { info.pediu = !!gId; info.desenhou = showGlyph; info.gPx = gPx; info.min = UE_GLYPH_MIN_PX; }
+    if (info) { info.pediu = !!gId; info.desenhou = showGlyph; info.gPx = gPx; info.denso = !showDots; }
     /* fill/opacity/aria-hidden UMA vez no grupo, não em cada marca: medido, é a
        diferença entre 134 B e 62 B por marca — com o <g> o <use> sai MAIS BARATO
        que o <circle> que substitui. O aria-hidden é obrigatório: são centenas de
@@ -4511,10 +4525,14 @@ function _ueGlyphHint(info, unitType, showUe) {
   if (!el) return;
   let msg = '';
   const pediu = !!document.getElementById('selUeGlyph').value;
-  if (pediu && !showUe)                     msg = 'ligue "Parcela" para ver';
-  else if (pediu && unitType !== 'parcela') msg = 'só em parcela vegetal';
-  else if (pediu && info && !info.desenhou && info.gPx)
-    msg = `vira ponto: ${info.gPx.toFixed(1)} px por planta (precisa de ${info.min})`;
+  /* Toda mensagem daqui diz o que o usuário PODE FAZER. A versão anterior
+     dizia "vira ponto: 6.4 px por planta (precisa de 7)" — informação exata e
+     inútil: ninguém muda o espaçamento do próprio experimento por causa do
+     app, e o número era de uma unidade que a tela não usa. */
+  if (pediu && !showUe)                     msg = 'marque "Parcela" para ver o desenho';
+  else if (pediu && unitType !== 'parcela') msg = 'o desenho vale para parcela vegetal';
+  else if (pediu && info && info.denso)
+    msg = 'plantas juntas demais — a fileira virou linha contínua';
   el.textContent = msg;
   el.classList.toggle('hidden', !msg);
 }
