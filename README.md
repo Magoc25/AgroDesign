@@ -44,7 +44,9 @@ Depois de abrir uma das URLs acima, você pode instalar como aplicativo nativo, 
 
 | Plataforma | Como instalar |
 |---|---|
-| **Chrome / Edge no PC** | Clique no ícone de instalação (☐ com seta) na barra de endereços → Instalar |
+| **Mac (Safari)** | Menu **Arquivo → "Adicionar ao Dock"** — ícone próprio, janela sem barra de endereços, entra no Launchpad |
+| **Mac (Chrome / Edge)** | Ícone de instalação (☐ com seta) na barra de endereços → Instalar |
+| **Windows / Linux (Chrome / Edge)** | Ícone de instalação (☐ com seta) na barra de endereços → Instalar |
 | **Android (Chrome)** | Menu (⋮) → "Instalar app" ou "Adicionar à tela inicial" |
 | **iPhone / iPad (Safari)** | Compartilhar (□↑) → "Adicionar à Tela de Início" |
 
