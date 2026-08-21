@@ -2125,7 +2125,7 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
           const px = ox + (nP > 1 ? p * (dW / (nP - 1)) : dW / 2);
           const py = oy + (r + 0.5) * rowH;
           if (px <= ox + dW + 1)
-            out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${dr}" fill="${cDot}" opacity="${isPub ? '0.75' : '0.65'}"/>`;
+            out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${+dr.toFixed(2)}" fill="${cDot}" opacity="${isPub ? '0.75' : '0.65'}"/>`;
         }
       } else {
         const cy = +(oy + (r + 0.5) * rowH).toFixed(1);
