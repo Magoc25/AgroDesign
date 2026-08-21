@@ -767,6 +767,24 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
               <option value="dot">Ponto</option>
             </select>
           </label>
+          <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)" title="Desenha cada planta da Unidade Experimental como silhueta em vez de ponto. Aparece no quadro da Parcela (caixa abaixo) e só quando há espaço na tela — abaixo disso volta ao ponto.">
+            Cultura/Animal:
+            <select id="selUeGlyph" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+              <option value="">● Ponto (sem desenho)</option>
+              <option value="milho">🌽 Milho</option>
+              <option value="soja">🌱 Soja</option>
+              <option value="cafe">☕ Café</option>
+              <option value="arvore">🌳 Árvore / Mata Atlântica</option>
+              <option value="araucaria">🌲 Araucária</option>
+              <option value="cerrado">🌿 Cerrado</option>
+              <option value="capim">🌾 Capim / Pastagem</option>
+              <option value="folha">🍃 Folha (genérico)</option>
+              <option value="bovino">🐄 Bovino</option>
+              <option value="frango">🐔 Frango</option>
+              <option value="suino">🐖 Suíno</option>
+              <option value="cao">🐕 Cão</option>
+            </select>
+          </label>
           <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
             Tema:
             <select id="selTheme" onchange="applyPaletteOptions();rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
@@ -2038,6 +2056,40 @@ function buildSvgLegend(allT, colors, pos, theme, pubFillMap, isEng = false, lab
 }
 
 /* ── Schematic da Unidade Experimental (embutido no croqui) ── */
+/* ── Silhuetas de cultura/animal para o quadro da UE (§28) ──────────────────
+   Arte AUTORAL. Especificação, e ela não é gosto:
+     · viewBox 0 0 24 24, sempre.
+     · SÓ PREENCHIMENTO — nada de `stroke`. Medido: a 7 px de tela um traço de
+       1,6 num viewBox de 24 vira 0,47 px e some. Silhueta cheia é o que
+       sobrevive na escala em que estas marcas de fato aparecem.
+     · Sem cor literal: o `fill` vem do <g> que instancia (o cDot do tema), então
+       o glifo obedece ao tema Publicação sem saber que ele existe.
+     · Sem id interno, sem <style>, sem recurso externo — o SVG é rasterizado
+       como <img> no exportPNG(), onde nada externo carrega.
+   Os dez primeiros sujeitos saem dos EXAMPLES deste app; `folha` e `capim` são
+   genéricos para o que o campo de texto livre não cobre.
+   Bancada de desenho (fora do git): docs/bancada/. */
+const GLIFOS = {
+  milho:      { rotulo: 'Milho', emoji: '🌽', svg: '<path d="M12 1.5c2.5 2.9 3.6 6.2 3.6 8.9s-1.1 6-3.6 8.9c-2.5-2.9-3.6-6.2-3.6-8.9S9.5 4.4 12 1.5Z"/><path d="M11.1 18h1.8v6h-1.8Z"/><path d="M10.8 21c-2.7.1-4.8-1.3-6.2-4.1 3-.6 5.2.5 6.4 3.3Z"/><path d="M13.2 21c2.7.1 4.8-1.3 6.2-4.1-3-.6-5.2.5-6.4 3.3Z"/>' },
+  soja:       { rotulo: 'Soja', emoji: '🌱', svg: '<path d="M11.4 17h1.2v7h-1.2Z"/><g transform="translate(12 16.2)"><path d="M0 0c2-1.1 3-2.9 3-5S2 -9.2 0-10.4-3-7.1-3-5-2-1.1 0 0Z"/><path d="M0 0c2-1.1 3-2.9 3-5S2 -9.2 0-10.4-3-7.1-3-5-2-1.1 0 0Z" transform="rotate(118)"/><path d="M0 0c2-1.1 3-2.9 3-5S2 -9.2 0-10.4-3-7.1-3-5-2-1.1 0 0Z" transform="rotate(-118)"/></g>' },
+  cafe:       { rotulo: 'Café', emoji: '☕', svg: '<path d="M11.3 3h1.4v21h-1.4Z"/><path d="M11.4 10.4C7.9 10.6 5 8.8 3 5.2c3.7-1.2 6.7 0 8.8 3.4Z"/><path d="M12.6 10.4C16.1 10.6 19 8.8 21 5.2c-3.7-1.2-6.7 0-8.8 3.4Z"/><circle cx="8.6" cy="16.4" r="2.7"/><circle cx="15.4" cy="16.4" r="2.7"/>' },
+  arvore:     { rotulo: 'Árvore / Mata Atlântica', emoji: '🌳', svg: '<circle cx="12" cy="7.6" r="5.1"/><circle cx="7.3" cy="11.2" r="4.1"/><circle cx="16.7" cy="11.2" r="4.1"/><path d="M11.1 12.4h1.8V24h-1.8Z"/>' },
+  araucaria:  { rotulo: 'Araucária', emoji: '🌲', svg: '<path d="M11.2 4h1.6v20h-1.6Z"/><path d="M3.6 5.1h16.8v1.6H3.6Z"/><circle cx="3.6" cy="5.9" r="1.6"/><circle cx="20.4" cy="5.9" r="1.6"/><path d="M6.2 9.5h11.6v1.4H6.2Z"/><circle cx="6.2" cy="10.2" r="1.4"/><circle cx="17.8" cy="10.2" r="1.4"/><path d="M8.6 13.5h6.8v1.2H8.6Z"/><circle cx="8.6" cy="14.1" r="1.2"/><circle cx="15.4" cy="14.1" r="1.2"/>' },
+  cerrado:    { rotulo: 'Cerrado', emoji: '🌿', svg: '<circle cx="9.4" cy="7" r="4.3"/><circle cx="15" cy="8.3" r="3.8"/><circle cx="12.4" cy="4.4" r="3.4"/><path d="M11.1 24v-6.6l-3-3.8 1.2-1 2.6 3.2V12h1.6v4.6l2.7-3.4 1.2 1-3.5 4.4V24Z"/>' },
+  capim:      { rotulo: 'Capim / Pastagem', emoji: '🌾', svg: '<path d="M12 24c-.4-6.4.8-11.4 3.6-15-.4 6-1.4 11-3.6 15Z"/><path d="M12 24c-2.4-5-3.6-9.6-3.6-13.8 2.6 3.6 3.8 8.2 3.6 13.8Z"/><path d="M12 24c1.6-4.2 4.2-7.4 7.8-9.6-1.6 4.6-4.2 7.8-7.8 9.6Z"/><path d="M12 24c-1.6-4.2-4.2-7.4-7.8-9.6 1.6 4.6 4.2 7.8 7.8 9.6Z"/>' },
+  folha:      { rotulo: 'Folha (genérico)', emoji: '🍃', svg: '<path d="M3.4 20.8C3.4 11.2 9.6 3.6 20.6 3.4c.2 11-6 17.2-17.2 17.4Z"/><path d="M1.6 23.2.5 22.1l5.6-5.6 1.1 1.1Z"/>' },
+  bovino:     { rotulo: 'Bovino', emoji: '🐄', svg: '<path d="M5.6 8.6h11.2c1.5 0 2.7 1.2 2.7 2.7v3.4c0 1.5-1.2 2.7-2.7 2.7H5.6c-1.5 0-2.7-1.2-2.7-2.7v-3.4c0-1.5 1.2-2.7 2.7-2.7Z"/><path d="M19.2 9.6h2.6c.9 0 1.6.7 1.6 1.6v1.4c0 .9-.7 1.6-1.6 1.6h-2.6Z"/><path d="M19.4 8.6c-.7-1.1-.4-2.1.7-2.8l.8 1.3c-.4.3-.5.7-.2 1.1Z"/><path d="M22.3 8.6c.7-1.1.4-2.1-.7-2.8l-.8 1.3c.4.3.5.7.2 1.1Z"/><path d="M6.4 17.4h1.8V23H6.4Zm3.2 0h1.8V23H9.6Zm3.6 0h1.8V23h-1.8Zm2.8 0h1.8V23H16Z"/><path d="M4 9.2c-1.2.6-1.8 1.8-1.8 3.6v4.6h1.6v-4.6c0-1.2.3-1.9 1-2.3Z"/>' },
+  frango:     { rotulo: 'Frango', emoji: '🐔', svg: '<path d="M7.4 10.2c3.4-2.6 7.4-1.6 9 1.6 1.4 2.9.2 6-2.8 7.2-3.2 1.3-6.6.2-8-2.4-1.2-2.2-.6-4.8 1.8-6.4Z"/><path d="M15.6 10.6c-.4-2.3.6-3.9 2.6-4.5 1.9-.5 3.3.4 3.7 2.1.4 1.8-.6 3.2-2.4 3.7Z"/><path d="M17.8 5.4c.2-1 .8-1.7 1.8-1.9-.2.6-.1 1.1.3 1.4.5-.7 1.1-1 1.9-.9-.5.5-.6 1-.3 1.5Z"/><path d="m21.7 8.5 2.3 1-2.3 1Z"/><path d="M10 19h1.4v3.4H10Zm3.4 0h1.4v3.4h-1.4Z"/><path d="M8.4 22.3h4.4v1.4H8.4Zm3.6 0h4.4v1.4H12Z"/><path d="M7.6 11.4C5.6 9.6 3.6 9 1.6 9.6c1.4 1.4 2 2.8 1.8 4.4 1.2-1.4 2.6-2 4.2-2.6Z"/>' },
+  suino:      { rotulo: 'Suíno', emoji: '🐖', svg: '<path d="M8 9.4h6.8c3.4 0 6.2 2.2 6.2 5s-2.8 5-6.2 5H8c-3.4 0-6.2-2.2-6.2-5s2.8-5 6.2-5Z"/><path d="M20.8 12.6h1.6c.9 0 1.6.7 1.6 1.6s-.7 1.6-1.6 1.6h-1.6Z"/><path d="M9.6 9.6 7.8 6.2c1.8-.4 3.2.4 4.2 2.2Z"/><path d="M14.4 9.6 16.2 6.2c-1.8-.4-3.2.4-4.2 2.2Z"/><path d="M5.6 19h1.8v4H5.6Zm3.4 0h1.8v4H9Zm4 0h1.8v4H13Zm3.4 0h1.8v4h-1.8Z"/><path d="M1.9 12.6C.7 12.3 0 12.9 0 14s.7 1.7 1.7 1.6v-1.4c-.3 0-.4-.2-.4-.4s.2-.4.6-.3Z"/>' },
+  cao:        { rotulo: 'Cão', emoji: '🐕', svg: '<path d="M7 11h8.4c1.7 0 3 1.3 3 3v2c0 1.7-1.3 3-3 3H7c-1.7 0-3-1.3-3-3v-2c0-1.7 1.3-3 3-3Z"/><path d="M17.4 10.6h3.2c1.2 0 2.2 1 2.2 2.2v2c0 1.2-1 2.2-2.2 2.2h-3.2Z"/><path d="M18.4 10.8c-.6-2.2 0-3.8 1.8-4.8.8 1.8.6 3.4-.6 4.8Z"/><path d="M22.6 13.4H24v1.8h-1.4Z"/><path d="M6.4 19h1.8v4H6.4Zm3.4 0h1.8v4H9.8Zm3.6 0h1.8v4h-1.8Z"/><path d="M4.2 11.4C3 9.8 3 8.2 4.2 6.6l1.4 1c-.8 1-.8 2 0 3Z"/>' },
+};
+
+/* Espaço mínimo por planta, em px de tela, para desenhar a silhueta em vez do
+   ponto. Abaixo disto o desenho vira borrão e o ponto informa mais — então cai
+   para ponto, e mais abaixo o showDots já cai para linha. Orçamento EXPLÍCITO
+   com o critério ao lado, não limite implícito: mudar é esta linha. */
+const UE_GLYPH_MIN_PX = 7;
+
 function buildUeSchematic(params, theme, W, H, isEng = false) {
   const isPub = theme === 'pub';
   const { unitType, plotLength, rowSpacing, rowsPerPlot, plantSpacing, ueArea, animalsPerUnit,
@@ -2080,7 +2132,10 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
   const hasUsefulArea = (unitType === 'parcela') && (_bf > 0 || _lbp > 0);
   const INFO_H = hasUsefulArea ? 32 : 20;
 
-  let out = `<rect x="0" y="0" width="${W}" height="${H}" fill="${cBg}" stroke="${cBorder}" stroke-width="${isPub ? '0.7' : '1'}"${isPub ? '' : ' rx="5"'}/>`;
+  let out = params.ueGlyph && GLIFOS[params.ueGlyph]
+    ? `<defs><symbol id="ueGlyph-${params.ueGlyph}" viewBox="0 0 24 24">${GLIFOS[params.ueGlyph].svg}</symbol></defs>`
+    : '';
+  out += `<rect x="0" y="0" width="${W}" height="${H}" fill="${cBg}" stroke="${cBorder}" stroke-width="${isPub ? '0.7' : '1'}"${isPub ? '' : ' rx="5"'}/>`;
   out += `<text x="${W / 2}" y="${TITLE_H - 3}" text-anchor="middle" font-size="9" fill="${cFg}" font-weight="700">${isEng ? 'Experimental Unit' : 'Unidade Experimental'}</text>`;
   out += `<line x1="4" y1="${TITLE_H}" x2="${W - 4}" y2="${TITLE_H}" stroke="${cSep}" stroke-width="0.6"/>`;
 
@@ -2119,19 +2174,38 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
     const pSpacePx = nP > 1 ? dW / (nP - 1) : dW;
     const dr       = Math.max(0.8, Math.min(2.8, Math.min(rowH * 0.32, pSpacePx / 2.5)));
     const showDots = pSpacePx >= 2.5 && rowH >= 4;
+    /* Degrau ACIMA do showDots: havendo cultura escolhida e espaço suficiente,
+       a marca vira silhueta; abaixo do limiar cai para ponto, e abaixo do
+       showDots cai para linha — o mesmo degradê que a função já fazia. */
+    const gPx       = Math.min(pSpacePx, rowH);
+    const gId       = params.ueGlyph || '';
+    const showGlyph = !!gId && !!GLIFOS[gId] && showDots && gPx >= UE_GLYPH_MIN_PX;
+    const gS        = Math.min(gPx * 0.92, 14);   // lado do glifo, com folga entre vizinhos
+    /* fill/opacity/aria-hidden UMA vez no grupo, não em cada marca: medido, é a
+       diferença entre 134 B e 62 B por marca — com o <g> o <use> sai MAIS BARATO
+       que o <circle> que substitui. O aria-hidden é obrigatório: são centenas de
+       marcas decorativas, e sem ele o croqui deixa de ser mudo para virar ruído
+       no leitor de tela, que é pior. */
+    if (showGlyph) out += `<g fill="${cDot}" opacity="${isPub ? '0.9' : '0.78'}" aria-hidden="true">`;
     for (let r = 0; r < nR; r++) {
       if (showDots) {
         for (let p = 0; p < nP; p++) {
           const px = ox + (nP > 1 ? p * (dW / (nP - 1)) : dW / 2);
           const py = oy + (r + 0.5) * rowH;
-          if (px <= ox + dW + 1)
-            out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${+dr.toFixed(2)}" fill="${cDot}" opacity="${isPub ? '0.75' : '0.65'}"/>`;
+          if (px <= ox + dW + 1) {
+            if (showGlyph)
+              out += `<use href="#ueGlyph-${gId}" x="${(px - gS / 2).toFixed(1)}" y="${(py - gS / 2).toFixed(1)}" width="${gS.toFixed(1)}" height="${gS.toFixed(1)}"/>`;
+            else
+              out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${+dr.toFixed(2)}" fill="${cDot}" opacity="${isPub ? '0.75' : '0.65'}"/>`;
+          }
         }
       } else {
         const cy = +(oy + (r + 0.5) * rowH).toFixed(1);
         out += `<line x1="${ox}" y1="${cy}" x2="${ox + dW}" y2="${cy}" stroke="${cDot}" stroke-width="0.8" opacity="0.55"/>`;
       }
     }
+
+    if (showGlyph) out += '</g>';
 
     // Área útil (zona de coleta)
     const bf  = params.borderFrac    || 0;
@@ -2167,9 +2241,13 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
       const boxC = isPub ? 'none' : 'rgba(52,183,100,0.28)';
       const boxS = isPub ? '#222' : 'rgba(34,139,34,.5)';
       const lab1 = isEng ? 'Useful area' : 'Área útil';
-      const lab2 = isEng ? 'Plant' : 'Planta';
+      /* O n vem junto porque a marca é contagem REAL, não enfeite: quem lê a
+         figura precisa saber que cada símbolo é uma planta. Vale mais ainda com
+         a silhueta ligada, que convida a ler o desenho como decoração. */
+      const nPl  = nP * nR;
+      const lab2 = (isEng ? 'Plant' : 'Planta') + ` (n = ${nPl})`;
       // larguras estimadas: item1 = box(9)+gap(4)+texto(~38) = 51; espaço(14); item2 = circle(6)+gap(4)+texto(~27) = 37 → total ≈ 102
-      const lx0 = Math.round((W - 102) / 2);
+      const lx0 = Math.round((W - 102 - String(nP * nR).length * 4) / 2);
       const lx1 = lx0 + 51 + 12;
       out += `<rect x="${lx0}" y="${ly - 6}" width="9" height="9" fill="${boxC}" stroke="${boxS}" stroke-width="1" ${isPub ? 'stroke-dasharray="3 1.5"' : 'rx="1.5"'}/>`;
       out += `<text x="${lx0 + 13}" y="${ly + 2}" font-size="7" fill="${cMuted}">${esc(lab1)}</text>`;
@@ -2710,7 +2788,13 @@ function renderCroqui() {
   if (isGradHoriz) { gradAY = totalH; totalH += GRAD_SIZE; }
 
   // ── Montar SVG ──
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" id="croquiSvg" viewBox="0 0 ${totalW} ${totalH}" style="display:block">`;
+  /* role/title/desc: sem eles o SVG inteiro é um retângulo anônimo para o leitor
+     de tela. Entram AGORA porque a silhueta multiplica as marcas decorativas —
+     desenho novo sem isto troca "mudo" por "ruidoso", que é pior. */
+  const _a11y = isEng
+    ? `Field layout diagram: ${units.length} plots`
+    : `Croqui do experimento: ${units.length} ${units.length === 1 ? 'parcela' : 'parcelas'}`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" id="croquiSvg" viewBox="0 0 ${totalW} ${totalH}" style="display:block" role="img" aria-label="${esc(_a11y)}"><title>${esc(_a11y)}</title>`;
   if (theme === 'pub') {
     svg += `<defs>` +
       `<pattern id="ph45"  patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45 0 0)"><rect width="8" height="8" fill="#fff"/><line x1="0" y1="0" x2="0" y2="8" stroke="#555" stroke-width="1.2"/></pattern>` +
@@ -3017,6 +3101,7 @@ function renderCroqui() {
   // Schematic da Unidade Experimental
   if (showUe) {
     const ueParams = {
+      ueGlyph:         document.getElementById('selUeGlyph').value,
       unitType:        document.getElementById('selUnitType').value,
       plotLength:      parseFloat(document.getElementById('plotLength').value)    || 5,
       rowSpacing:      parseFloat(document.getElementById('rowSpacing').value)    || 0.5,
@@ -3740,6 +3825,15 @@ function buildPublicationText(lang) {
     const treatInfo  = ['DIC','DBC','DQL'].includes(design) ? ` com ${nTreat} ${pl_s(nTreat,'tratamento','tratamentos')} (${treatRange})${blockInfo}` : '';
     const laticeInfo = design === 'LATICE' ? ` com ${nTreat} tratamentos (k² = ${nTreat}, k = ${laticeK}), 2 repetições e ${nBlock} blocos incompletos` : '';
     caption = `Figura X. Croqui do experimento em ${dname}${treatInfo}${laticeInfo}. ${unitDimCaption}${gradArrow}`;
+  }
+
+  // Silhueta de cultura ligada: o desenho não mede porte nem estádio, e quem lê a
+  // figura não tem como saber disso olhando. Dizer é barato; deixar implícito não.
+  const _ueGlyph = document.getElementById('selUeGlyph')?.value;
+  if (_ueGlyph && document.getElementById('chkShowUe')?.checked) {
+    caption += isEng
+      ? ' Each symbol represents one plant; the crop drawing is illustrative and does not indicate plant size or growth stage.'
+      : ' Cada símbolo representa uma planta; o desenho da cultura é ilustrativo e não indica porte nem estádio.';
   }
 
   // Arranjo manual (experimento já implantado): esclarece que o croqui reflete o

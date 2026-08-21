@@ -24,7 +24,7 @@ O AgroDesign busca conformidade com o **nível AA das WCAG 2.2**, com as seguint
 
 | Critério | Descrição | Status |
 |---|---|---|
-| 1.1.1 Conteúdo não textual | Elementos do croqui SVG possuem atributos `title` e `aria-label` | ✅ |
+| 1.1.1 Conteúdo não textual | O croqui SVG tem `role="img"`, `<title>` e `aria-label` **no elemento raiz**, com o delineamento e o número de parcelas; as silhuetas de cultura são `aria-hidden` | ✅ parcial |
 | 1.3.1 Info e relacionamentos | Estrutura semântica com `<label>`, `<fieldset>`, `<legend>` nos formulários | ✅ |
 | 1.4.3 Contraste mínimo | Razão de contraste ≥ 4.5:1 para texto normal no tema padrão | ✅ |
 | 2.1.1 Teclado | Todos os controles interativos acessíveis via teclado (Tab, Enter, Espaço) | ✅ |
@@ -37,8 +37,8 @@ O AgroDesign busca conformidade com o **nível AA das WCAG 2.2**, com as seguint
 
 | Elemento | Limitação | Impacto |
 |---|---|---|
-| Croqui SVG complexo | Representação gráfica de experimentos grandes pode ser de difícil navegação por leitores de tela | Médio |
-| Exportação PNG | A imagem exportada não possui texto alternativo | Baixo |
+| Croqui SVG complexo | O rótulo é do croqui **inteiro**; parcela a parcela não há rótulo próprio, então experimentos grandes continuam difíceis de percorrer por leitor de tela | Médio |
+| Exportação PNG | O PNG é imagem rasterizada e não carrega texto alternativo (o SVG exportado carrega o `<title>` do croqui) | Baixo |
 | Tooltip por clique na unidade | Pode requerer mouse ou toque; atalho de teclado planejado para versão futura | Baixo |
 
 ---

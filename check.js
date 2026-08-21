@@ -760,6 +760,93 @@ async function smokeCampo(jsdom) {
   ok(ev.json('JSON.stringify(Object.keys(getPresetsFromStorage()))').length === 0,
      'Campo/Preset: clicar no ✕ não excluiu o preset com apóstrofo');
 
+  /* ═══ Silhueta de cultura no quadro da UE ═══════════════════════════════
+     Três regras, e nenhuma delas é "o desenho apareceu": o que precisa de
+     trava é o que falha em SILÊNCIO — o padrão mudar sozinho, o degradê
+     sumir num croqui denso, e o glifo virar ruído no leitor de tela.        */
+  const cfgUe = (glyph, pl, ps, rpp, rs) => ev(`
+    document.getElementById('selDesign').value='DIC'; onDesignChange();
+    document.getElementById('txtTreatments').value=['T1','T2'].join(String.fromCharCode(10));
+    document.getElementById('numReps').value='2';
+    document.getElementById('chkShowUe').checked = true;
+    document.getElementById('plotLength').value='${pl}';
+    document.getElementById('plantSpacing').value='${ps}';
+    document.getElementById('rowsPerPlot').value='${rpp}';
+    document.getElementById('rowSpacing').value='${rs}';
+    document.getElementById('selUeGlyph').value='${glyph}';
+    generateCroqui();
+    document.getElementById('croquiSvg').outerHTML.length;`);
+  const svgUe = () => String(ev("document.getElementById('croquiSvg').outerHTML") ?? '');
+
+  /* 1. O padrão é PONTO — e a saída tem de ser a de sempre, não "parecida".
+        Se alguém trocar o default, todo usuário que nunca pediu desenho passa
+        a receber um, e nada mais no app acusaria isso. */
+  ok(ev("document.getElementById('selUeGlyph').value") === '',
+     'Campo/Glifo: o select Cultura/Animal não nasce em "Ponto" — mudar o padrão muda o croqui de quem nunca pediu');
+  cfgUe('', 5, 0.2, 4, 0.5);
+  const semGlifo = svgUe();
+  ok(!semGlifo.includes('<use '), 'Campo/Glifo: com "Ponto" escolhido o croqui ainda emitiu <use>');
+  ok(!semGlifo.includes('ueGlyph-'), 'Campo/Glifo: com "Ponto" escolhido o <defs> do símbolo foi emitido à toa');
+  const pontos = (semGlifo.match(/<circle/g) || []).length;
+  ok(pontos > 0, `Campo/Glifo: sem glifo o quadro da UE deveria desenhar pontos, veio ${pontos}`);
+
+  /* 2. O degradê: com espaço, desenha; sem espaço, CAI PARA PONTO sozinho.
+        É o guarda que impede a silhueta de virar borrão num croqui denso, e
+        ele falha calado — o croqui continua saindo, só ilegível. */
+  cfgUe('milho', 5, 0.2, 4, 0.5);
+  const comGlifo = svgUe();
+  const usos = (comGlifo.match(/<use /g) || []).length;
+  ok(usos === pontos,
+     `Campo/Glifo: com espaço de sobra, esperava ${pontos} silhuetas (uma por planta), veio ${usos}`);
+  ok(comGlifo.includes('<symbol id="ueGlyph-milho"'), 'Campo/Glifo: o <symbol> do milho não foi para o <defs> — o <use> aponta para nada');
+
+  /* Config escolhida para cair DENTRO da janela do limiar, não fora dela:
+     showDots continua VERDADEIRO aqui (pSpacePx 5,2 ≥ 2,5 e rowH 12,9 ≥ 4) e
+     ainda assim gPx = 5,2 < UE_GLYPH_MIN_PX. A 1ª versão deste teste usava uma
+     config apertada demais (20 m · 0,05 m): o showDots barrava antes, o limiar
+     nunca era exercitado, e a mutação que o removia ficava VERDE — asserção
+     morta que ninguém veria (r90b). A 2ª asserção abaixo tranca isso: se alguém
+     mexer nestes números e o showDots passar a barrar, some o círculo e ela cai. */
+  cfgUe('milho', 1, 0.2, 9, 0.5);
+  const apertado = svgUe();
+  ok(!apertado.includes('<use '),
+     'Campo/Glifo: abaixo do limiar de px por planta a silhueta continuou sendo desenhada (vira borrão)');
+  const pontosApertado = (apertado.match(/<circle/g) || []).length;
+  ok(pontosApertado > 0,
+     'Campo/Glifo: abaixo do limiar deveria cair para PONTO (o showDots ainda vale nesta config) — não sobrou círculo, então o teste saiu da janela do limiar');
+
+  /* 2b. A legenda declara o n. A marca é contagem REAL — o comentário do código
+         diz "count real, sem caps" — e a silhueta convida ainda mais que o ponto
+         a ler o desenho como enfeite. Se o n sumir, a figura passa a mostrar
+         símbolos sem dizer que cada um é uma planta, e nada acusa. */
+  ev("document.getElementById('chkBorders').checked = true; generateCroqui();");
+  const comBorda = svgUe();
+  ok(comBorda.includes('n = '),
+     'Campo/Glifo: a legenda do quadro da UE não declara o n de plantas — o símbolo vira enfeite sem contagem');
+  ev("document.getElementById('chkBorders').checked = false; generateCroqui();");
+
+  /* 3. Acessibilidade: são centenas de marcas decorativas. Sem aria-hidden o
+        croqui deixa de ser mudo para virar RUÍDO, que é pior; e o SVG raiz
+        precisa dizer o que é. */
+  ok(comGlifo.includes('aria-hidden="true">' + '<use '),
+     'Campo/Glifo: as silhuetas não estão dentro de um <g aria-hidden="true"> — o leitor de tela vai lê-las uma a uma');
+  const tit = comGlifo.slice(comGlifo.indexOf('<title>') + 7, comGlifo.indexOf('</title>'));
+  ok(comGlifo.includes('role="img"') && comGlifo.includes('<title>') && tit.trim().length > 0,
+     'Campo/Glifo: #croquiSvg sem role="img" ou sem <title> preenchido — o croqui é um retângulo anônimo para o leitor de tela');
+
+  /* 4. O id do glifo sai da TABELA, nunca do texto do usuário: valor inválido
+        no select não pode virar um <use href> apontando para lixo. */
+  /* Direto na função, e NÃO pelo select: um <select> descarta sozinho valor que
+     não casa com nenhuma <option>, então testar por ali daria verde sem
+     exercitar guarda nenhuma — o teste mediria o navegador, não o app. A defesa
+     real é o `GLIFOS[gId]` dentro de buildUeSchematic. */
+  const sujo = String(ev(`buildUeSchematic(
+    { unitType:'parcela', plotLength:5, plantSpacing:0.2, rowsPerPlot:4, rowSpacing:0.5,
+      ueGlyph: String.fromCharCode(34) + 'onerror=alert(1)' }, 'color', 220, 185)`) ?? '');
+  ok(sujo.length > 0 && !sujo.includes('onerror') && !sujo.includes('<use '),
+     'Campo/Glifo: id arbitrário vazou para o SVG — o símbolo tem de sair de GLIFOS, não do valor cru');
+  ev("document.getElementById('selUeGlyph').value=''; document.getElementById('chkShowUe').checked=false; generateCroqui();");
+
   /* Modo escuro liga/desliga e persiste */
   ev('toggleDark();');
   ok(ev("document.documentElement.hasAttribute('data-dark')"), 'Campo: modo escuro não ligou');
