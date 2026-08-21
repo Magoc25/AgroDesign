@@ -769,7 +769,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
           </label>
           <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)" title="Desenha cada planta da Unidade Experimental como silhueta em vez de ponto. Aparece no quadro da Parcela (caixa abaixo) e só quando há espaço na tela — abaixo disso volta ao ponto.">
             Cultura/Animal:
-            <select id="selUeGlyph" onchange="rerenderCroqui()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
+            <select id="selUeGlyph" onchange="onUeGlyphChange()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
               <option value="">● Ponto (sem desenho)</option>
               <option value="milho">🌽 Milho</option>
               <option value="soja">🌱 Soja</option>
@@ -784,6 +784,7 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
               <option value="suino">🐖 Suíno</option>
               <option value="cao">🐕 Cão</option>
             </select>
+            <span id="ueGlyphHint" class="hidden" style="font-size:.72rem;color:#92400e;background:#fef3c7;border:1px solid #f59e0b;border-radius:999px;padding:1px 8px;white-space:nowrap"></span>
           </label>
           <label style="display:flex;align-items:center;gap:.3rem;margin:0;font-size:.78rem;color:var(--text-muted)">
             Tema:
@@ -2090,7 +2091,11 @@ const GLIFOS = {
    com o critério ao lado, não limite implícito: mudar é esta linha. */
 const UE_GLYPH_MIN_PX = 7;
 
-function buildUeSchematic(params, theme, W, H, isEng = false) {
+/* `info` é saída OPCIONAL: quem chama passa um objeto e recebe de volta a
+   decisão sobre o glifo (desenhou? com quantos px por planta? qual o limiar?).
+   É out-param em vez de variável de módulo de propósito — a função continua
+   PURA, e a bancada, que checa a pureza, continua valendo. */
+function buildUeSchematic(params, theme, W, H, isEng = false, info = null) {
   const isPub = theme === 'pub';
   const { unitType, plotLength, rowSpacing, rowsPerPlot, plantSpacing, ueArea, animalsPerUnit,
           quadratArea, quadratMethod, quadratGridN,
@@ -2181,6 +2186,7 @@ function buildUeSchematic(params, theme, W, H, isEng = false) {
     const gId       = params.ueGlyph || '';
     const showGlyph = !!gId && !!GLIFOS[gId] && showDots && gPx >= UE_GLYPH_MIN_PX;
     const gS        = Math.min(gPx * 0.92, 14);   // lado do glifo, com folga entre vizinhos
+    if (info) { info.pediu = !!gId; info.desenhou = showGlyph; info.gPx = gPx; info.min = UE_GLYPH_MIN_PX; }
     /* fill/opacity/aria-hidden UMA vez no grupo, não em cada marca: medido, é a
        diferença entre 134 B e 62 B por marca — com o <g> o <use> sai MAIS BARATO
        que o <circle> que substitui. O aria-hidden é obrigatório: são centenas de
@@ -3122,8 +3128,15 @@ function renderCroqui() {
       permWidth:       parseFloat(document.getElementById('permWidth').value)      || 25,
       permIndividuals: parseInt(document.getElementById('permIndividuals').value)  || 6,
     };
-    const ueSvgContent = buildUeSchematic(ueParams, theme, UE_W, UE_H, isEng);
+    const ueInfo = {};
+    const ueSvgContent = buildUeSchematic(ueParams, theme, UE_W, UE_H, isEng, ueInfo);
+    _ueGlyphHint(ueInfo, ueParams.unitType, true);
     svg += `<g transform="translate(${ux.toFixed(1)},${uy.toFixed(1)})">${ueSvgContent}</g>`;
+  } else {
+    /* Quadro desligado: se há cultura escolhida, é AQUI que o usuário fica sem
+       resposta — o ramo de cima nem roda. Sem este else a dica só apareceria
+       nos casos em que ela é menos necessária. */
+    _ueGlyphHint(null, null, false);
   }
 
   // ── Seta de Norte (agulha de bússola clássica) ──
@@ -4477,6 +4490,33 @@ function onPermDensityChange() {
   const dens = parseFloat(document.getElementById('permDensity').value) || 1;
   document.getElementById('permIndividuals').value = Math.max(1, Math.round(dens * L * W / 10000));
   rerenderCroqui();
+}
+
+/* Escolher uma cultura LIGA o quadro da Unidade Experimental. Sem isto o
+   controle não faz nada visível — o quadro nasce desligado, e o usuário que
+   escolhe "Milho" e não vê milho nenhum conclui, com razão, que está quebrado.
+   Foi exatamente o que aconteceu no primeiro uso real. */
+function onUeGlyphChange() {
+  const chk = document.getElementById('chkShowUe');
+  if (document.getElementById('selUeGlyph').value && chk && !chk.checked) chk.checked = true;
+  rerenderCroqui();
+}
+
+/* Quando o app decide NÃO desenhar, ele diz — e diz o número. Silêncio aqui é
+   indistinguível de defeito (r112: anuncie a ESCOLHA, com o verificável, não um
+   limite absoluto). Fica FORA do SVG de propósito: o croqui é exportado, e
+   aviso de interface não pode entrar na figura. */
+function _ueGlyphHint(info, unitType, showUe) {
+  const el = document.getElementById('ueGlyphHint');
+  if (!el) return;
+  let msg = '';
+  const pediu = !!document.getElementById('selUeGlyph').value;
+  if (pediu && !showUe)                     msg = 'ligue "Parcela" para ver';
+  else if (pediu && unitType !== 'parcela') msg = 'só em parcela vegetal';
+  else if (pediu && info && !info.desenhou && info.gPx)
+    msg = `vira ponto: ${info.gPx.toFixed(1)} px por planta (precisa de ${info.min})`;
+  el.textContent = msg;
+  el.classList.toggle('hidden', !msg);
 }
 
 function onGradArrowToggle() {

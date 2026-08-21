@@ -790,6 +790,30 @@ async function smokeCampo(jsdom) {
   const pontos = (semGlifo.match(/<circle/g) || []).length;
   ok(pontos > 0, `Campo/Glifo: sem glifo o quadro da UE deveria desenhar pontos, veio ${pontos}`);
 
+  /* 1b. O CAMINHO DO USUÁRIO, e não só o mecanismo. As asserções acima
+         marcavam `chkShowUe` na mão antes de escolher a cultura — ninguém faz
+         isso. No primeiro uso real o usuário escolheu "Milho" com o quadro
+         desligado (o padrão) e não aconteceu NADA: mecanismo perfeito, produto
+         quebrado, suíte verde. Estas quatro dirigem o handler de verdade. */
+  ev(`document.getElementById('chkShowUe').checked = false;
+      document.getElementById('plantSpacing').value = '0.2';
+      document.getElementById('selUeGlyph').value = 'milho';
+      onUeGlyphChange();`);
+  ok(ev("document.getElementById('chkShowUe').checked") === true,
+     'Campo/Glifo: escolher uma cultura não ligou o quadro da Parcela — o usuário escolhe e não vê nada acontecer');
+  ok(svgUe().includes('<use '),
+     'Campo/Glifo: escolher a cultura pelo handler não desenhou nada — o caminho real do usuário não chega ao desenho');
+
+  /* Quando o app decide NÃO desenhar, ele tem de DIZER, e com o número: silêncio
+     aqui é indistinguível de defeito (r112). */
+  ev("document.getElementById('plantSpacing').value = '0.15'; rerenderCroqui();");
+  const dica = String(ev("document.getElementById('ueGlyphHint').textContent") ?? '');
+  ok(!svgUe().includes('<use ') && /\d/.test(dica) && dica.length > 0,
+     `Campo/Glifo: caiu para ponto sem explicar — a dica veio "${dica}" e precisa dizer o porquê COM o número de px por planta`);
+  ev("document.getElementById('plantSpacing').value = '0.2'; rerenderCroqui();");
+  ok(String(ev("document.getElementById('ueGlyphHint').textContent") ?? '') === '',
+     'Campo/Glifo: a dica não sumiu quando o desenho voltou a caber — aviso que fica ligado vira ruído');
+
   /* 2. O degradê: com espaço, desenha; sem espaço, CAI PARA PONTO sozinho.
         É o guarda que impede a silhueta de virar borrão num croqui denso, e
         ele falha calado — o croqui continua saindo, só ilegível. */
