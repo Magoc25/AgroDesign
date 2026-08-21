@@ -867,6 +867,48 @@ async function smokeCampo(jsdom) {
      'Campo/Glifo: a legenda do quadro da UE não declara o n de plantas — o símbolo vira enfeite sem contagem');
   ev("document.getElementById('chkBorders').checked = false; generateCroqui();");
 
+  /* 2c. TODO DESENHO DO ACERVO TEM DE TER ONDE APARECER. A estreia embarcou
+         quatro silhuetas de animal e nenhum ramo do código que as desenhasse —
+         só a parcela vegetal desenhava. O usuário descobriu escolhendo "Cão"
+         num DQL com cães e recebendo "o desenho vale para parcela vegetal".
+         Arte que ninguém consegue ver é arte que apodrece sem nada acusar. */
+  const ueTipo = (area, tipo, glifo) => ev(`
+    document.getElementById('selArea').value = '${area}'; onAreaChange();
+    document.getElementById('selUnitType').value = '${tipo}'; onUnitTypeChange();
+    document.getElementById('chkShowUe').checked = true;
+    document.getElementById('selUeGlyph').value = '${glifo}';
+    generateCroqui();
+    document.getElementById('selUnitType').value;`);
+  const marcasUe = () => {
+    const s = svgUe();
+    const defs = s.indexOf('</defs>');
+    return ((defs >= 0 ? s.slice(defs) : s).match(/<use /g) || []).length;
+  };
+
+  for (const [area, tipo, glifo, rot] of [
+    ['medvet',    'animal',     'cao',       'animal individual'],
+    ['zootecnia', 'baia',       'suino',     'baia / lote'],
+    ['zootecnia', 'piquete',    'bovino',    'piquete'],
+    ['medvet',    'clinica',    'cao',       'unidade clínica'],
+    ['ecologia',  'permanente', 'araucaria', 'parcela permanente'],
+  ]) {
+    const real = ueTipo(area, tipo, glifo);
+    ok(real === tipo, `Campo/Glifo: pré-condição falhou — pedi tipo de UE "${tipo}" e o app ficou em "${real}"`);
+    ok(marcasUe() > 0, `Campo/Glifo: "${rot}" não desenha a silhueta — o glifo "${glifo}" não tem onde aparecer neste tipo de UE`);
+  }
+
+  /* E o inverso: onde a marca NÃO é um indivíduo, não se desenha organismo —
+     e o app diz por quê. Estação de amostragem não é uma vaca. */
+  for (const [tipo, rot] of [['quadrat', 'quadrat'], ['transecto', 'transecto']]) {
+    ueTipo('ecologia', tipo, 'bovino');
+    ok(marcasUe() === 0, `Campo/Glifo: ${rot} desenhou organismo onde as marcas são pontos de amostragem`);
+    ok(String(ev("document.getElementById('ueGlyphHint').textContent") ?? '').length > 0,
+       `Campo/Glifo: ${rot} não desenhou e não explicou — silêncio aqui é indistinguível de defeito`);
+  }
+  ev(`document.getElementById('selArea').value = 'agronomia'; onAreaChange();
+      document.getElementById('selUnitType').value = 'parcela'; onUnitTypeChange();
+      document.getElementById('selUeGlyph').value = 'milho'; generateCroqui();`);
+
   /* 3. Acessibilidade: são centenas de marcas decorativas. Sem aria-hidden o
         croqui deixa de ser mudo para virar RUÍDO, que é pior; e o SVG raiz
         precisa dizer o que é. */

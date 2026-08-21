@@ -771,18 +771,22 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
             Cultura/Animal:
             <select id="selUeGlyph" onchange="onUeGlyphChange()" style="font-size:.78rem;padding:2px 5px;border:1px solid var(--border);border-radius:4px">
               <option value="">● Ponto (sem desenho)</option>
-              <option value="milho">🌽 Milho</option>
-              <option value="soja">🌱 Soja</option>
-              <option value="cafe">☕ Café</option>
-              <option value="arvore">🌳 Árvore / Mata Atlântica</option>
-              <option value="araucaria">🌲 Araucária</option>
-              <option value="cerrado">🌿 Cerrado</option>
-              <option value="capim">🌾 Capim / Pastagem</option>
-              <option value="folha">🍃 Folha (genérico)</option>
-              <option value="bovino">🐄 Bovino</option>
-              <option value="frango">🐔 Frango</option>
-              <option value="suino">🐖 Suíno</option>
-              <option value="cao">🐕 Cão</option>
+              <optgroup label="Plantas">
+                <option value="milho">🌽 Milho</option>
+                <option value="soja">🌱 Soja</option>
+                <option value="cafe">☕ Café</option>
+                <option value="arvore">🌳 Árvore / Mata Atlântica</option>
+                <option value="araucaria">🌲 Araucária</option>
+                <option value="cerrado">🌿 Cerrado</option>
+                <option value="capim">🌾 Capim / Pastagem</option>
+                <option value="folha">🍃 Folha (genérico)</option>
+              </optgroup>
+              <optgroup label="Animais">
+                <option value="bovino">🐄 Bovino</option>
+                <option value="frango">🐔 Frango</option>
+                <option value="suino">🐖 Suíno</option>
+                <option value="cao">🐕 Cão</option>
+              </optgroup>
             </select>
             <span id="ueGlyphHint" class="hidden" style="font-size:.72rem;color:#92400e;background:#fef3c7;border:1px solid #f59e0b;border-radius:999px;padding:1px 8px;white-space:nowrap"></span>
           </label>
@@ -2071,19 +2075,20 @@ function buildSvgLegend(allT, colors, pos, theme, pubFillMap, isEng = false, lab
    genéricos para o que o campo de texto livre não cobre.
    Bancada de desenho (fora do git): docs/bancada/. */
 const GLIFOS = {
-  milho:      { rotulo: 'Milho', emoji: '🌽', svg: '<path d="M12 1.5c2.5 2.9 3.6 6.2 3.6 8.9s-1.1 6-3.6 8.9c-2.5-2.9-3.6-6.2-3.6-8.9S9.5 4.4 12 1.5Z"/><path d="M11.1 18h1.8v6h-1.8Z"/><path d="M10.8 21c-2.7.1-4.8-1.3-6.2-4.1 3-.6 5.2.5 6.4 3.3Z"/><path d="M13.2 21c2.7.1 4.8-1.3 6.2-4.1-3-.6-5.2.5-6.4 3.3Z"/>' },
-  soja:       { rotulo: 'Soja', emoji: '🌱', svg: '<path d="M11.4 17h1.2v7h-1.2Z"/><g transform="translate(12 16.2)"><path d="M0 0c2-1.1 3-2.9 3-5S2 -9.2 0-10.4-3-7.1-3-5-2-1.1 0 0Z"/><path d="M0 0c2-1.1 3-2.9 3-5S2 -9.2 0-10.4-3-7.1-3-5-2-1.1 0 0Z" transform="rotate(118)"/><path d="M0 0c2-1.1 3-2.9 3-5S2 -9.2 0-10.4-3-7.1-3-5-2-1.1 0 0Z" transform="rotate(-118)"/></g>' },
-  cafe:       { rotulo: 'Café', emoji: '☕', svg: '<path d="M11.3 3h1.4v21h-1.4Z"/><path d="M11.4 10.4C7.9 10.6 5 8.8 3 5.2c3.7-1.2 6.7 0 8.8 3.4Z"/><path d="M12.6 10.4C16.1 10.6 19 8.8 21 5.2c-3.7-1.2-6.7 0-8.8 3.4Z"/><circle cx="8.6" cy="16.4" r="2.7"/><circle cx="15.4" cy="16.4" r="2.7"/>' },
-  arvore:     { rotulo: 'Árvore / Mata Atlântica', emoji: '🌳', svg: '<circle cx="12" cy="7.6" r="5.1"/><circle cx="7.3" cy="11.2" r="4.1"/><circle cx="16.7" cy="11.2" r="4.1"/><path d="M11.1 12.4h1.8V24h-1.8Z"/>' },
-  araucaria:  { rotulo: 'Araucária', emoji: '🌲', svg: '<path d="M11.2 4h1.6v20h-1.6Z"/><path d="M3.6 5.1h16.8v1.6H3.6Z"/><circle cx="3.6" cy="5.9" r="1.6"/><circle cx="20.4" cy="5.9" r="1.6"/><path d="M6.2 9.5h11.6v1.4H6.2Z"/><circle cx="6.2" cy="10.2" r="1.4"/><circle cx="17.8" cy="10.2" r="1.4"/><path d="M8.6 13.5h6.8v1.2H8.6Z"/><circle cx="8.6" cy="14.1" r="1.2"/><circle cx="15.4" cy="14.1" r="1.2"/>' },
-  cerrado:    { rotulo: 'Cerrado', emoji: '🌿', svg: '<circle cx="9.4" cy="7" r="4.3"/><circle cx="15" cy="8.3" r="3.8"/><circle cx="12.4" cy="4.4" r="3.4"/><path d="M11.1 24v-6.6l-3-3.8 1.2-1 2.6 3.2V12h1.6v4.6l2.7-3.4 1.2 1-3.5 4.4V24Z"/>' },
-  capim:      { rotulo: 'Capim / Pastagem', emoji: '🌾', svg: '<path d="M12 24c-.4-6.4.8-11.4 3.6-15-.4 6-1.4 11-3.6 15Z"/><path d="M12 24c-2.4-5-3.6-9.6-3.6-13.8 2.6 3.6 3.8 8.2 3.6 13.8Z"/><path d="M12 24c1.6-4.2 4.2-7.4 7.8-9.6-1.6 4.6-4.2 7.8-7.8 9.6Z"/><path d="M12 24c-1.6-4.2-4.2-7.4-7.8-9.6 1.6 4.6 4.2 7.8 7.8 9.6Z"/>' },
-  folha:      { rotulo: 'Folha (genérico)', emoji: '🍃', svg: '<path d="M3.4 20.8C3.4 11.2 9.6 3.6 20.6 3.4c.2 11-6 17.2-17.2 17.4Z"/><path d="M1.6 23.2.5 22.1l5.6-5.6 1.1 1.1Z"/>' },
-  bovino:     { rotulo: 'Bovino', emoji: '🐄', svg: '<path d="M5.6 8.6h11.2c1.5 0 2.7 1.2 2.7 2.7v3.4c0 1.5-1.2 2.7-2.7 2.7H5.6c-1.5 0-2.7-1.2-2.7-2.7v-3.4c0-1.5 1.2-2.7 2.7-2.7Z"/><path d="M19.2 9.6h2.6c.9 0 1.6.7 1.6 1.6v1.4c0 .9-.7 1.6-1.6 1.6h-2.6Z"/><path d="M19.4 8.6c-.7-1.1-.4-2.1.7-2.8l.8 1.3c-.4.3-.5.7-.2 1.1Z"/><path d="M22.3 8.6c.7-1.1.4-2.1-.7-2.8l-.8 1.3c.4.3.5.7.2 1.1Z"/><path d="M6.4 17.4h1.8V23H6.4Zm3.2 0h1.8V23H9.6Zm3.6 0h1.8V23h-1.8Zm2.8 0h1.8V23H16Z"/><path d="M4 9.2c-1.2.6-1.8 1.8-1.8 3.6v4.6h1.6v-4.6c0-1.2.3-1.9 1-2.3Z"/>' },
-  frango:     { rotulo: 'Frango', emoji: '🐔', svg: '<path d="M7.4 10.2c3.4-2.6 7.4-1.6 9 1.6 1.4 2.9.2 6-2.8 7.2-3.2 1.3-6.6.2-8-2.4-1.2-2.2-.6-4.8 1.8-6.4Z"/><path d="M15.6 10.6c-.4-2.3.6-3.9 2.6-4.5 1.9-.5 3.3.4 3.7 2.1.4 1.8-.6 3.2-2.4 3.7Z"/><path d="M17.8 5.4c.2-1 .8-1.7 1.8-1.9-.2.6-.1 1.1.3 1.4.5-.7 1.1-1 1.9-.9-.5.5-.6 1-.3 1.5Z"/><path d="m21.7 8.5 2.3 1-2.3 1Z"/><path d="M10 19h1.4v3.4H10Zm3.4 0h1.4v3.4h-1.4Z"/><path d="M8.4 22.3h4.4v1.4H8.4Zm3.6 0h4.4v1.4H12Z"/><path d="M7.6 11.4C5.6 9.6 3.6 9 1.6 9.6c1.4 1.4 2 2.8 1.8 4.4 1.2-1.4 2.6-2 4.2-2.6Z"/>' },
-  suino:      { rotulo: 'Suíno', emoji: '🐖', svg: '<path d="M8 9.4h6.8c3.4 0 6.2 2.2 6.2 5s-2.8 5-6.2 5H8c-3.4 0-6.2-2.2-6.2-5s2.8-5 6.2-5Z"/><path d="M20.8 12.6h1.6c.9 0 1.6.7 1.6 1.6s-.7 1.6-1.6 1.6h-1.6Z"/><path d="M9.6 9.6 7.8 6.2c1.8-.4 3.2.4 4.2 2.2Z"/><path d="M14.4 9.6 16.2 6.2c-1.8-.4-3.2.4-4.2 2.2Z"/><path d="M5.6 19h1.8v4H5.6Zm3.4 0h1.8v4H9Zm4 0h1.8v4H13Zm3.4 0h1.8v4h-1.8Z"/><path d="M1.9 12.6C.7 12.3 0 12.9 0 14s.7 1.7 1.7 1.6v-1.4c-.3 0-.4-.2-.4-.4s.2-.4.6-.3Z"/>' },
-  cao:        { rotulo: 'Cão', emoji: '🐕', svg: '<path d="M7 11h8.4c1.7 0 3 1.3 3 3v2c0 1.7-1.3 3-3 3H7c-1.7 0-3-1.3-3-3v-2c0-1.7 1.3-3 3-3Z"/><path d="M17.4 10.6h3.2c1.2 0 2.2 1 2.2 2.2v2c0 1.2-1 2.2-2.2 2.2h-3.2Z"/><path d="M18.4 10.8c-.6-2.2 0-3.8 1.8-4.8.8 1.8.6 3.4-.6 4.8Z"/><path d="M22.6 13.4H24v1.8h-1.4Z"/><path d="M6.4 19h1.8v4H6.4Zm3.4 0h1.8v4H9.8Zm3.6 0h1.8v4h-1.8Z"/><path d="M4.2 11.4C3 9.8 3 8.2 4.2 6.6l1.4 1c-.8 1-.8 2 0 3Z"/>' },
+  milho:      { rotulo: 'Milho', emoji: '🌽', classe: 'planta', svg: '<path d="M12 1.5c2.5 2.9 3.6 6.2 3.6 8.9s-1.1 6-3.6 8.9c-2.5-2.9-3.6-6.2-3.6-8.9S9.5 4.4 12 1.5Z"/><path d="M11.1 18h1.8v6h-1.8Z"/><path d="M10.8 21c-2.7.1-4.8-1.3-6.2-4.1 3-.6 5.2.5 6.4 3.3Z"/><path d="M13.2 21c2.7.1 4.8-1.3 6.2-4.1-3-.6-5.2.5-6.4 3.3Z"/>' },
+  soja:       { rotulo: 'Soja', emoji: '🌱', classe: 'planta', svg: '<path d="M11.4 17h1.2v7h-1.2Z"/><g transform="translate(12 16.2)"><path d="M0 0c2-1.1 3-2.9 3-5S2 -9.2 0-10.4-3-7.1-3-5-2-1.1 0 0Z"/><path d="M0 0c2-1.1 3-2.9 3-5S2 -9.2 0-10.4-3-7.1-3-5-2-1.1 0 0Z" transform="rotate(118)"/><path d="M0 0c2-1.1 3-2.9 3-5S2 -9.2 0-10.4-3-7.1-3-5-2-1.1 0 0Z" transform="rotate(-118)"/></g>' },
+  cafe:       { rotulo: 'Café', emoji: '☕', classe: 'planta', svg: '<path d="M11.3 3h1.4v21h-1.4Z"/><path d="M11.4 10.4C7.9 10.6 5 8.8 3 5.2c3.7-1.2 6.7 0 8.8 3.4Z"/><path d="M12.6 10.4C16.1 10.6 19 8.8 21 5.2c-3.7-1.2-6.7 0-8.8 3.4Z"/><circle cx="8.6" cy="16.4" r="2.7"/><circle cx="15.4" cy="16.4" r="2.7"/>' },
+  arvore:     { rotulo: 'Árvore / Mata Atlântica', emoji: '🌳', classe: 'planta', svg: '<circle cx="12" cy="7.6" r="5.1"/><circle cx="7.3" cy="11.2" r="4.1"/><circle cx="16.7" cy="11.2" r="4.1"/><path d="M11.1 12.4h1.8V24h-1.8Z"/>' },
+  araucaria:  { rotulo: 'Araucária', emoji: '🌲', classe: 'planta', svg: '<path d="M11.2 4h1.6v20h-1.6Z"/><path d="M3.6 5.1h16.8v1.6H3.6Z"/><circle cx="3.6" cy="5.9" r="1.6"/><circle cx="20.4" cy="5.9" r="1.6"/><path d="M6.2 9.5h11.6v1.4H6.2Z"/><circle cx="6.2" cy="10.2" r="1.4"/><circle cx="17.8" cy="10.2" r="1.4"/><path d="M8.6 13.5h6.8v1.2H8.6Z"/><circle cx="8.6" cy="14.1" r="1.2"/><circle cx="15.4" cy="14.1" r="1.2"/>' },
+  cerrado:    { rotulo: 'Cerrado', emoji: '🌿', classe: 'planta', svg: '<circle cx="9.4" cy="7" r="4.3"/><circle cx="15" cy="8.3" r="3.8"/><circle cx="12.4" cy="4.4" r="3.4"/><path d="M11.1 24v-6.6l-3-3.8 1.2-1 2.6 3.2V12h1.6v4.6l2.7-3.4 1.2 1-3.5 4.4V24Z"/>' },
+  capim:      { rotulo: 'Capim / Pastagem', emoji: '🌾', classe: 'planta', svg: '<path d="M12 24c-.4-6.4.8-11.4 3.6-15-.4 6-1.4 11-3.6 15Z"/><path d="M12 24c-2.4-5-3.6-9.6-3.6-13.8 2.6 3.6 3.8 8.2 3.6 13.8Z"/><path d="M12 24c1.6-4.2 4.2-7.4 7.8-9.6-1.6 4.6-4.2 7.8-7.8 9.6Z"/><path d="M12 24c-1.6-4.2-4.2-7.4-7.8-9.6 1.6 4.6 4.2 7.8 7.8 9.6Z"/>' },
+  folha:      { rotulo: 'Folha (genérico)', emoji: '🍃', classe: 'planta', svg: '<path d="M3.4 20.8C3.4 11.2 9.6 3.6 20.6 3.4c.2 11-6 17.2-17.2 17.4Z"/><path d="M1.6 23.2.5 22.1l5.6-5.6 1.1 1.1Z"/>' },
+  bovino:     { rotulo: 'Bovino', emoji: '🐄', classe: 'animal', svg: '<path d="M5.6 8.6h11.2c1.5 0 2.7 1.2 2.7 2.7v3.4c0 1.5-1.2 2.7-2.7 2.7H5.6c-1.5 0-2.7-1.2-2.7-2.7v-3.4c0-1.5 1.2-2.7 2.7-2.7Z"/><path d="M19.2 9.6h2.6c.9 0 1.6.7 1.6 1.6v1.4c0 .9-.7 1.6-1.6 1.6h-2.6Z"/><path d="M19.4 8.6c-.7-1.1-.4-2.1.7-2.8l.8 1.3c-.4.3-.5.7-.2 1.1Z"/><path d="M22.3 8.6c.7-1.1.4-2.1-.7-2.8l-.8 1.3c.4.3.5.7.2 1.1Z"/><path d="M6.4 17.4h1.8V23H6.4Zm3.2 0h1.8V23H9.6Zm3.6 0h1.8V23h-1.8Zm2.8 0h1.8V23H16Z"/><path d="M4 9.2c-1.2.6-1.8 1.8-1.8 3.6v4.6h1.6v-4.6c0-1.2.3-1.9 1-2.3Z"/>' },
+  frango:     { rotulo: 'Frango', emoji: '🐔', classe: 'animal', svg: '<path d="M7.4 10.2c3.4-2.6 7.4-1.6 9 1.6 1.4 2.9.2 6-2.8 7.2-3.2 1.3-6.6.2-8-2.4-1.2-2.2-.6-4.8 1.8-6.4Z"/><path d="M15.6 10.6c-.4-2.3.6-3.9 2.6-4.5 1.9-.5 3.3.4 3.7 2.1.4 1.8-.6 3.2-2.4 3.7Z"/><path d="M17.8 5.4c.2-1 .8-1.7 1.8-1.9-.2.6-.1 1.1.3 1.4.5-.7 1.1-1 1.9-.9-.5.5-.6 1-.3 1.5Z"/><path d="m21.7 8.5 2.3 1-2.3 1Z"/><path d="M10 19h1.4v3.4H10Zm3.4 0h1.4v3.4h-1.4Z"/><path d="M8.4 22.3h4.4v1.4H8.4Zm3.6 0h4.4v1.4H12Z"/><path d="M7.6 11.4C5.6 9.6 3.6 9 1.6 9.6c1.4 1.4 2 2.8 1.8 4.4 1.2-1.4 2.6-2 4.2-2.6Z"/>' },
+  suino:      { rotulo: 'Suíno', emoji: '🐖', classe: 'animal', svg: '<path d="M8 9.4h6.8c3.4 0 6.2 2.2 6.2 5s-2.8 5-6.2 5H8c-3.4 0-6.2-2.2-6.2-5s2.8-5 6.2-5Z"/><path d="M20.8 12.6h1.6c.9 0 1.6.7 1.6 1.6s-.7 1.6-1.6 1.6h-1.6Z"/><path d="M9.6 9.6 7.8 6.2c1.8-.4 3.2.4 4.2 2.2Z"/><path d="M14.4 9.6 16.2 6.2c-1.8-.4-3.2.4-4.2 2.2Z"/><path d="M5.6 19h1.8v4H5.6Zm3.4 0h1.8v4H9Zm4 0h1.8v4H13Zm3.4 0h1.8v4h-1.8Z"/><path d="M1.9 12.6C.7 12.3 0 12.9 0 14s.7 1.7 1.7 1.6v-1.4c-.3 0-.4-.2-.4-.4s.2-.4.6-.3Z"/>' },
+  cao:        { rotulo: 'Cão', emoji: '🐕', classe: 'animal', svg: '<path d="M7 11h8.4c1.7 0 3 1.3 3 3v2c0 1.7-1.3 3-3 3H7c-1.7 0-3-1.3-3-3v-2c0-1.7 1.3-3 3-3Z"/><path d="M17.4 10.6h3.2c1.2 0 2.2 1 2.2 2.2v2c0 1.2-1 2.2-2.2 2.2h-3.2Z"/><path d="M18.4 10.8c-.6-2.2 0-3.8 1.8-4.8.8 1.8.6 3.4-.6 4.8Z"/><path d="M22.6 13.4H24v1.8h-1.4Z"/><path d="M6.4 19h1.8v4H6.4Zm3.4 0h1.8v4H9.8Zm3.6 0h1.8v4h-1.8Z"/><path d="M4.2 11.4C3 9.8 3 8.2 4.2 6.6l1.4 1c-.8 1-.8 2 0 3Z"/>' },
 };
+
 
 /* NÃO existe limiar de legibilidade aqui, e a ausência é deliberada.
    Houve um `UE_GLYPH_MIN_PX = 7` e ele estava errado por CONSTRUÇÃO, não por
@@ -2144,6 +2149,20 @@ function buildUeSchematic(params, theme, W, H, isEng = false, info = null) {
       `<text x="${x - 8}" y="${my}" text-anchor="middle" dominant-baseline="middle" font-size="7.5" fill="${cDim}" font-weight="700" transform="rotate(-90,${x - 8},${my})">${esc(label)}</text>`;
   };
 
+  /* O glifo vale para qualquer UE que desenhe INDIVÍDUOS — planta, animal ou
+     árvore de parcela permanente. Por isso a decisão mora aqui em cima, e não
+     dentro do ramo vegetal como na primeira versão, que deixou os quatro
+     desenhos de animal sem nenhum lugar para aparecer. Ficam de fora só
+     `quadrat` e `transecto`: ali os círculos são ESTAÇÕES DE AMOSTRAGEM, não
+     organismos — desenhar uma vaca num ponto de coleta seria mentir sobre o
+     que a marca representa. */
+  const gId = (params.ueGlyph && GLIFOS[params.ueGlyph]) ? params.ueGlyph : '';
+  const glifoEm = (cx, cy, lado) =>
+    `<use href="#ueGlyph-${gId}" x="${(cx - lado/2).toFixed(1)}" y="${(cy - lado/2).toFixed(1)}" width="${lado.toFixed(1)}" height="${lado.toFixed(1)}"/>`;
+  /* fill/opacity/aria-hidden UMA vez no grupo, nunca por marca. */
+  const abreG  = () => `<g fill="${cDot}" opacity="${isPub ? '0.9' : '0.78'}" aria-hidden="true">`;
+  if (info) { info.pediu = !!params.ueGlyph; info.desenhou = false; }
+
   const TITLE_H = 17;
   // INFO_H aumenta quando há legenda de área útil
   const _bf  = params.borderFrac     || 0;
@@ -2197,16 +2216,15 @@ function buildUeSchematic(params, theme, W, H, isEng = false, info = null) {
        a marca vira silhueta; abaixo do limiar cai para ponto, e abaixo do
        showDots cai para linha — o mesmo degradê que a função já fazia. */
     const gPx       = Math.min(pSpacePx, rowH);
-    const gId       = params.ueGlyph || '';
-    const showGlyph = !!gId && !!GLIFOS[gId] && showDots;
+    const showGlyph = !!gId && showDots;
     const gS        = Math.min(gPx * 0.92, 14);   // lado do glifo, com folga entre vizinhos
-    if (info) { info.pediu = !!gId; info.desenhou = showGlyph; info.gPx = gPx; info.denso = !showDots; }
+    if (info) { info.desenhou = showGlyph; info.gPx = gPx; info.denso = !!params.ueGlyph && !showDots; }
     /* fill/opacity/aria-hidden UMA vez no grupo, não em cada marca: medido, é a
        diferença entre 134 B e 62 B por marca — com o <g> o <use> sai MAIS BARATO
        que o <circle> que substitui. O aria-hidden é obrigatório: são centenas de
        marcas decorativas, e sem ele o croqui deixa de ser mudo para virar ruído
        no leitor de tela, que é pior. */
-    if (showGlyph) out += `<g fill="${cDot}" opacity="${isPub ? '0.9' : '0.78'}" aria-hidden="true">`;
+    if (showGlyph) out += abreG();
     for (let r = 0; r < nR; r++) {
       if (showDots) {
         for (let p = 0; p < nP; p++) {
@@ -2214,7 +2232,7 @@ function buildUeSchematic(params, theme, W, H, isEng = false, info = null) {
           const py = oy + (r + 0.5) * rowH;
           if (px <= ox + dW + 1) {
             if (showGlyph)
-              out += `<use href="#ueGlyph-${gId}" x="${(px - gS / 2).toFixed(1)}" y="${(py - gS / 2).toFixed(1)}" width="${gS.toFixed(1)}" height="${gS.toFixed(1)}"/>`;
+              out += glifoEm(px, py, gS);
             else
               out += `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${+dr.toFixed(2)}" fill="${cDot}" opacity="${isPub ? '0.75' : '0.65'}"/>`;
           }
@@ -2347,15 +2365,22 @@ function buildUeSchematic(params, theme, W, H, isEng = false, info = null) {
       const tcw = dW3 / (tCols + 1);
       const tch = dH3 / (tRows + 1);
       let cnt2 = 0;
+      if (gId) out += abreG();
+      if (info) info.desenhou = !!gId;
       for (let r = 1; r <= tRows && cnt2 < pI; r++) {
         for (let c = 1; c <= tCols && cnt2 < pI; c++, cnt2++) {
           const px  = +(ox + c * tcw).toFixed(1);
           const py  = +(oy + r * tch).toFixed(1);
           const dr2 = Math.min(tcw, tch) * 0.22;
-          out += `<circle cx="${px}" cy="${py}" r="${+dr2.toFixed(1)}" fill="${isPub?'#888':'#52b788'}" opacity="${isPub?'0.5':'0.55'}" stroke="${cStk}" stroke-width="0.8"/>`;
-          out += `<circle cx="${px}" cy="${py}" r="1.3" fill="${isPub?'#333':'#1b4332'}"/>`;
+          if (gId) {
+            out += glifoEm(px, py, Math.min(tcw, tch) * 0.92);
+          } else {
+            out += `<circle cx="${px}" cy="${py}" r="${+dr2.toFixed(1)}" fill="${isPub?'#888':'#52b788'}" opacity="${isPub?'0.5':'0.55'}" stroke="${cStk}" stroke-width="0.8"/>`;
+            out += `<circle cx="${px}" cy="${py}" r="1.3" fill="${isPub?'#333':'#1b4332'}"/>`;
+          }
         }
       }
+      if (gId) out += '</g>';
       out += hDim(ox, ox + dW3, oy - 10, `${pL.toFixed(0)} m`);
       out += vDim(ox - 12, oy, oy + dH3, `${pWp.toFixed(0)} m`);
       const typeLbl = isEng ? 'Perm. Plot' : 'Parc. Permanente';
@@ -2388,16 +2413,29 @@ function buildUeSchematic(params, theme, W, H, isEng = false, info = null) {
     const rows = Math.ceil(showApu / cols);
     const cw = side / cols, ch = side / rows;
     let cnt = 0;
+    if (gId) out += abreG();
+    if (info) info.desenhou = !!gId;
+    /* O número identifica cada indivíduo e não pode sumir junto com o círculo:
+       sem o disco cheio não há onde escrever em branco, então ele desce para
+       baixo da silhueta, na cor apagada do quadro. */
+    let numeros = '';
     for (let r = 0; r < rows && cnt < showApu; r++) {
       for (let c = 0; c < cols && cnt < showApu; c++, cnt++) {
         const cx  = ox + (c + 0.5) * cw;
         const cy  = oy + (r + 0.5) * ch;
         const rad = Math.min(cw, ch) * 0.28;
-        out += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${rad.toFixed(1)}" fill="${isPub ? '#888' : '#52b788'}" opacity="${isPub ? '0.6' : '0.65'}" stroke="${isPub ? '#333' : '#fff'}" stroke-width="1"/>`;
-        if (rad > 8 && showApu <= 9)
-          out += `<text x="${cx.toFixed(1)}" y="${(cy + 4).toFixed(1)}" text-anchor="middle" font-size="${Math.min(10, rad).toFixed(0)}" fill="#fff" font-weight="700">${cnt + 1}</text>`;
+        if (gId) {
+          out += glifoEm(cx, cy, Math.min(cw, ch) * 0.82);
+          if (rad > 8 && showApu <= 9)
+            numeros += `<text x="${cx.toFixed(1)}" y="${(cy + Math.min(cw, ch) * 0.52).toFixed(1)}" text-anchor="middle" font-size="${Math.min(9, rad).toFixed(0)}" fill="${cMuted}" font-weight="700">${cnt + 1}</text>`;
+        } else {
+          out += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${rad.toFixed(1)}" fill="${isPub ? '#888' : '#52b788'}" opacity="${isPub ? '0.6' : '0.65'}" stroke="${isPub ? '#333' : '#fff'}" stroke-width="1"/>`;
+          if (rad > 8 && showApu <= 9)
+            out += `<text x="${cx.toFixed(1)}" y="${(cy + 4).toFixed(1)}" text-anchor="middle" font-size="${Math.min(10, rad).toFixed(0)}" fill="#fff" font-weight="700">${cnt + 1}</text>`;
+        }
       }
     }
+    if (gId) out += '</g>' + numeros;
     if (apu > 16) {
       out += `<text x="${(ox + side / 2).toFixed(1)}" y="${(oy + side / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="18" fill="${isPub ? '#444' : '#2d6a4f'}" font-weight="700">${apu}</text>`;
       out += `<text x="${(ox + side / 2).toFixed(1)}" y="${(oy + side / 2 + 18).toFixed(1)}" text-anchor="middle" font-size="10" fill="${cMuted}">${isEng ? 'animals' : 'animais'}</text>`;
@@ -4529,10 +4567,14 @@ function _ueGlyphHint(info, unitType, showUe) {
      dizia "vira ponto: 6.4 px por planta (precisa de 7)" — informação exata e
      inútil: ninguém muda o espaçamento do próprio experimento por causa do
      app, e o número era de uma unidade que a tela não usa. */
-  if (pediu && !showUe)                     msg = 'marque "Parcela" para ver o desenho';
-  else if (pediu && unitType !== 'parcela') msg = 'o desenho vale para parcela vegetal';
-  else if (pediu && info && info.denso)
-    msg = 'plantas juntas demais — a fileira virou linha contínua';
+  /* O motivo vem de `info.desenhou`, a decisão que a função REALMENTE tomou, e
+     não de uma lista de tipos repetida aqui — que envelheceria sozinha assim que
+     um ramo novo passasse a desenhar. Foi exatamente o que aconteceu: a dica
+     dizia "só em parcela vegetal" e o ramo animal já desenhava. */
+  if (pediu && !showUe)                  msg = 'marque "Parcela" para ver o desenho';
+  else if (pediu && info && info.denso)  msg = 'plantas juntas demais — a fileira virou linha contínua';
+  else if (pediu && info && !info.desenhou)
+    msg = 'aqui as marcas são pontos de amostragem, não indivíduos';
   el.textContent = msg;
   el.classList.toggle('hidden', !msg);
 }
