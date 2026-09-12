@@ -909,6 +909,81 @@ async function smokeCampo(jsdom) {
       document.getElementById('selUnitType').value = 'parcela'; onUnitTypeChange();
       document.getElementById('selUeGlyph').value = 'milho'; generateCroqui();`);
 
+  /* 2d. O ACERVO E A LISTA SÃO DUAS METADES ESCRITAS EM LUGARES DIFERENTES, e
+         até aqui nada as amarrava: `GLIFOS` mora no JS — e o `aplicar.js` da
+         bancada só reescreve ELE — enquanto as <option> são digitadas à mão no
+         HTML. Saem de sincronia em silêncio, e nos DOIS sentidos:
+           · glifo sem <option> → arte que ninguém consegue escolher. É o 2c
+             pela outra porta, e a estreia já pagou por esse uma vez;
+           · <option> sem glifo → o usuário escolhe, o `onUeGlyphChange` liga o
+             quadro da Parcela, o `GLIFOS[gId]` não acha nada e o croqui desenha
+             PONTO. Não há erro, não há aviso: há uma escolha que não faz nada.
+         A regra derivada é uma IGUALDADE DE CONJUNTOS, e ela quebra sozinha na
+         próxima silhueta que nascer só de um lado (r68b). Entra agora porque
+         as hortaliças levaram o acervo de 12 a 22, e o passo manual da lista
+         passou a ser dado dez vezes seguidas. */
+  const acervo = ev.json('JSON.stringify(Object.keys(GLIFOS))');
+  const meta   = ev.json('JSON.stringify(Object.fromEntries(' +
+    'Object.entries(GLIFOS).map(([k, g]) => [k, [g.rotulo, g.emoji, g.classe]])))', {});
+  const opcoes = ev.json("JSON.stringify(Array.from(document.querySelectorAll('#selUeGlyph option'))" +
+    ".filter(function(o){return o.value})" +
+    ".map(function(o){return [o.value, o.textContent.trim(), o.parentElement.label || '']}))");
+
+  const soAcervo = acervo.filter(k => !opcoes.some(o => o[0] === k));
+  const soLista  = opcoes.filter(o => !acervo.includes(o[0])).map(o => o[0]);
+  ok(acervo.length > 0 && opcoes.length > 0,
+     `Campo/Glifo: pré-condição falhou — li ${acervo.length} glifos e ${opcoes.length} <option>; um dos dois lados não foi lido`);
+  ok(soAcervo.length === 0,
+     `Campo/Glifo: glifo no acervo sem <option> no select → ${soAcervo.join(', ')} — arte que o usuário não tem como escolher`);
+  ok(soLista.length === 0,
+     `Campo/Glifo: <option> sem glifo em GLIFOS → ${soLista.join(', ')} — escolher isso liga o quadro da Parcela e desenha ponto, calado`);
+
+  /* O rótulo da <option> é o do acervo, não um digitado de novo: "Melao" na
+     lista com "Melão" na tabela é um defeito que só aparece para quem procura
+     pelo nome — e procurar pelo nome é como se acha uma cultura numa lista de
+     dezoito. Mesmo motivo para o grupo: classe 'planta' fora de "Plantas"
+     esconde o glifo no lugar errado da lista. */
+  const GRUPO = { planta: 'Plantas', animal: 'Animais' };
+  const rotuloErrado = opcoes.filter(([id, txt]) => meta[id] && txt !== `${meta[id][1]} ${meta[id][0]}`)
+                             .map(([id, txt]) => `${id}: "${txt}" ≠ "${meta[id][1]} ${meta[id][0]}"`);
+  const grupoErrado  = opcoes.filter(([id, , grupo]) => meta[id] && GRUPO[meta[id][2]] !== grupo)
+                             .map(([id, , grupo]) => `${id}: classe '${meta[id][2]}' dentro de "${grupo}"`);
+  ok(rotuloErrado.length === 0, `Campo/Glifo: rótulo da <option> divergiu do acervo → ${rotuloErrado.join(' | ')}`);
+  ok(grupoErrado.length === 0,  `Campo/Glifo: <option> no <optgroup> errado → ${grupoErrado.join(' | ')}`);
+
+  /* O CONTRATO DO GLIFO, cobrado aqui e não só na bancada. As cinco regras
+     abaixo já existem no `aplicar.js` de `docs/bancada/` — e ele só roda para
+     quem usa a bancada. `AgroDesign.html` é um arquivo único: editar o bloco
+     `GLIFOS` à mão é o caminho mais curto e nenhuma validação estava no
+     caminho dele. Cada regra tem um sintoma que NÃO aparece no navegador de
+     quem edita: o `stroke` some na escala em que a marca de fato aparece, a
+     cor literal só destoa no tema Publicação, o `id` interno só colide com
+     duas instâncias na tela, e o recurso externo só falha no exportPNG, que
+     rasteriza o SVG como <img>. */
+  const violado = [];
+  for (const id of acervo) {
+    const svg = String(ev(`GLIFOS[${JSON.stringify(id)}].svg`) ?? '');
+    if (!/^[a-z][a-z0-9]*$/.test(id))                   violado.push(`${id}: id inválido — ele vira id de <symbol> no SVG`);
+    if (!/<(path|circle)\b/.test(svg))                  violado.push(`${id}: sem <path>/<circle> — a entrada existe e não desenha nada`);
+    if (/\bstroke=/.test(svg))                          violado.push(`${id}: usa stroke — a 7 px um traço de 1,6 vira 0,47 px e some`);
+    if (/fill="(?!currentColor)[^"]/.test(svg))         violado.push(`${id}: cor literal no fill — ignoraria o tema Publicação`);
+    if (/\bid=/.test(svg))                              violado.push(`${id}: id interno — colidiria entre instâncias do <symbol>`);
+    if (/https?:|url\(|<image|<style|<script/i.test(svg)) violado.push(`${id}: recurso externo — o exportPNG rasteriza como <img>, onde nada externo carrega`);
+  }
+  ok(violado.length === 0, `Campo/Glifo: contrato do glifo violado → ${violado.join(' | ')}`);
+
+  /* E o contrato satisfeito ainda tem de virar DESENHO pela função: o <symbol>
+     emitido precisa sair com corpo. Direto na função pura — 22 chamadas contra
+     22 croquis pelo DOM. */
+  const simboloVazio = acervo.filter(id => {
+    const s = String(ev(`buildUeSchematic({ unitType:'parcela', plotLength:5, plantSpacing:0.2,` +
+      ` rowsPerPlot:4, rowSpacing:0.5, ueGlyph:${JSON.stringify(id)} }, 'color', 220, 185)`) ?? '');
+    const i = s.indexOf(`<symbol id="ueGlyph-${id}"`);
+    return i < 0 || !s.includes('<use ') || !/<(path|circle)\b/.test(s.slice(i, s.indexOf('</symbol>', i)));
+  });
+  ok(simboloVazio.length === 0,
+     `Campo/Glifo: o <symbol> saiu vazio (ou não saiu) para → ${simboloVazio.join(', ')}`);
+
   /* 3. Acessibilidade: são centenas de marcas decorativas. Sem aria-hidden o
         croqui deixa de ser mudo para virar RUÍDO, que é pior; e o SVG raiz
         precisa dizer o que é. */
