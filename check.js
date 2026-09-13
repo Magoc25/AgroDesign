@@ -1006,6 +1006,142 @@ async function smokeCampo(jsdom) {
      'Campo/Glifo: id arbitrário vazou para o SVG — o símbolo tem de sair de GLIFOS, não do valor cru');
   ev("document.getElementById('selUeGlyph').value=''; document.getElementById('chkShowUe').checked=false; generateCroqui();");
 
+  /* ═══ 5. Legenda: o prefixo de código não pode DUPLICAR o nome ═══════════
+     Nos modos `T1,T2,T3` / sigla, a célula mostra só o código e a legenda o
+     expande — daí o `T1 — <nome>`. Mas o nome pode já trazer o código, e o
+     `placeholder` do campo de tratamentos sugere exatamente `T1/T2/T3`: o app
+     entrega ao usuário a entrada que produz `T1 — T1`. As quatro asserções
+     abaixo travam os dois lados, porque consertar duplicação é fácil e matar
+     o prefixo legítimo junto é o erro provável. */
+  const cfgLeg = nomes => ev(`
+    document.getElementById('selDesign').value='DIC'; onDesignChange();
+    document.getElementById('numReps').value='2';
+    document.getElementById('selLabelMode').value='code';
+    document.getElementById('selLegendPos').value='right';
+    document.getElementById('txtTreatments').value=${JSON.stringify(nomes.join('\n'))};
+    generateCroqui();
+    document.getElementById('croquiSvg').outerHTML.length;`);
+  const itensLeg = () => (String(ev("document.getElementById('croquiSvg').outerHTML") ?? '')
+    .match(/<text[^>]*font-size="(?:7|7\.5|8\.5|10)"[^>]*>[^<]*<\/text>/g) || [])
+    .map(t => t.replace(/<[^>]*>/g, '')).filter(t => t && t !== 'Legenda' && !/\d\s*m(²|\b)/.test(t));
+
+  cfgLeg(['0% Ureia', '50% Ureia']);
+  const legSem = itensLeg();
+  ok(legSem.some(s => s === 'T1 — 0% Ureia'),
+     `Campo/Legenda: nome SEM código deixou de receber o prefixo — a célula mostra "T1" e ninguém saberia a que tratamento ela se refere → ${JSON.stringify(legSem)}`);
+
+  cfgLeg(['T1 - 0% Ureia', 'T2 - 50% Ureia']);
+  const legCom = itensLeg();
+  ok(legCom.some(s => s === 'T1 - 0% Ureia') && !legCom.some(s => /^T1 — T1/.test(s)),
+     `Campo/Legenda: nome que JÁ traz o código recebeu o prefixo de novo ("T1 — T1 - …") → ${JSON.stringify(legCom)}`);
+
+  cfgLeg(['T1', 'T2']);
+  const legIgual = itensLeg();
+  ok(legIgual.some(s => s === 'T1') && !legIgual.some(s => s === 'T1 — T1'),
+     `Campo/Legenda: nome IGUAL ao código virou "T1 — T1" — e é o que o placeholder do campo de tratamentos sugere digitar → ${JSON.stringify(legIgual)}`);
+
+  /* O separador é o que impede o código de engolir um nome mais longo: `T1`
+     é prefixo de `T10`, e sem esta trava o tratamento perderia a legenda.
+     ⚠️ Os nomes aqui NÃO são livres. O código sai da ordem alfabética, então
+     `T10 - alto` só recebe o código `T1` se for o PRIMEIRO da lista ordenada —
+     com um `T1 - baixo` junto, `T10` viraria `T2`, o `startsWith` daria falso
+     antes de chegar ao separador e a asserção passaria sem exercitar nada. Foi
+     o que a campanha de mutação mostrou: verde com a regra do separador
+     removida. O par `T10`/`T2` é o único que põe os dois no mesmo caminho. */
+  cfgLeg(['T10 - alto', 'T2 - baixo']);
+  const legT10 = itensLeg();
+  ok(legT10.some(s => s === 'T1 — T10 - alto'),
+     `Campo/Legenda: o código "T1" engoliu o nome "T10 - alto" — falta exigir separador depois do código → ${JSON.stringify(legT10)}`);
+
+  /* ═══ 6. Suprimir a 1ª e a última marca da linha ═════════════════════════
+     Elas caem em px = ox e px = ox+dW, ou seja EXATAMENTE sobre o retângulo da
+     parcela — com silhueta ligada, metade do desenho fica fora nos dois
+     extremos. A opção é de DESENHO: o que ela NÃO pode fazer é mexer em
+     contagem, e é isso que a última asserção mede. */
+  const marcasUeParam = de => {
+    const s = String(ev(`buildUeSchematic({ unitType:'parcela', plotLength:5, plantSpacing:0.5,` +
+      ` rowsPerPlot:4, rowSpacing:0.5, ueGlyph:'milho', borderFrac:0, latBorderPlants:0, dropEdge:${de} }, 'color', 220, 185)`) ?? '');
+    return { n: (s.match(/<use /g) || []).length, rodape: (s.match(/Planta \(n = [^)]*\)/) || [''])[0] };
+  };
+  const semCorte = marcasUeParam(false), comCorte = marcasUeParam(true);
+  ok(semCorte.n === 44, `Campo/Corte: pré-condição falhou — 11 plantas × 4 linhas deveriam dar 44 marcas, vieram ${semCorte.n}`);
+  ok(comCorte.n === 36, `Campo/Corte: com o corte ligado esperava 9 × 4 = 36 marcas, vieram ${comCorte.n}`);
+  ok(comCorte.rodape === 'Planta (n = 44 · 36 desenhadas)',
+     `Campo/Corte: o rodapé não declara as DUAS contagens — sem isso a figura mostra 36 marcas e diz que a parcela tem 36 → "${comCorte.rodape}"`);
+  ok(semCorte.rodape === '',
+     `Campo/Corte: com o corte DESLIGADO e sem bordadura apareceu rodapé de contagem — ruído numa figura que não tem o que declarar → "${semCorte.rodape}"`);
+
+  /* A promessa central da opção, e a única coisa aqui que o usuário decidiu
+     explicitamente: a CONTAGEM não muda. Medida na tabela da aba Unidade, que
+     é onde ela é publicada. */
+  const plantasTotais = () => {
+    const h = String(ev("document.getElementById('unidadeStats').innerHTML") ?? '');
+    const m = h.match(/Plantas totais<\/div><div class="value">(\d+)</);
+    return m ? +m[1] : -1;
+  };
+  ev(`document.getElementById('selArea').value='agronomia'; onAreaChange();
+      document.getElementById('selUnitType').value='parcela'; onUnitTypeChange();
+      document.getElementById('plotLength').value='5'; document.getElementById('plantSpacing').value='0.5';
+      document.getElementById('rowsPerPlot').value='4'; document.getElementById('rowSpacing').value='0.5';
+      document.getElementById('chkDropEdgeMarks').checked=false; generateCroqui(); showTab('unidade');`);
+  const totalAntes = plantasTotais();
+  ev("document.getElementById('chkDropEdgeMarks').checked=true; showTab('unidade');");
+  const totalDepois = plantasTotais();
+  ok(totalAntes === 44 && totalDepois === 44,
+     `Campo/Corte: a opção é de DESENHO e mexeu na contagem publicada — "Plantas totais" foi de ${totalAntes} para ${totalDepois}`);
+
+  /* ═══ 7. Cultura/Animal vale também na aba UNIDADE ═══════════════════════
+     Era a última superfície que desenhava indivíduo um a um e ainda saía em
+     ponto. O id do <symbol> tem de ser OUTRO: as duas telas vivem no mesmo
+     documento, e id repetido faz todo `<use href="#…">` resolver no primeiro
+     que o navegador achar. */
+  const uni = () => String(ev("document.getElementById('unidadeContent').innerHTML") ?? '');
+  ev("document.getElementById('chkDropEdgeMarks').checked=false; document.getElementById('selUeGlyph').value=''; generateCroqui(); showTab('unidade');");
+  const uniPonto = uni();
+  ok((uniPonto.match(/<circle/g) || []).length > 0 && (uniPonto.match(/<use /g) || []).length === 0,
+     'Campo/Unidade: sem cultura escolhida a aba Unidade deveria desenhar pontos e nenhum glifo');
+  ev("document.getElementById('selUeGlyph').value='alface'; onUeGlyphChange(); showTab('unidade');");
+  const uniGlifo = uni();
+  ok((uniGlifo.match(/<use /g) || []).length === (uniPonto.match(/<circle/g) || []).length,
+     `Campo/Unidade: escolher a cultura não trocou os pontos por silhuetas — ${(uniGlifo.match(/<use /g)||[]).length} <use> contra ${(uniPonto.match(/<circle/g)||[]).length} pontos antes`);
+  ok(uniGlifo.includes('<symbol id="uniGlyph-alface"'),
+     'Campo/Unidade: o <symbol> do glifo não foi para o <defs> da aba Unidade — o <use> aponta para nada');
+  ok(uniGlifo.includes('Alface'),
+     'Campo/Unidade: a legenda do rodapé continua dizendo "Planta" com uma cultura escolhida — o rótulo tem de sair do acervo');
+
+  /* O id NÃO pode ser o mesmo do croqui, e as duas telas coexistem no DOM. */
+  const croquiHtml = String(ev("(document.getElementById('croquiSvg')||{outerHTML:''}).outerHTML") ?? '');
+  const unidadeHtml = String(ev("(document.getElementById('svgUnidade')||{outerHTML:''}).outerHTML") ?? '');
+  ok((croquiHtml.match(/<symbol id="uniGlyph-/g) || []).length === 0 &&
+     (unidadeHtml.match(/<symbol id="ueGlyph-/g) || []).length === 0,
+     'Campo/Unidade: as duas superfícies usam o mesmo prefixo de id de <symbol> — id duplicado no documento faz um <use> resolver no símbolo da outra aba');
+
+  /* E o inverso do 2c, agora na aba Unidade: onde a marca é ESTAÇÃO DE
+     AMOSTRAGEM não se desenha organismo.
+     ⚠️ O `quadratMethod` tem de ser `grade` EXPLICITAMENTE. No padrão (`censo`)
+     o quadrat não desenha marca nenhuma, então "zero glifos" é verdade de
+     graça e a asserção não mede o que promete — a campanha de mutação ficou
+     verde com o glifo injetado no laço da grade, porque o laço nunca rodava.
+     Daí a pré-condição: primeiro prove que a superfície DESENHA algo. */
+  for (const [tipo, prep] of [
+    ['quadrat',   "document.getElementById('quadratMethod').value='grade'; document.getElementById('quadratGridN').value='4';"],
+    ['transecto', ''],
+  ]) {
+    ev(`document.getElementById('selArea').value='ecologia'; onAreaChange();
+        document.getElementById('selUnitType').value='${tipo}'; onUnitTypeChange();
+        ${prep}
+        document.getElementById('selUeGlyph').value='bovino'; generateCroqui(); showTab('unidade');`);
+    const h = uni();
+    ok((h.match(/<circle/g) || []).length > 0,
+       `Campo/Unidade: pré-condição falhou — ${tipo} não desenhou marca alguma, então "zero glifos" não mede nada`);
+    ok((h.match(/<use /g) || []).length === 0,
+       `Campo/Unidade: ${tipo} desenhou organismo onde as marcas são pontos de amostragem`);
+  }
+  ev(`document.getElementById('selArea').value='agronomia'; onAreaChange();
+      document.getElementById('selUnitType').value='parcela'; onUnitTypeChange();
+      document.getElementById('selUeGlyph').value=''; document.getElementById('chkShowUe').checked=false;
+      document.getElementById('selLabelMode').value='id'; generateCroqui(); showTab('croqui');`);
+
   /* Modo escuro liga/desliga e persiste */
   ev('toggleDark();');
   ok(ev("document.documentElement.hasAttribute('data-dark')"), 'Campo: modo escuro não ligou');

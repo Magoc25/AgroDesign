@@ -564,6 +564,13 @@ footer { background: var(--surface); border-top: 1px solid var(--border); paddin
         <input type="number" id="lateralBorderPlants" value="1" min="1" max="20" style="width:50px;display:none" onchange="rerenderCroqui()">
         <span id="lblLateralUnit" style="display:none;font-size:.75rem;color:var(--text-muted)">plantas</span>
       </div>
+      <div class="check-row" style="margin-bottom:.3rem">
+        <input type="checkbox" id="chkDropEdgeMarks" onchange="rerenderCroqui()">
+        <label for="chkDropEdgeMarks" style="flex-direction:row;align-items:center;margin:0"
+               title="Só o DESENHO: a 1ª e a última marca de cada linha deixam de ser desenhadas, porque caem exatamente sobre a borda da parcela. A contagem de plantas, a área útil, o Resumo, a Coleta e o caderno de campo NÃO mudam — e a legenda passa a declarar as duas (n total · quantas foram desenhadas).">
+          <span>Não desenhar a 1ª e a última marca da linha</span>
+        </label>
+      </div>
     </div>
     <div id="secAnimal" class="hidden">
       <div class="row2">
@@ -2041,7 +2048,25 @@ function buildSvgLegend(allT, colors, pos, theme, pubFillMap, isEng = false, lab
   const isVert = pos === 'left' || pos === 'right';
   const cols   = isVert ? 1 : Math.min(4, Math.max(2, Math.ceil(allT.length / 4)));
   const rows   = Math.ceil(allT.length / cols);
-  const displayLabels = allT.map(t => (labelMap?.[t] ? `${labelMap[t]} — ${t}` : t));
+  /* O prefixo existe porque nestes modos a CÉLULA mostra só o código (`T1`) e é
+     a legenda que o expande. Mas o nome do tratamento pode JÁ trazer o código —
+     e o placeholder do próprio campo de tratamentos sugere `T1/T2/T3`, então o
+     app entrega ao usuário exatamente a entrada que produz o defeito. O
+     resultado é `T1 — T1`, que não informa nada, ou `T1 — T1 - 0% Ureia`, que
+     ainda sugere serem duas coisas diferentes.
+     O separador é OBRIGATÓRIO na comparação: sem ele o código `T1` engoliria o
+     nome `T10 - …`, que é outro tratamento. */
+  const jaTrazOCodigo = (nome, cod) => {
+    if (!cod) return false;
+    const n = String(nome).trim().toLowerCase(), c = String(cod).trim().toLowerCase();
+    if (!n.startsWith(c)) return false;
+    const resto = n.slice(c.length);
+    return resto === '' || /^[^0-9a-zà-ÿ]/.test(resto);
+  };
+  const displayLabels = allT.map(t => {
+    const cod = labelMap?.[t];
+    return (cod && !jaTrazOCodigo(t, cod)) ? `${cod} — ${t}` : t;
+  });
   const maxLen = Math.max(...displayLabels.map(s => s.length));
   const fs     = maxLen > 30 ? 7 : maxLen > 22 ? 7.5 : maxLen > 16 ? 8.5 : 10;
   const textW  = Math.min(220, maxLen * fs * 0.62);
@@ -2112,6 +2137,29 @@ const GLIFOS = {
 
 
 
+/* Instanciador de glifo para a aba UNIDADE. O croqui tem o seu, dentro de
+   `buildUeSchematic`, que é função PURA e por contrato não lê o DOM (é o que
+   mantém a bancada válida) — então a leitura do select mora aqui, e é isso que
+   faz a mesma escolha de Cultura/Animal valer nas duas telas sem duplicar a
+   tabela de desenhos.
+   ⚠️ O id do <symbol> é `uniGlyph-`, NÃO `ueGlyph-`: as duas superfícies vivem
+   no MESMO documento (o croqui e a aba Unidade estão ambos no DOM), e dois
+   <symbol> com o mesmo id fariam todo `<use href="#…">` resolver no primeiro
+   que o navegador achasse — id duplicado, e a aba errada mandando na outra. */
+function glifoUnidade() {
+  const id = document.getElementById('selUeGlyph')?.value || '';
+  const g  = GLIFOS[id];
+  if (!g) return null;
+  return {
+    id,
+    defs: `<defs><symbol id="uniGlyph-${id}" viewBox="0 0 24 24">${g.svg}</symbol></defs>`,
+    rotulo: g.rotulo,
+    marca: (cx, cy, lado, fill, op) =>
+      `<use href="#uniGlyph-${id}" x="${(cx - lado / 2).toFixed(1)}" y="${(cy - lado / 2).toFixed(1)}"` +
+      ` width="${lado.toFixed(1)}" height="${lado.toFixed(1)}" fill="${fill}" opacity="${op}"/>`,
+  };
+}
+
 /* NÃO existe limiar de legibilidade aqui, e a ausência é deliberada.
    Houve um `UE_GLYPH_MIN_PX = 7` e ele estava errado por CONSTRUÇÃO, não por
    estar calibrado alto:
@@ -2141,7 +2189,7 @@ function buildUeSchematic(params, theme, W, H, isEng = false, info = null) {
   const { unitType, plotLength, rowSpacing, rowsPerPlot, plantSpacing, ueArea, animalsPerUnit,
           quadratArea, quadratMethod, quadratGridN,
           transLength, transWidth, transStations,
-          permLength, permWidth, permIndividuals } = params;
+          permLength, permWidth, permIndividuals, dropEdge } = params;
 
   const cFg     = isPub ? '#111'              : '#2d6a4f';
   const cMuted  = isPub ? '#555'              : '#6b7c6e';
@@ -2190,7 +2238,11 @@ function buildUeSchematic(params, theme, W, H, isEng = false, info = null) {
   const _bf  = params.borderFrac     || 0;
   const _lbp = params.latBorderPlants || 0;
   const hasUsefulArea = (unitType === 'parcela') && (_bf > 0 || _lbp > 0);
-  const INFO_H = hasUsefulArea ? 32 : 20;
+  /* A faixa da legenda também tem de nascer quando o `dropEdge` está ligado —
+     sem ela o croqui desenharia menos marcas do que declara, e é justamente
+     essa declaração que impede o desenho de mentir sobre o n. */
+  const temRodape = hasUsefulArea || ((unitType === 'parcela') && !!dropEdge);
+  const INFO_H = temRodape ? 32 : 20;
 
   let out = params.ueGlyph && GLIFOS[params.ueGlyph]
     ? `<defs><symbol id="ueGlyph-${params.ueGlyph}" viewBox="0 0 24 24">${GLIFOS[params.ueGlyph].svg}</symbol></defs>`
@@ -2247,9 +2299,18 @@ function buildUeSchematic(params, theme, W, H, isEng = false, info = null) {
        marcas decorativas, e sem ele o croqui deixa de ser mudo para virar ruído
        no leitor de tela, que é pior. */
     if (showGlyph) out += abreG();
+    /* `dropEdge` é opção de DESENHO, não de modelo: a 1ª e a última marca caem
+       em px = ox e px = ox+dW, ou seja EXATAMENTE sobre o retângulo da parcela
+       — medido, metade da silhueta fica do lado de fora nos dois extremos. Quem
+       liga isto quer o desenho limpo, não uma parcela com menos plantas: a
+       contagem, a área útil, o Resumo e a Coleta seguem intactos, e a legenda
+       abaixo passa a declarar as DUAS (total · desenhadas) para o desenho não
+       mentir sobre o n — que é a regra que o `n = ` existe para cumprir. */
+    const cortaBorda = !!dropEdge && nP > 2;
     for (let r = 0; r < nR; r++) {
       if (showDots) {
         for (let p = 0; p < nP; p++) {
+          if (cortaBorda && (p === 0 || p === nP - 1)) continue;
           const px = ox + (nP > 1 ? p * (dW / (nP - 1)) : dW / 2);
           const py = oy + (r + 0.5) * rowH;
           if (px <= ox + dW + 1) {
@@ -2294,25 +2355,39 @@ function buildUeSchematic(params, theme, W, H, isEng = false, info = null) {
     // Info inferior
     out += `<text x="${W / 2}" y="${H - INFO_H + 12}" text-anchor="middle" font-size="7.5" fill="${cMuted}">${pl.toFixed(1)} m × ${plotW.toFixed(2)} m · ${(pl * plotW).toFixed(2)} m²</text>`;
 
-    // Legenda área útil + planta (centralizada, quando bordaduras ativas)
-    if (hasUsefulArea) {
+    // Legenda área útil + planta (centralizada, quando há bordadura ou corte de borda)
+    if (temRodape) {
       const ly   = H - 8;
       const dotC = isPub ? '#444' : '#2d6a4f';
       const boxC = isPub ? 'none' : 'rgba(52,183,100,0.28)';
       const boxS = isPub ? '#222' : 'rgba(34,139,34,.5)';
-      const lab1 = isEng ? 'Useful area' : 'Área útil';
       /* O n vem junto porque a marca é contagem REAL, não enfeite: quem lê a
          figura precisa saber que cada símbolo é uma planta. Vale mais ainda com
-         a silhueta ligada, que convida a ler o desenho como decoração. */
-      const nPl  = nP * nR;
-      const lab2 = (isEng ? 'Plant' : 'Planta') + ` (n = ${nPl})`;
-      // larguras estimadas: item1 = box(9)+gap(4)+texto(~38) = 51; espaço(14); item2 = circle(6)+gap(4)+texto(~27) = 37 → total ≈ 102
-      const lx0 = Math.round((W - 102 - String(nP * nR).length * 4) / 2);
-      const lx1 = lx0 + 51 + 12;
-      out += `<rect x="${lx0}" y="${ly - 6}" width="9" height="9" fill="${boxC}" stroke="${boxS}" stroke-width="1" ${isPub ? 'stroke-dasharray="3 1.5"' : 'rx="1.5"'}/>`;
-      out += `<text x="${lx0 + 13}" y="${ly + 2}" font-size="7" fill="${cMuted}">${esc(lab1)}</text>`;
-      out += `<circle cx="${lx1 + 3}" cy="${ly - 1}" r="3" fill="${dotC}" opacity="0.7"/>`;
-      out += `<text x="${lx1 + 9}" y="${ly + 2}" font-size="7" fill="${cMuted}">${esc(lab2)}</text>`;
+         a silhueta ligada, que convida a ler o desenho como decoração.
+         E com `dropEdge` a figura mostra MENOS marcas do que a parcela tem —
+         então as duas contagens vão juntas. Declarar só uma seria escolher
+         entre mentir sobre a parcela e mentir sobre o desenho. */
+      const nPl      = nP * nR;
+      const nDesenh  = cortaBorda ? Math.max(0, nP - 2) * nR : nPl;
+      const lab1 = isEng ? 'Useful area' : 'Área útil';
+      const lab2 = (isEng ? 'Plant' : 'Planta') +
+        (nDesenh !== nPl ? ` (n = ${nPl} · ${nDesenh} ${isEng ? 'drawn' : 'desenhadas'})` : ` (n = ${nPl})`);
+      /* Larguras ESTIMADAS só para centrar: ~3,6 px por caractere em font-size 7,
+         mais o quadrado/círculo e o vão. Antes eram dois números fixos (51 e 102)
+         com uma correção à parte para o tamanho do n — o texto agora varia
+         bastante mais, então a estimativa passou a sair do próprio rótulo. */
+      const larg = txt => 13 + txt.length * 3.6;
+      const itens = [];
+      if (hasUsefulArea) itens.push({ box: true,  txt: lab1, w: larg(lab1) });
+      itens.push({ box: false, txt: lab2, w: larg(lab2) });
+      const VAO = 12;
+      let lx = Math.round((W - (itens.reduce((s, i) => s + i.w, 0) + VAO * (itens.length - 1))) / 2);
+      for (const it of itens) {
+        if (it.box) out += `<rect x="${lx}" y="${ly - 6}" width="9" height="9" fill="${boxC}" stroke="${boxS}" stroke-width="1" ${isPub ? 'stroke-dasharray="3 1.5"' : 'rx="1.5"'}/>`;
+        else        out += `<circle cx="${lx + 3}" cy="${ly - 1}" r="3" fill="${dotC}" opacity="0.7"/>`;
+        out += `<text x="${lx + 13}" y="${ly + 2}" font-size="7" fill="${cMuted}">${esc(it.txt)}</text>`;
+        lx += it.w + VAO;
+      }
     }
 
   } else if (unitType === 'quadrat' || unitType === 'transecto' || unitType === 'permanente') {
@@ -3182,6 +3257,7 @@ function renderCroqui() {
   if (showUe) {
     const ueParams = {
       ueGlyph:         document.getElementById('selUeGlyph').value,
+      dropEdge:        document.getElementById('chkDropEdgeMarks').checked,
       unitType:        document.getElementById('selUnitType').value,
       plotLength:      parseFloat(document.getElementById('plotLength').value)    || 5,
       rowSpacing:      parseFloat(document.getElementById('rowSpacing').value)    || 0.5,
@@ -3954,6 +4030,12 @@ function renderUnidade() {
   const statsEl  = document.getElementById('unidadeStats');
   const isPb     = document.getElementById('chkUnitPB')?.checked;
   const isEng    = document.getElementById('chkEnglish')?.checked;
+  /* A Cultura/Animal escolhida na barra do croqui vale AQUI TAMBÉM: esta era a
+     última superfície que desenhava indivíduo um a um e ainda saía em ponto.
+     Fica fora de `quadrat` e `transecto` pela mesma razão do croqui — ali a
+     marca é ESTAÇÃO DE AMOSTRAGEM, não organismo. */
+  const gl       = glifoUnidade();
+  const glDefs   = gl ? gl.defs : '';
 
 
   /* ── Marcadores de seta reutilizáveis ── */
@@ -3984,6 +4066,7 @@ function renderUnidade() {
                 ? (parseInt(document.getElementById('borderRows').value) || 0) : 0;
     const lbp = document.getElementById('chkLateralBorder').checked
                 ? (parseInt(document.getElementById('lateralBorderPlants').value) || 1) : 0;
+    const cortaBorda = document.getElementById('chkDropEdgeMarks').checked;
 
     const plotW = +(rs  * rpp).toFixed(4); // largura (entre linhas × nº linhas)
     const plotL = pl;                       // comprimento (ao longo das linhas)
@@ -4002,10 +4085,14 @@ function renderUnidade() {
     const svgH = TPAD + maxDH + BPAD + (lbp > 0 ? 30 : 0);
     const rowH = +(rs * sc).toFixed(2);
     const plantStp = +(ps * sc).toFixed(2);
+    /* Mesma regra de tamanho do croqui: o lado é o menor vão disponível com
+       folga entre vizinhos, e um teto para a silhueta não virar cartaz quando
+       a parcela é pequena. */
+    const gS = Math.min(Math.min(plantStp, rowH) * 0.92, 16);
 
     svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" >
       <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
-      ${defs}
+      ${defs}${glDefs}
       <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${isEng ? "Plant Plot — Top View (proportional scale)" : "Parcela Vegetal — Vista Superior (escala proporcional)"}</text>`;
 
     /* fundo da parcela */
@@ -4023,11 +4110,20 @@ function renderUnidade() {
         const nPlants = Math.round(dW / plantStp) + 1;
         let px = ox, pidx = 0;
         while (px <= ox + dW + 1) {
-          const isLatBd = lbp > 0 && (pidx < lbp || pidx >= nPlants - lbp);
-          const isBdAny = isBd || isLatBd;
-          const clr = isBdAny ? 'rgba(100,100,100,0.35)' : '#2d6a4f';
-          const r   = Math.min(5, Math.max(2, plantStp / 4));
-          svgStr += `<circle cx="${+px.toFixed(1)}" cy="${cy}" r="${r}" fill="${clr}" opacity="${isBdAny?'.45':'.85'}"/>`;
+          /* Mesmo corte do croqui, mesma razão: a 1ª e a última caem sobre a
+             borda da parcela. Só desenho — as contagens da tabela ao lado
+             continuam saindo de `Math.floor(pl/ps)+1`, intactas. */
+          if (!(cortaBorda && (pidx === 0 || pidx === nPlants - 1))) {
+            const isLatBd = lbp > 0 && (pidx < lbp || pidx >= nPlants - lbp);
+            const isBdAny = isBd || isLatBd;
+            const clr = isBdAny ? 'rgba(100,100,100,0.35)' : '#2d6a4f';
+            const op  = isBdAny ? '.45' : '.85';
+            if (gl) svgStr += gl.marca(px, cy, gS, clr, op);
+            else {
+              const r = Math.min(5, Math.max(2, plantStp / 4));
+              svgStr += `<circle cx="${+px.toFixed(1)}" cy="${cy}" r="${r}" fill="${clr}" opacity="${op}"/>`;
+            }
+          }
           px += plantStp; pidx++;
         }
       } else {
@@ -4140,15 +4236,23 @@ function renderUnidade() {
       lx += 100;
     }
     if (plantStp >= 5) {
-      svgStr += `<circle cx="${lx+6}" cy="${legY+6}" r="4" fill="#2d6a4f" opacity=".8"/>`;
-      svgStr += `<text x="${lx+14}" y="${legY+10}" font-size="9" fill="#374151">${isEng ? "Plant" : "Planta"}</text>`;
+      if (gl) svgStr += gl.marca(lx + 6, legY + 6, 13, '#2d6a4f', '.85');
+      else    svgStr += `<circle cx="${lx+6}" cy="${legY+6}" r="4" fill="#2d6a4f" opacity=".8"/>`;
+      svgStr += `<text x="${lx+16}" y="${legY+10}" font-size="9" fill="#374151">${esc(gl ? gl.rotulo : (isEng ? "Plant" : "Planta"))}</text>`;
     }
 
     const hasBdAny = br > 0 || lbp > 0;
+    /* A frase segue a marca: com silhueta ligada não é mais "cada ponto". E o
+       corte de borda entra aqui porque é a única pista de que a figura mostra
+       menos marcas do que a tabela ao lado conta — sem ela o desenho e os
+       números se contradizem em silêncio. */
+    const nomeMarca = gl ? (isEng ? 'silhouette' : 'silhueta') : (isEng ? 'dot' : 'ponto');
     const subtitle = plantStp >= 5
       ? (isEng
-          ? `Each dot = 1 plant${hasBdAny ? ' · Gray = border (discarded) · Yellow = lateral border' : ''}`
-          : `Cada ponto = 1 planta${hasBdAny ? ' · Cinza = bordadura (descartado) · Amarelo = bordadura lateral' : ''}`)
+          ? `Each ${nomeMarca} = 1 plant${hasBdAny ? ' · Gray = border (discarded) · Yellow = lateral border' : ''}` +
+            (cortaBorda ? ' · First and last of each row not drawn (count unchanged)' : '')
+          : `Cada ${nomeMarca} = 1 planta${hasBdAny ? ' · Cinza = bordadura (descartado) · Amarelo = bordadura lateral' : ''}` +
+            (cortaBorda ? ' · 1ª e última de cada linha não desenhadas (a contagem não muda)' : ''))
       : (hasBdAny ? (isEng ? 'Borders highlighted with shading' : 'Bordaduras destacadas com sombreamento') : '');
     if (subtitle) {
       svgStr += `<text x="${svgW/2}" y="${legY+26}" text-anchor="middle" font-size="7.5" fill="#6b7c6e" font-style="italic">${subtitle}</text>`;
@@ -4306,7 +4410,7 @@ function renderUnidade() {
 
     svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
       <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
-      ${defs}
+      ${defs}${glDefs}
       <text x="${svgW/2}" y="22" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${isEng ? 'Permanent Plot — Top View' : 'Parcela Permanente — Vista Superior'}</text>`;
     svgStr += `<rect x="${ox2}" y="${oy2}" width="${dW2}" height="${dH2}" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="2"/>`;
     // Símbolos de árvore — grid simétrico
@@ -4321,8 +4425,12 @@ function renderUnidade() {
         const tx2  = +(ox2 + c * tcw2).toFixed(1);
         const ty3  = +(oy2 + r * tch2).toFixed(1);
         const rad2 = Math.min(tcw2, tch2) * 0.22;
-        svgStr += `<circle cx="${tx2}" cy="${ty3}" r="${+rad2.toFixed(1)}" fill="#52b788" opacity=".55" stroke="#2d6a4f" stroke-width="0.8"/>`;
-        svgStr += `<circle cx="${tx2}" cy="${ty3}" r="1.5" fill="#1b4332"/>`;
+        if (gl) {
+          svgStr += gl.marca(tx2, ty3, Math.min(tcw2, tch2) * 0.82, '#2d6a4f', '.8');
+        } else {
+          svgStr += `<circle cx="${tx2}" cy="${ty3}" r="${+rad2.toFixed(1)}" fill="#52b788" opacity=".55" stroke="#2d6a4f" stroke-width="0.8"/>`;
+          svgStr += `<circle cx="${tx2}" cy="${ty3}" r="1.5" fill="#1b4332"/>`;
+        }
       }
     }
     // Cota comprimento (topo)
@@ -4361,7 +4469,7 @@ function renderUnidade() {
 
     svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" >
       <rect width="${svgW}" height="${svgH}" fill="#f0f7ee"/>
-      ${defs}
+      ${defs}${glDefs}
       <text x="${svgW/2}" y="24" text-anchor="middle" font-size="12" fill="#2d6a4f" font-weight="700">${esc(titles[unitType]||'Unidade Experimental')} — ${isEng ? 'Floor Plan' : 'Planta Baixa'}</text>
       <rect x="${ox}" y="${oy}" width="${side}" height="${side}" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="2" rx="4"/>`;
 
@@ -4375,8 +4483,18 @@ function renderUnidade() {
         for (let c = 0; c < cols && count < apu; c++, count++) {
           const ax = ox + (c + .5) * cw, ay = oy + (r + .5) * ch;
           const rad = Math.min(cw, ch) * .28;
-          svgStr += `<circle cx="${+ax.toFixed(1)}" cy="${+ay.toFixed(1)}" r="${+rad.toFixed(1)}" fill="#52b788" opacity=".65" stroke="#fff" stroke-width="1.5"/>`;
-          if (rad > 9) svgStr += `<text x="${+ax.toFixed(1)}" y="${+(ay+4).toFixed(1)}" text-anchor="middle" font-size="${Math.min(11,+rad.toFixed(0))}" fill="#fff" font-weight="700">${count+1}</text>`;
+          if (gl) {
+            /* O número desce para FORA da marca: dentro da silhueta ele seria
+               branco sobre um preenchimento chapado e sumiria — o círculo tinha
+               fundo, a silhueta não tem. Numerar continua importando: é o que
+               identifica cada animal da baia. */
+            const lado = Math.min(cw, ch) * .62;
+            svgStr += gl.marca(ax, ay - lado * .12, lado, '#2d6a4f', '.85');
+            if (lado > 18) svgStr += `<text x="${+ax.toFixed(1)}" y="${+(ay + lado * .62).toFixed(1)}" text-anchor="middle" font-size="9" fill="#40916c" font-weight="700">${count+1}</text>`;
+          } else {
+            svgStr += `<circle cx="${+ax.toFixed(1)}" cy="${+ay.toFixed(1)}" r="${+rad.toFixed(1)}" fill="#52b788" opacity=".65" stroke="#fff" stroke-width="1.5"/>`;
+            if (rad > 9) svgStr += `<text x="${+ax.toFixed(1)}" y="${+(ay+4).toFixed(1)}" text-anchor="middle" font-size="${Math.min(11,+rad.toFixed(0))}" fill="#fff" font-weight="700">${count+1}</text>`;
+          }
         }
       }
     } else {
@@ -4785,6 +4903,7 @@ function clearAll() {
   const _chk = (id, val) => { const e = document.getElementById(id); if (e) e.checked = val; };
   _set('txtSpecies', '');
   _chk('chkLateralBorder', false);
+  _chk('chkDropEdgeMarks', false);
   _chk('chkBorders', false);
   _chk('chkAlley', false);
   _chk('chkFactorC', false);
@@ -5273,6 +5392,7 @@ function captureCurrentConfig() {
     animalsPerUnit: document.getElementById('animalsPerUnit').value,
     chkLateralBorder: document.getElementById('chkLateralBorder').checked,
     lateralBorderPlants: document.getElementById('lateralBorderPlants').value,
+    chkDropEdgeMarks: document.getElementById('chkDropEdgeMarks').checked,
     fatAName: document.getElementById('fatAName').value,
     fatAn: document.getElementById('fatAn').value,
     fatALevels: document.getElementById('fatALevels').value,
@@ -5342,6 +5462,7 @@ function applyConfig(c) {
   set('rowSpacing', c.rowSpacing); set('plantSpacing', c.plantSpacing);
   set('rowsPerPlot', c.rowsPerPlot); set('plotLength', c.plotLength);
   set('ueArea', c.ueArea); set('animalsPerUnit', c.animalsPerUnit);
+  if (c.chkDropEdgeMarks !== undefined) document.getElementById('chkDropEdgeMarks').checked = c.chkDropEdgeMarks;
   if (c.chkLateralBorder !== undefined) {
     document.getElementById('chkLateralBorder').checked = c.chkLateralBorder;
     set('lateralBorderPlants', c.lateralBorderPlants);
