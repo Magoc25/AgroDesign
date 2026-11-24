@@ -47,6 +47,27 @@ const harness = [];   // falhas do PRÓPRIO harness (r74a) — veredito à parte
 const ok = (cond, msg) => { if (cond) pass++; else { fails.push(msg); console.log('   ✗ ' + msg); } };
 const secao = t => console.log('\n' + t);
 
+/* Rejeição sem tratamento (r126b). No jsdom, um `throw` dentro de função `async` do
+   app (o catch de uma chamada de rede, um handler de clique async) NÃO chega ao
+   `unhandledrejection` da janela — medido no jsdom 29: o ouvinte nunca dispara e o
+   Node encerra o processo com código 1, o MESMO de "asserções falharam", sem rodar
+   o resto da suíte. Numa campanha de mutação isso imita um ✗ de asserção.
+   Por isso o registro é no PROCESSO, e cobrado em dois lugares: no cenário ativo
+   (cai no `erros` do boot corrente, que as seções já assertam) E numa checagem
+   FINAL de todas. Só por cenário seria pior que nada: o handler impede o crash, e a
+   rejeição num cenário que não cobra `erros` passaria de vermelho para verde. */
+const rejeicoes = [];
+let errosDoCenario = null;
+/* O Node só ENTREGA o `unhandledRejection` na fronteira de macrotarefa. Os fluxos do
+   smoke são encadeados em microtarefas, então sem esta drenagem a rejeição do boot do
+   Campo só aparecia no 1º `setTimeout` do banner — e caía no cenário errado (medido). */
+const drenar = () => new Promise(r => setImmediate(r));
+process.on('unhandledRejection', e => {
+  const msg = 'unhandledRejection: ' + String((e && e.message) || e).slice(0, 160);
+  rejeicoes.push(msg);
+  if (errosDoCenario) errosDoCenario.push(msg);
+});
+
 /* ═════════════════════════ DEGRAU 1 — ESTÁTICO ═════════════════════════ */
 
 /* Blocos <script> embutidos (ignora os de CDN, que têm src=) */
@@ -540,6 +561,9 @@ function esperaBoot(w) {
 async function boot(jsdom, arquivo, opts = {}) {
   const { JSDOM, VirtualConsole } = jsdom;
   const erros = [];
+  /* Já no INÍCIO do boot (r126b): a rejeição de um script de boot chega enquanto o
+     boot ainda espera o `load` — apontar só no fim a jogava no cenário anterior. */
+  errosDoCenario = erros;
 
   /* Neutraliza os <script src> de CDN — o app já é resiliente à ausência deles,
      mas os stubs abaixo entram no lugar para exercitar os caminhos reais. */
@@ -555,7 +579,7 @@ async function boot(jsdom, arquivo, opts = {}) {
     virtualConsole: vc,
     beforeParse(w) {
       w.onerror = (msg) => { erros.push(String(msg)); };
-      w.addEventListener('unhandledrejection', e => erros.push('unhandledrejection: ' + e.reason));
+      /* (o `unhandledrejection` da janela não dispara no jsdom — ver `rejeicoes`, no topo) */
 
       const ctx2d = {
         measureText: () => ({ width: 0 }), fillRect() {}, clearRect() {}, drawImage() {}, save() {},
@@ -598,6 +622,7 @@ async function boot(jsdom, arquivo, opts = {}) {
   });
 
   await esperaBoot(dom.window);
+  await drenar();   // rejeição do boot entra no `erros` DESTE cenário (r126b)
   return { w: dom.window, erros, fechar: () => dom.window.close() };
 }
 
@@ -1314,6 +1339,7 @@ async function smokeCampo(jsdom) {
   ev('toggleDark();');
   ok(!ev("document.documentElement.hasAttribute('data-dark')"), 'Campo: modo escuro não desligou');
 
+  await drenar();
   ok(erros.length === 0, `Campo: erro de runtime ou falha do harness durante os fluxos → ${erros.join(' | ')}`);
   fechar();
 }
@@ -1385,6 +1411,7 @@ async function smokeLab(jsdom) {
   ok(ev("localStorage.getItem('agrodesignlab_dark')") === '1', 'Lab: modo escuro não persistiu');
   ev('toggleDark();');
 
+  await drenar();
   ok(erros.length === 0, `Lab: erro de runtime ou falha do harness durante os fluxos → ${erros.join(' | ')}`);
   fechar();
 }
@@ -1411,6 +1438,7 @@ async function smokeBanner(jsdom) {
     await espera(300);   // a checagem é assíncrona (fase tardia — r38b)
     ok(ev(visivel), `${nome}: backend anunciando v99.0.0 e o banner de atualização não apareceu`);
     ok(/99\.0\.0/.test(ev(texto)), `${nome}: banner apareceu sem dizer qual é a versão nova`);
+    await drenar();
     ok(ctx.erros.length === 0, `${nome}/banner: erro de runtime ou falha do harness → ${ctx.erros.join(' | ')}`);
     ctx.fechar();
 
@@ -1465,6 +1493,11 @@ async function smokeBanner(jsdom) {
       }
     }
   }
+
+  /* Checagem FINAL (r126b): pega a rejeição de cenário que não cobra `erros` e a
+     que chegou depois de o cenário fechar. */
+  await drenar();
+  ok(rejeicoes.length === 0, `rejeição sem tratamento em função async do app → ${rejeicoes.join(' | ')}`);
 
   const veredito = harness.length ? '⚠ INCONCLUSIVA' : (fails.length === 0 ? '✓' : '✗');
   console.log(`\n${veredito}  ${pass} ✓ · ${fails.length} ✗` +
