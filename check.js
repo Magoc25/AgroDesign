@@ -241,6 +241,171 @@ function estatico() {
   ok(iconesSumidos.length === 0, `manifest: ícone inexistente → ${iconesSumidos.join(', ')}`);
 }
 
+/* ═══════════ DEGRAU 1a — SERVICE WORKER DE VERDADE NUM vm (§8 / r147) ═══════════
+
+   Ler o sw.js não prova o comportamento: o que importa é o que ele RESPONDE quando
+   a rede pendura, quando o servidor devolve erro e quando o endereço chega com
+   query. Aqui o sw.js real roda num vm com `caches`, `fetch` e RELÓGIO falsos — o
+   tempo-limite dispara quando o teste manda, sem esperar 3,5 s de verdade.
+
+   Contra o sw.js antigo (network-first ingênuo) as asserções de rede lenta, de
+   500 com cópia boa e de `?query` offline ficam vermelhas: é a prova de que o
+   instrumento distingue (r117). O console do contexto é silenciado (r105). */
+
+const SW_ORIGEM = 'https://agro.test';
+const SW_CAMPO_DE_ESPERA_MS = 5000;   // promessa ao usuário: com rede pendurada, abre em ≤ 5 s
+
+function carregaSw() {
+  const ouvintes = {};
+  const timers = [];
+  const store = new Map();                     // chave = URL (string); valor = Response
+  const semQuery = u => String(u).split('#')[0].split('?')[0];
+  const urlDe = r => typeof r === 'string' ? r : r.url;
+  const cacheObj = {
+    put: async (r, resp) => { store.set(urlDe(r), resp); },
+    match: async (r, o = {}) => {
+      const alvo = o.ignoreSearch ? semQuery(urlDe(r)) : urlDe(r);
+      for (const [k, v] of store) if ((o.ignoreSearch ? semQuery(k) : k) === alvo) return v.clone();
+      return undefined;
+    },
+  };
+  const env = {
+    rede: null,                                // (request) => Promise<Response>
+    pedidos: [],
+    store,
+    avancar(ms) { timers.filter(t => !t.feito && t.ms <= ms).forEach(t => { t.feito = true; t.fn(); }); },
+  };
+  const ctx = {
+    self: {
+      addEventListener: (tipo, fn) => { ouvintes[tipo] = fn; },
+      skipWaiting: () => {},
+      location: { origin: SW_ORIGEM },
+    },
+    caches: {
+      open: async () => cacheObj,
+      match: (r, o) => cacheObj.match(r, o),
+      keys: async () => [], delete: async () => true,
+    },
+    clients: { claim: async () => {} },
+    fetch: req => { env.pedidos.push(req); return env.rede(req); },
+    setTimeout: (fn, ms) => { timers.push({ fn, ms, feito: false }); return timers.length; },
+    clearTimeout: () => {},
+    Request, Response, URL,
+    console: { log() {}, warn() {}, error() {}, info() {} },
+  };
+  vm.runInNewContext(read('sw.js'), ctx, { filename: 'sw.js' });
+  env.disparar = ev => ouvintes.fetch(ev);
+
+  /* Dispara um fetch e devolve { resposta } — ou { pendente: true } se o SW não
+     responder nem depois do relógio andar SW_CAMPO_DE_ESPERA_MS. */
+  env.pedir = async (caminho) => {
+    const ev = { request: new Request(SW_ORIGEM + caminho), _resp: null, _espera: [],
+                 respondWith(p) { this._resp = Promise.resolve(p); },
+                 waitUntil(p) { this._espera.push(p); } };
+    ouvintes.fetch(ev);
+    if (!ev._resp) return { semResposta: true };
+    let pronto = null;
+    ev._resp.then(r => { pronto = r; }, e => { pronto = e; });
+    const giro = () => new Promise(r => setImmediate(r));
+    for (let i = 0; i < 5 && !pronto; i++) await giro();
+    if (!pronto) { env.avancar(SW_CAMPO_DE_ESPERA_MS); for (let i = 0; i < 10 && !pronto; i++) await giro(); }
+    return pronto ? { resposta: pronto, ev } : { pendente: true, ev };
+  };
+  return env;
+}
+
+async function smokeServiceWorker() {
+  secao('▸ Estático — Service Worker real num vm (§8 / r147)');
+  const giro = () => new Promise(r => setImmediate(r));
+  const corpo = async r => (r && typeof r.text === 'function') ? r.text() : String(r);
+  const APP_BOM = '<html>app bom</html>';
+
+  for (const arq of ['AgroDesign.html', 'AgroDesignLab.html']) {
+    const nome = arq.includes('Lab') ? 'Lab' : 'Campo';
+    const rotaBoa = () => Promise.resolve(new Response(APP_BOM, { status: 200 }));
+
+    // (1) Rede ok → serve da rede e grava a cópia (sem query).
+    let sw = carregaSw();
+    sw.rede = rotaBoa;
+    let r = await sw.pedir('/' + arq);
+    ok(r.resposta && await corpo(r.resposta) === APP_BOM, `sw/${nome}: rede ok e a resposta não foi a da rede`);
+    await Promise.all(r.ev ? r.ev._espera : []); await giro();
+    ok([...sw.store.keys()].includes(SW_ORIGEM + '/' + arq), `sw/${nome}: resposta ok não foi gravada no cache`);
+    ok(sw.pedidos.some(p => p.cache === 'no-cache'), `sw/${nome}: pedido do HTML saiu sem cache:'no-cache' (cache HTTP servindo versão velha)`);
+
+    // (2) Rede PENDURADA com cópia boa → abre pela cópia dentro do prazo de campo.
+    let soltaTardia;
+    sw.rede = () => new Promise(res => { soltaTardia = res; });
+    r = await sw.pedir('/' + arq);
+    ok(!r.pendente, `sw/${nome}: rede pendurada e o SW não respondeu em ${SW_CAMPO_DE_ESPERA_MS / 1000} s (sem tempo-limite)`);
+    ok(r.resposta && await corpo(r.resposta) === APP_BOM, `sw/${nome}: rede pendurada e a abertura não veio da cópia do cache`);
+    // a resposta tardia ainda atualiza o cache (waitUntil)
+    if (soltaTardia) {
+      soltaTardia(new Response('<html>app novo</html>', { status: 200 }));
+      await Promise.all(r.ev ? r.ev._espera : []); await giro();
+      const c = sw.store.get(SW_ORIGEM + '/' + arq);
+      ok(c && await c.clone().text() === '<html>app novo</html>', `sw/${nome}: resposta tardia da rede não atualizou o cache`);
+    }
+
+    // (3) Servidor com 500 e cópia boa → serve a CÓPIA; o cache segue intacto.
+    sw = carregaSw();
+    sw.rede = rotaBoa; r = await sw.pedir('/' + arq); await Promise.all(r.ev._espera); await giro();
+    sw.rede = () => Promise.resolve(new Response('ERRO', { status: 500 }));
+    r = await sw.pedir('/' + arq);
+    ok(r.resposta && await corpo(r.resposta) === APP_BOM, `sw/${nome}: servidor deu 500 e o app mostrou a página de erro em vez da cópia boa`);
+    await Promise.all(r.ev ? r.ev._espera : []); await giro();
+    const c3 = sw.store.get(SW_ORIGEM + '/' + arq);
+    ok(c3 && await c3.clone().text() === APP_BOM, `sw/${nome}: o 500 tirou o app bom do cache`);
+
+    // (4) Offline com ?query (QR, utm) → acha a cópia gravada sem query.
+    sw.rede = () => Promise.reject(new TypeError('Failed to fetch'));
+    r = await sw.pedir('/' + arq + '?origem=qr');
+    ok(r.resposta && await corpo(r.resposta) === APP_BOM, `sw/${nome}: offline com ?query e o app não abriu (falta ignoreSearch)`);
+
+    // (4b) Online com ?query → a cópia é gravada SEM a query, uma só por arquivo (r155a).
+    sw = carregaSw();
+    sw.rede = rotaBoa;
+    for (const q of ['?origem=qr', '?utm_source=x']) { r = await sw.pedir('/' + arq + q); await Promise.all(r.ev._espera); }
+    await giro();
+    const chaves = [...sw.store.keys()];
+    ok(chaves.length === 1 && chaves[0] === SW_ORIGEM + '/' + arq,
+       `sw/${nome}: cópia gravada com a query (uma por endereço) → ${chaves.join(', ')}`);
+
+    // (5) 500 com cache VAZIO → devolve o 500 e NÃO grava.
+    sw = carregaSw();
+    sw.rede = () => Promise.resolve(new Response('ERRO', { status: 500 }));
+    r = await sw.pedir('/' + arq);
+    ok(r.resposta && r.resposta.status === 500, `sw/${nome}: 500 com cache vazio não devolveu o 500 do servidor`);
+    await Promise.all(r.ev ? r.ev._espera : []); await giro();
+    ok(sw.store.size === 0, `sw/${nome}: resposta 500 foi gravada no cache`);
+
+    // (6) Offline com cache vazio → 503 "Offline", não promessa pendurada.
+    sw = carregaSw();
+    sw.rede = () => Promise.reject(new TypeError('Failed to fetch'));
+    r = await sw.pedir('/' + arq);
+    ok(r.resposta && r.resposta.status === 503, `sw/${nome}: offline sem cópia não devolveu 503`);
+  }
+
+  // Manifest: offline → cópia gravada antes (comportamento que já existia, mantido).
+  const sw = carregaSw();
+  sw.rede = () => Promise.resolve(new Response('{"name":"AgroDesign"}', { status: 200 }));
+  let r = await sw.pedir('/manifest.json');
+  await giro(); await giro();
+  sw.rede = () => Promise.reject(new TypeError('Failed to fetch'));
+  r = await sw.pedir('/manifest.json');
+  ok(r.resposta && r.resposta.status === 200, 'sw/manifest: offline e a cópia do manifest não foi servida');
+
+  // Fora da origem (CDN) e não-GET: o SW não intercepta — nunca cacheia leitura de API (r138c).
+  const sw2 = carregaSw();
+  sw2.rede = () => Promise.resolve(new Response('x', { status: 200 }));
+  for (const [rotulo, request] of [['outra origem', new Request('https://cdn.example/x.js')],
+                                   ['POST', new Request(SW_ORIGEM + '/AgroDesign.html', { method: 'POST', body: 'x' })]]) {
+    const ev = { request, respondWith() { this.interceptou = true; }, waitUntil() {} };
+    try { sw2.disparar(ev); } catch { ev.interceptou = true; }   // estourar no ouvinte também é interceptar
+    ok(!ev.interceptou, `sw: interceptou pedido de ${rotulo}`);
+  }
+}
+
 /* ═══════════ DEGRAU 1b — PÁGINA PÚBLICA DE APRESENTAÇÃO (§37) ═══════════
 
    As três regras invioláveis da §37 (sem internals, sem número versionado, sem
@@ -1270,6 +1435,11 @@ async function smokeBanner(jsdom) {
 (async () => {
   console.log('AgroDesign — verificação antes de subir (§35)');
   estatico();
+  try { await smokeServiceWorker(); }
+  catch (e) {
+    harness.push(`Service Worker: a seção abortou em «${String(e.message).slice(0, 90)}»`);
+    console.log(`   ⚠ Service Worker: FALHA DO HARNESS — ${e.message}`);
+  }
   paginaApresentacao();
 
   const jsdom = carregaJsdom();
